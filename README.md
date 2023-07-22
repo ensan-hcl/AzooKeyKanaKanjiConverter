@@ -1,12 +1,9 @@
-# AzooKeyCore
+# AzooKeyKanakanjiConverter
 
-azooKeyの開発に必要なモジュールをまとめたライブラリです。
+azooKeyのかな漢字変換モジュールを切り出したライブラリです。
 
 ## SwiftUtils
 Swift一般に利用できるユーティリティのモジュールです。
-
-## SwiftUIUtils
-SwiftUIで利用できるユーティリティのモジュールです。
 
 ## KanaKanjiConverterModule
 かな漢字変換を受け持つモジュールです。
@@ -48,8 +45,3 @@ print(results.mainResults.first!.text)  // azooKeyは新時代のキーボード
     - ...
   - mm.binary
 ```
-
-
-## KeyboardThemes
-
-Keyboardの着せ替えデータ(`ThemeData`)に関するモジュールです。
