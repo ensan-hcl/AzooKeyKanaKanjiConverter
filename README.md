@@ -2,9 +2,6 @@
 
 azooKeyのかな漢字変換モジュールを切り出したライブラリです。
 
-## SwiftUtils
-Swift一般に利用できるユーティリティのモジュールです。
-
 ## KanaKanjiConverterModule
 かな漢字変換を受け持つモジュールです。
 
@@ -22,12 +19,15 @@ let results = converter.requestCandidates(c, options: ConvertRequestOptions(...)
 // 結果の一番目を表示
 print(results.mainResults.first!.text)  // azooKeyは新時代のキーボードアプリです
 ```
-
 `ConvertRequestOptions`は、変換リクエストに必要な情報を指定します。詳しくはコードに書かれたドキュメントコメントを参照してください。
 
-利用時は、辞書データのディレクトリを別個に指定する必要があります。
+### 辞書データ
 
-辞書データは、以下の構造である必要があります。詳しくはドキュメントを参照してください。
+利用時は、ConvertRequestOptionsの`dictionaryResourceURL`に辞書データのディレクトリのURLを指定する必要があります。
+
+辞書データは[Google Drive](https://drive.google.com/drive/folders/1Kh7fgMFIzkpg7YwP3GhWTxFkXI-yzT9E?usp=sharing)からダウンロードすることができます。
+
+また、以下のフォーマットであれば自前で用意した辞書データを利用することもできます。カスタム辞書データのサポートは限定的なので、ソースコードを確認の上ご利用ください。
 
 ```
 - Dictionary/
@@ -45,3 +45,6 @@ print(results.mainResults.first!.text)  // azooKeyは新時代のキーボード
     - ...
   - mm.binary
 ```
+
+## SwiftUtils
+Swift一般に利用できるユーティリティのモジュールです。
