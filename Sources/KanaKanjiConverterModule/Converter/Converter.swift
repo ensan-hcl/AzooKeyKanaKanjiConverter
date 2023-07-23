@@ -10,14 +10,14 @@ import Foundation
 import SwiftUtils
 
 /// かな漢字変換の管理を受け持つクラス
-public final class KanaKanjiConverter {
+@MainActor public final class KanaKanjiConverter {
     public init() {}
     public init(dicdataStore: DicdataStore) {
         self.converter = .init(dicdataStore: dicdataStore)
     }
 
     private var converter = Kana2Kanji()
-    private var checker = SpellChecker()
+    @MainActor private var checker = SpellChecker()
     private var checkerInitialized: [KeyboardLanguage: Bool] = [.none: true, .ja_JP: true]
 
     // 前回の変換や確定の情報を取っておく部分。
@@ -34,18 +34,19 @@ public final class KanaKanjiConverter {
         self.lastData = nil
     }
 
+    /// 入力する言語が分かったらこの関数をなるべく早い段階で呼ぶことで、SpellCheckerの初期化が行われ、変換がスムーズになる
     public func setKeyboardLanguage(_ language: KeyboardLanguage) {
         if !checkerInitialized[language, default: false] {
             switch language {
             case .en_US:
-                Task {
-                    _ = checker.completions(forPartialWordRange: NSRange(location: 0, length: 1), in: "a", language: "en-US")
-                    checkerInitialized[language] = true
+                Task { @MainActor in
+                    _ = self.checker.completions(forPartialWordRange: NSRange(location: 0, length: 1), in: "a", language: "en-US")
+                    self.checkerInitialized[language] = true
                 }
             case .el_GR:
-                Task {
-                    _ = checker.completions(forPartialWordRange: NSRange(location: 0, length: 1), in: "α", language: "el-GR")
-                    checkerInitialized[language] = true
+                Task { @MainActor in
+                    _ = self.checker.completions(forPartialWordRange: NSRange(location: 0, length: 1), in: "a", language: "el-GR")
+                    self.checkerInitialized[language] = true
                 }
             case .none, .ja_JP:
                 checkerInitialized[language] = true

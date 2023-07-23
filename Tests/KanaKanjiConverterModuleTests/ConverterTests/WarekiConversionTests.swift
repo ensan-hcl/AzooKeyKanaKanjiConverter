@@ -9,7 +9,7 @@
 @testable import KanaKanjiConverterModule
 import XCTest
 
-final class WarekiConversionTests: XCTestCase {
+@MainActor final class WarekiConversionTests: XCTestCase {
     func makeDirectInput(direct input: String) -> ComposingText {
         ComposingText(
             convertTargetCursorPosition: input.count,
