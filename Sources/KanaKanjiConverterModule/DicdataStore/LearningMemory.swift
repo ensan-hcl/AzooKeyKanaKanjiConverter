@@ -81,7 +81,6 @@ struct LongTermLearningMemory {
     }
 
     static var txtFileSplit: Int { 2048 }
-    static var maxMemoryCount: Int = 8192
 
     private static func BoolToUInt64(_ bools: [Bool]) -> [UInt64] {
         let unit = 64
@@ -196,7 +195,7 @@ struct LongTermLearningMemory {
     }
 
     /// 一時記憶と長期記憶の学習データをマージする
-    static func merge(tempTrie: TemporalLearningMemoryTrie, forgetTargets: [DicdataElement] = [], directoryURL: URL) throws {
+    static func merge(tempTrie: TemporalLearningMemoryTrie, forgetTargets: [DicdataElement] = [], directoryURL: URL, maxMemoryCount: Int, char2UInt8: [Character: UInt8]) throws {
         // MARK: `.pause`ファイルが存在する場合、`merge`を行う前に`.2`ファイルの復活を試み、失敗した場合は`merge`を諦める。
         if fileExist(pauseFileURL(directoryURL: directoryURL)) {
             debug("LongTermLearningMemory merge collapsion detected, trying recovery...")
@@ -283,13 +282,13 @@ struct LongTermLearningMemory {
                     newDicdata.append(dicdataElement)
                     newMetadata.append(metadataElement)
                 }
-                guard let chars = LearningManager.keyToChars(ruby) else {
+                guard let chars = LearningManager.keyToChars(ruby, char2UInt8: char2UInt8) else {
                     continue
                 }
                 newTrie.append(dicdata: newDicdata, chars: chars, metadata: newMetadata)
             }
             // メモリ数上限を超過した場合、長いものから捨てる
-            if newTrie.dicdata.count > Self.maxMemoryCount {
+            if newTrie.dicdata.count > maxMemoryCount {
                 break
             }
         }
@@ -604,22 +603,22 @@ struct TemporalLearningMemoryTrie {
 }
 
 final class LearningManager {
-    private static func updateChar2Int8(bundleURL: URL) {
+    private static func updateChar2Int8(bundleURL: URL, target: inout [Character: UInt8]) {
         do {
             let chidURL = bundleURL.appendingPathComponent("louds/charID.chid", isDirectory: false)
             let string = try String(contentsOf: chidURL, encoding: .utf8)
-            Self.char2UInt8 = [Character: UInt8].init(uniqueKeysWithValues: string.enumerated().map {($0.element, UInt8($0.offset))})
+            target = [Character: UInt8].init(uniqueKeysWithValues: string.enumerated().map {($0.element, UInt8($0.offset))})
         } catch {
             debug("ファイルが存在しません: \(error)")
         }
     }
-    private static var char2UInt8: [Character: UInt8] = [:]
+    private var char2UInt8: [Character: UInt8] = [:]
 
     static var today: UInt16 {
         UInt16(Int(Date().timeIntervalSince1970) / 86400) - 19000
     }
 
-    static func keyToChars(_ key: some StringProtocol) -> [UInt8]? {
+    static func keyToChars(_ key: some StringProtocol, char2UInt8: [Character: UInt8]) -> [UInt8]? {
         var chars: [UInt8] = []
         chars.reserveCapacity(key.count)
         for character in key {
@@ -649,17 +648,16 @@ final class LearningManager {
         if !options.learningType.needUsingMemory {
             return
         }
-        Self.updateChar2Int8(bundleURL: options.dictionaryResourceURL)
+        Self.updateChar2Int8(bundleURL: options.dictionaryResourceURL, target: &char2UInt8)
     }
 
     /// - Returns: Whether cache should be reseted or not.
     func setRequestOptions(options: ConvertRequestOptions) -> Bool {
         // 変更があったら`char2Int8`を読み込み直す
         if options.dictionaryResourceURL != self.options.dictionaryResourceURL {
-            Self.updateChar2Int8(bundleURL: options.dictionaryResourceURL)
+            Self.updateChar2Int8(bundleURL: options.dictionaryResourceURL, target: &char2UInt8)
         }
         self.options = options
-        LongTermLearningMemory.maxMemoryCount = options.maxMemoryCount
 
         switch options.learningType {
         case .inputAndOutput, .onlyOutput: break
@@ -703,7 +701,7 @@ final class LearningManager {
         }
         // 単語単位
         for datum in data where DicdataStore.needWValueMemory(datum) {
-            guard let chars = Self.keyToChars(datum.ruby) else {
+            guard let chars = Self.keyToChars(datum.ruby, char2UInt8: char2UInt8) else {
                 continue
             }
             self.temporaryMemory.memorize(dicdataElement: datum, chars: chars)
@@ -732,7 +730,7 @@ final class LearningManager {
                             // firstClauseを押し出す
                             firstClause = secondClause
                             secondClause = datum
-                            guard let chars = Self.keyToChars(element.ruby) else {
+                            guard let chars = Self.keyToChars(element.ruby, char2UInt8: char2UInt8) else {
                                 continue
                             }
                             debug("LearningManager update first/second", element)
@@ -777,7 +775,7 @@ final class LearningManager {
                     mid: secondClause.mid,
                     value: firstClause.baseValue + secondClause.baseValue
                 )
-                if let chars = Self.keyToChars(element.ruby) {
+                if let chars = Self.keyToChars(element.ruby, char2UInt8: char2UInt8) {
                     debug("LearningManager update first/second rest", element)
                     self.temporaryMemory.memorize(dicdataElement: element, chars: chars)
                 }
@@ -792,7 +790,7 @@ final class LearningManager {
             mid: data.last?.mid ?? MIDData.一般.mid,
             value: data.reduce(into: 0) {$0 += $1.baseValue}
         )
-        guard let chars = Self.keyToChars(element.ruby) else {
+        guard let chars = Self.keyToChars(element.ruby, char2UInt8: char2UInt8) else {
             return
         }
         debug("LearningManager update all", element)
@@ -803,14 +801,14 @@ final class LearningManager {
     func forgetMemory(data: [DicdataElement]) {
         // 1. temporary memoryを削除する
         for element in data {
-            guard let chars = Self.keyToChars(element.ruby) else {
+            guard let chars = Self.keyToChars(element.ruby, char2UInt8: char2UInt8) else {
                 continue
             }
             self.temporaryMemory.forget(dicdataElement: element, chars: chars)
         }
         // 2. longterm memoryを削除する
         do {
-            try LongTermLearningMemory.merge(tempTrie: self.temporaryMemory, forgetTargets: data, directoryURL: self.options.memoryDirectoryURL)
+            try LongTermLearningMemory.merge(tempTrie: self.temporaryMemory, forgetTargets: data, directoryURL: self.options.memoryDirectoryURL, maxMemoryCount: options.maxMemoryCount, char2UInt8: char2UInt8)
             // マージが済んだので、temporaryMemoryを空にする
             self.temporaryMemory = TemporalLearningMemoryTrie()
         } catch {
@@ -826,7 +824,7 @@ final class LearningManager {
             return
         }
         do {
-            try LongTermLearningMemory.merge(tempTrie: self.temporaryMemory, directoryURL: self.options.memoryDirectoryURL)
+            try LongTermLearningMemory.merge(tempTrie: self.temporaryMemory, directoryURL: self.options.memoryDirectoryURL, maxMemoryCount: options.maxMemoryCount, char2UInt8: char2UInt8)
             // マージが済んだので、temporaryMemoryを空にする
             self.temporaryMemory = TemporalLearningMemoryTrie()
         } catch {

@@ -9,7 +9,7 @@
 @testable import KanaKanjiConverterModule
 import XCTest
 
-final class EmailAddressConversionTests: XCTestCase {
+@MainActor final class EmailAddressConversionTests: XCTestCase {
     func makeDirectInput(direct input: String) -> ComposingText {
         ComposingText(
             convertTargetCursorPosition: input.count,

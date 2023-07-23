@@ -12,7 +12,7 @@ public enum InputStyle: String {
     case roman2kana = "roman"
 }
 
-public enum KeyboardLanguage: String, Codable, Equatable {
+public enum KeyboardLanguage: String, Codable, Equatable, Sendable {
     case en_US
     case ja_JP
     case el_GR
