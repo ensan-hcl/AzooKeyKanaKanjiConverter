@@ -396,11 +396,11 @@ import SwiftUtils
             )
         }
         let sums: [(CandidateData, Candidate)] = clauseResult.map {($0, converter.processClauseCandidate($0))}
-        // 文章全体を変換した場合の候補上位五件を作る
+        // 文章全体を変換した場合の候補上位5件を作る
         let whole_sentence_unique_candidates = self.getUniqueCandidate(sums.map {$0.1})
         let sentence_candidates = whole_sentence_unique_candidates.min(count: 5, sortedBy: {$0.value > $1.value})
-        // 予測変換
-        let prediction_candidates: [Candidate] = options.requireJapanesePrediction ? Array(self.getUniqueCandidate(self.getPredictionCandidate(sums, composingText: inputData, options: options)).min(count: 4, sortedBy: {$0.value > $1.value})) : []
+        // 予測変換を最大3件作成する
+        let prediction_candidates: [Candidate] = options.requireJapanesePrediction ? Array(self.getUniqueCandidate(self.getPredictionCandidate(sums, composingText: inputData, options: options)).min(count: 3, sortedBy: {$0.value > $1.value})) : []
 
         // 英単語の予測変換。appleのapiを使うため、処理が異なる。
         var foreign_candidates: [Candidate] = []
@@ -412,23 +412,25 @@ import SwiftUtils
             foreign_candidates.append(contentsOf: self.getForeignPredictionCandidate(inputData: inputData, language: "el"))
         }
 
+        // 文全体変換5件と予測変換3件を混ぜてベスト8を出す
+        let best8 = getUniqueCandidate(sentence_candidates.chained(prediction_candidates)).sorted {$0.value > $1.value}
         // ゼロヒント予測変換
-        let best10 = getUniqueCandidate(sentence_candidates.chained(prediction_candidates)).min(count: 10, sortedBy: {$0.value > $1.value})
-        let zeroHintPrediction_candidates = converter.getZeroHintPredictionCandidates(preparts: best10, N_best: 3)
+        let zeroHintPrediction_candidates = converter.getZeroHintPredictionCandidates(preparts: best8, N_best: 3)
+        // その他のトップレベル変換（先頭に表示されうる変換候補）
         let toplevel_additional_candidate = self.getTopLevelAdditionalCandidate(inputData, options: options)
-        // 文全体を変換するパターン
+        // best8、foreign_candidates、zeroHintPrediction_candidates、toplevel_additional_candidateを混ぜて上位5件を取得する
         let full_candidate = getUniqueCandidate(
-            best10
+            best8
                 .chained(foreign_candidates)
                 .chained(zeroHintPrediction_candidates)
                 .chained(toplevel_additional_candidate)
         ).min(count: 5, sortedBy: {$0.value > $1.value})
         // 重複のない変換候補を作成するための集合
         var seenCandidate: Set<String> = full_candidate.mapSet {$0.text}
-        // 文節のみ変換するパターン
+        // 文節のみ変換するパターン（上位5件）
         let clause_candidates = self.getUniqueCandidate(clauseCandidates, seenCandidates: seenCandidate).min(count: 5, sortedBy: {$0.value > $1.value})
         seenCandidate.formUnion(clause_candidates.map {$0.text})
-        // 賢く変換するパターン
+        // 賢く変換するパターン（任意件数）
         let wise_candidates: [Candidate] = self.getWiseCandidate(inputData, options: options)
         seenCandidate.formUnion(wise_candidates.map {$0.text})
 
@@ -443,13 +445,10 @@ import SwiftUtils
                     data: [$0.data]
                 )
             }
-        // 追加する部分
+        // その他辞書データに追加する候補
         let additionalCandidates: [Candidate] = self.getAdditionalCandidate(inputData, options: options)
 
-        /*
-         文字列の長さごとに並べ、かつその中で評価の高いものから順に並べる。
-         */
-
+        // 文字列の長さごとに並べ、かつその中で評価の高いものから順に並べる。
         let word_candidates: [Candidate] = self.getUniqueCandidate(dicCandidates.chained(additionalCandidates), seenCandidates: seenCandidate)
             .sorted {
                 let count0 = $0.correspondingCount
@@ -459,13 +458,17 @@ import SwiftUtils
 
         var result = Array(full_candidate)
 
-        // 最低でも1つ、入力に完全一致する候補が入るようにする
+        // 3番目までに最低でも1つ、（誤り訂正ではなく）入力に完全一致する候補が入るようにする
         let checkRuby: (Candidate) -> Bool = {$0.data.reduce(into: "") {$0 += $1.ruby} == inputData.convertTarget.toKatakana()}
-        if !result.contains(where: checkRuby) {
-            if let candidate = sentence_candidates.first(where: checkRuby) {
-                result.append(candidate)
+        if !result.prefix(3).contains(where: checkRuby) {
+            if let candidateIndex = result.dropFirst(3).firstIndex(where: checkRuby) {
+                // 3番目以降にある場合は順位を入れ替える
+                let candidate = result.remove(at: candidateIndex)
+                result.insert(candidate, at: min(result.endIndex, 2))
+            } else if let candidate = sentence_candidates.first(where: checkRuby) {
+                result.insert(candidate, at: min(result.endIndex, 2))
             } else if let candidate = whole_sentence_unique_candidates.first(where: checkRuby) {
-                result.append(candidate)
+                result.insert(candidate, at: min(result.endIndex, 2))
             }
         }
 
