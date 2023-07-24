@@ -460,8 +460,12 @@ import SwiftUtils
 
         // 3番目までに最低でも1つ、（誤り訂正ではなく）入力に完全一致する候補が入るようにする
         let checkRuby: (Candidate) -> Bool = {$0.data.reduce(into: "") {$0 += $1.ruby} == inputData.convertTarget.toKatakana()}
-        if !result.contains(where: checkRuby) {
-            if let candidate = sentence_candidates.first(where: checkRuby) {
+        if !result.prefix(3).contains(where: checkRuby) {
+            if let candidateIndex = result.dropFirst(3).firstIndex(where: checkRuby) {
+                // 3番目以降にある場合は順位を入れ替える
+                let candidate = result.remove(at: candidateIndex)
+                result.insert(candidate, at: min(result.endIndex, 2))
+            } else if let candidate = sentence_candidates.first(where: checkRuby) {
                 result.insert(candidate, at: min(result.endIndex, 2))
             } else if let candidate = whole_sentence_unique_candidates.first(where: checkRuby) {
                 result.insert(candidate, at: min(result.endIndex, 2))
