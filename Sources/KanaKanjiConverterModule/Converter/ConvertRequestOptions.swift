@@ -8,7 +8,7 @@
 
 import Foundation
 
-public struct ConvertRequestOptions {
+public struct ConvertRequestOptions: Sendable {
     /// 変換リクエストに必要な設定データ
     ///
     /// - parameters:
@@ -91,7 +91,7 @@ public struct ConvertRequestOptions {
         )
     }
 
-    public struct Metadata {
+    public struct Metadata: Sendable {
         /// - parameters:
         ///   - appVersionString: アプリのバージョンを指定します。このデータは`KanaKanjiCovnerter.toVersionCandidate(_:)`などで用いられます。
         public init(appVersionString: String) {

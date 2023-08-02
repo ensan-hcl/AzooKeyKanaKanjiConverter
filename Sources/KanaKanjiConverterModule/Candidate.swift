@@ -62,13 +62,13 @@ struct CandidateData {
     }
 }
 
-public enum CompleteAction {
+public enum CompleteAction: Sendable {
     /// カーソルを調整する
     case moveCursor(Int)
 }
 
 /// 変換候補のデータ
-public struct Candidate {
+public struct Candidate: Sendable {
     /// 入力となるテキスト
     public var text: String
     /// 評価値

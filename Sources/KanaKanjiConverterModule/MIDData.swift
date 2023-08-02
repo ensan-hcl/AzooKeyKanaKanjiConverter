@@ -8,7 +8,7 @@
 
 import Foundation
 
-public enum MIDData {
+public enum MIDData: Sendable {
     static var totalCount: Int {
         503
     }
