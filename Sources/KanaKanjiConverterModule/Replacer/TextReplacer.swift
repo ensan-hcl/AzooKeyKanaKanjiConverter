@@ -74,7 +74,7 @@ public struct TextReplacer {
         return results
     }
 
-    public struct SearchResultItem {
+    public struct SearchResultItem: Sendable {
         public var query: String
         public var text: String
         public var inputable: Bool {
@@ -113,7 +113,7 @@ public struct TextReplacer {
     }
 }
 
-public struct ReplacementCandidate {
+public struct ReplacementCandidate: Sendable {
     public var target: String
     public var replace: String
     public var base: String

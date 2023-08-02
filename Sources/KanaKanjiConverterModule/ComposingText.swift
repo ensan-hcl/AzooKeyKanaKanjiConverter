@@ -14,7 +14,7 @@ import SwiftUtils
 /// のようになる。`
 /// カーソルのポジションもこのクラスが管理する。
 /// 設計方針として、inputStyleに関わる実装の違いは全てアップデート方法の違いとして吸収し、`input` / `delete` / `moveCursor` / `complete`時の違いとしては露出させないようにすることを目指した。
-public struct ComposingText {
+public struct ComposingText: Sendable {
     public init(convertTargetCursorPosition: Int = 0, input: [ComposingText.InputElement] = [], convertTarget: String = "") {
         self.convertTargetCursorPosition = convertTargetCursorPosition
         self.input = input
@@ -29,7 +29,7 @@ public struct ComposingText {
     public private(set) var convertTarget: String = ""
 
     /// ユーザ入力の単位
-    public struct InputElement {
+    public struct InputElement: Sendable {
         /// 入力された文字
         public var character: Character
         /// そのときの入力方式(ローマ字入力 / ダイレクト入力)

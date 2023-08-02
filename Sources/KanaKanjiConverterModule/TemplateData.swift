@@ -9,7 +9,7 @@
 import Foundation
 import SwiftUtils
 
-public struct TemplateData: Codable {
+public struct TemplateData: Codable, Sendable {
     public var name: String
     public var literal: any TemplateLiteralProtocol
     public var type: TemplateLiteralType
@@ -92,13 +92,13 @@ public struct TemplateData: Codable {
     }
 }
 
-public protocol TemplateLiteralProtocol {
+public protocol TemplateLiteralProtocol: Sendable {
     func export() -> String
 
     func previewString() -> String
 }
 
-public enum TemplateLiteralType {
+public enum TemplateLiteralType: Sendable {
     case date
     case random
 }
@@ -113,7 +113,7 @@ public extension TemplateLiteralProtocol {
     }
 }
 
-public struct DateTemplateLiteral: TemplateLiteralProtocol, Equatable {
+public struct DateTemplateLiteral: TemplateLiteralProtocol, Equatable, Sendable {
     public init(format: String, type: DateTemplateLiteral.CalendarType, language: DateTemplateLiteral.Language, delta: String, deltaUnit: Int) {
         self.format = format
         self.type = type
@@ -129,7 +129,7 @@ public struct DateTemplateLiteral: TemplateLiteralProtocol, Equatable {
     public var delta: String
     public var deltaUnit: Int
 
-    public enum CalendarType: String {
+    public enum CalendarType: String, Sendable {
         case western
         case japanese
 
@@ -143,7 +143,7 @@ public struct DateTemplateLiteral: TemplateLiteralProtocol, Equatable {
         }
     }
 
-    public enum Language: String {
+    public enum Language: String, Sendable {
         case english = "en_US"
         case japanese = "ja_JP"
 
@@ -183,7 +183,7 @@ public struct DateTemplateLiteral: TemplateLiteralProtocol, Equatable {
     }
 }
 
-public struct RandomTemplateLiteral: TemplateLiteralProtocol, Equatable {
+public struct RandomTemplateLiteral: TemplateLiteralProtocol, Equatable, Sendable {
     public init(value: RandomTemplateLiteral.Value) {
         self.value = value
     }
@@ -192,12 +192,12 @@ public struct RandomTemplateLiteral: TemplateLiteralProtocol, Equatable {
         lhs.value == rhs.value
     }
 
-    public enum ValueType: String {
+    public enum ValueType: String, Sendable {
         case int
         case double
         case string
     }
-    public enum Value: Equatable {
+    public enum Value: Equatable, Sendable {
         case int(from: Int, to: Int)
         case double(from: Double, to: Double)
         case string([String])

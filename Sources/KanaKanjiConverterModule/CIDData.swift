@@ -8,7 +8,7 @@
 
 import Foundation
 
-public enum CIDData {
+public enum CIDData: Sendable {
     static var totalCount: Int {
         1319
     }

@@ -13,7 +13,7 @@ import Foundation
 /// It is initialized with a string that represents a version of an app.
 /// The string must be in the format of "major.minor.patch".
 /// The string must not contain any other characters than numbers and dots.
-public struct AppVersion: Codable, Equatable, Comparable, Hashable, LosslessStringConvertible, CustomStringConvertible {
+public struct AppVersion: Codable, Equatable, Comparable, Hashable, LosslessStringConvertible, CustomStringConvertible, Sendable {
 
     /// ParseError is an enum that represents an error that occurs when parsing a string to an AppVersion.
     private enum ParseError: Error {
