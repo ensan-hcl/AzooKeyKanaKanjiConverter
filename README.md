@@ -48,6 +48,7 @@ print(results.mainResults.first!.text)  // azooKeyは新時代のキーボード
 ```
 `ConvertRequestOptions`は、変換リクエストに必要な情報を指定します。詳しくはコードに書かれたドキュメントコメントを参照してください。
 
+
 ### `ConvertRequestOptions`
 `ConvertRequestOptions`は変換リクエストに必要な設定値です。例えば以下のように設定します。
 
@@ -71,6 +72,10 @@ let options = ConvertRequestOptions(
     metadata: .init(appVersionString: "Version X")
 )
 ```
+
+### `ComposingText`
+`ComposingText`は入力管理を行いつつ変換をリクエストするためのAPIです。詳しくは[ドキュメント](./Docs/composing_text.md)を参照してください。
+
 ### 辞書データ
 
 上記のとおり、利用時は、ConvertRequestOptionsの`dictionaryResourceURL`に辞書データのディレクトリのURLを指定する必要があります。辞書データは[Google Drive](https://drive.google.com/drive/folders/1Kh7fgMFIzkpg7YwP3GhWTxFkXI-yzT9E?usp=sharing)からダウンロードすることができます。
