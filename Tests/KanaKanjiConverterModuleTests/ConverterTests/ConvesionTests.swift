@@ -41,5 +41,5 @@ import XCTest
             XCTAssertFalse(results.mainResults.contains(where: {$0.text == "\n"}))
         }
     }
-    
+
 }
