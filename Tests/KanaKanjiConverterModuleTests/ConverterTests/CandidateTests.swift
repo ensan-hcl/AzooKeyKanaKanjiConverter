@@ -43,7 +43,7 @@ import XCTest
                 data: [DicdataElement(word: text, ruby: "", cid: 0, mid: 0, value: 0)]
             )
             var candidate2 = candidate
-                candidate2.parseTemplate()
+            candidate2.parseTemplate()
             XCTAssertEqual(candidate.text, candidate2.text)
         }
     }
