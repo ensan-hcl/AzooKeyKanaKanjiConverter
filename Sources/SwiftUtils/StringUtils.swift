@@ -83,6 +83,8 @@ public extension StringProtocol {
         self.index(self.startIndex, offsetBy: offset)
     }
 
+
+    // FIXME: レガシーな実装なのでどうにかしたい。Migrationする……？
     // エスケープが必要なのは次の文字:
     /*
      \ -> \\
@@ -93,7 +95,7 @@ public extension StringProtocol {
      " -> \d
      */
     // please use these letters in order to avoid user-inputting text crash
-    func escaped() -> String {
+    func templateDataSpecificEscaped() -> String {
         var result = self.replacingOccurrences(of: "\\", with: "\\b")
         result = result.replacingOccurrences(of: "\0", with: "\\0")
         result = result.replacingOccurrences(of: "\n", with: "\\n")
@@ -104,7 +106,7 @@ public extension StringProtocol {
         return result
     }
 
-    func unescaped() -> String {
+    func templateDataSpecificUnescaped() -> String {
         var result = self.replacingOccurrences(of: "\\d", with: "\"")
         result = result.replacingOccurrences(of: "\\s", with: " ")
         result = result.replacingOccurrences(of: "\\c", with: ",")

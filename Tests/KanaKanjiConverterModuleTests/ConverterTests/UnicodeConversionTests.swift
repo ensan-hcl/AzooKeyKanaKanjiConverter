@@ -17,7 +17,7 @@ import XCTest
             convertTarget: input
         )
     }
-
+    
     func testFromUnicode() throws {
         do {
             let converter = KanaKanjiConverter()
