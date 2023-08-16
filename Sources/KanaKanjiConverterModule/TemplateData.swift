@@ -168,7 +168,7 @@ public struct DateTemplateLiteral: TemplateLiteralProtocol, Equatable, Sendable 
         let delta = parse(splited: splited, key: "delta")
         let deltaUnit = parse(splited: splited, key: "deltaunit")
         return DateTemplateLiteral(
-            format: format.unescaped(),
+            format: format.templateDataSpecificUnescaped(),
             type: CalendarType(rawValue: String(type))!,
             language: Language(rawValue: String(language))!,
             delta: String(delta),
@@ -178,7 +178,7 @@ public struct DateTemplateLiteral: TemplateLiteralProtocol, Equatable, Sendable 
 
     public func export() -> String {
         """
-        <date format="\(format.escaped())" type="\(type.rawValue)" language="\(language.identifier)" delta="\(delta)" deltaunit="\(deltaUnit)">
+        <date format="\(format.templateDataSpecificEscaped())" type="\(type.rawValue)" language="\(language.identifier)" delta="\(delta)" deltaunit="\(deltaUnit)">
         """
     }
 }
@@ -220,7 +220,7 @@ public struct RandomTemplateLiteral: TemplateLiteralProtocol, Equatable, Sendabl
             case let .double(from: left, to: right):
                 return "\(left),\(right)"
             case let .string(strings):
-                return strings.map {$0.escaped()}.joined(separator: ",")
+                return strings.map {$0.templateDataSpecificEscaped()}.joined(separator: ",")
             }
         }
     }
@@ -240,7 +240,7 @@ public struct RandomTemplateLiteral: TemplateLiteralProtocol, Equatable, Sendabl
     public static func `import`(from string: String, escaped: Bool = false) -> RandomTemplateLiteral {
         let splited = string.split(separator: " ")
         let type = parse(splited: splited, key: "type")
-        let valueString = parse(splited: splited, key: "value").unescaped()
+        let valueString = parse(splited: splited, key: "value").templateDataSpecificUnescaped()
 
         let valueType = ValueType(rawValue: String(type))!
         let value: Value
@@ -259,7 +259,7 @@ public struct RandomTemplateLiteral: TemplateLiteralProtocol, Equatable, Sendabl
 
     public func export() -> String {
         """
-        <random type="\(value.type.rawValue)" value="\(value.string.escaped())">
+        <random type="\(value.type.rawValue)" value="\(value.string.templateDataSpecificEscaped())">
         """
     }
 

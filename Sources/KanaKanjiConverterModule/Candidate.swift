@@ -62,7 +62,7 @@ struct CandidateData {
     }
 }
 
-public enum CompleteAction: Sendable {
+public enum CompleteAction: Equatable, Sendable {
     /// カーソルを調整する
     case moveCursor(Int)
 }
@@ -120,7 +120,7 @@ public struct Candidate: Sendable {
             let value = template.previewString()
             newText.replaceSubrange(range, with: value)
         }
-        return newText.unescaped()
+        return newText
     }
 
     /// テンプレートをパースして、変換候補のテキストを生成し、反映する。
