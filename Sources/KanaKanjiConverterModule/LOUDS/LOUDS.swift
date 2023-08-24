@@ -31,7 +31,9 @@ struct LOUDS {
             list[Int(data.element)].append(data.offset)
         }
         self.indices = self.bits.indices
-        self.rankLarge = bytes.reduce(into: [0]) {
+        var initialValue = [0]
+        initialValue.reserveCapacity(bytes.count)
+        self.rankLarge = bytes.reduce(into: consume initialValue) {
             $0.append(($0.last ?? 0) &+ (Self.unit &- $1.nonzeroBitCount))
         }
     }
