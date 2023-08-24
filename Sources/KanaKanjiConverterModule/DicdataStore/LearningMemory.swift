@@ -262,8 +262,8 @@ struct LongTermLearningMemory {
                     if ruby != dicdataElement.ruby {
                         continue
                     }
-                    var dicdataElement = dicdataElement
-                    var metadataElement = metadataElement
+                    var dicdataElement = consume dicdataElement
+                    var metadataElement = consume metadataElement
                     guard today >= metadataElement.lastUpdatedDay else {
                         // 異常対応
                         // 変なデータが入っているとオーバーフローが起こるのでフェイルセーフにする
@@ -529,7 +529,7 @@ struct TemporalLearningMemoryTrie {
             }
         } else {
             let dataIndex = self.dicdata.endIndex
-            var dicdataElement = dicdataElement
+            var dicdataElement = copy dicdataElement
             let metadataElement = MetadataElement(day: day, count: 1)
             dicdataElement.baseValue = LongTermLearningMemory.valueForData(metadata: metadataElement, dicdata: dicdataElement)
             self.dicdata.append(dicdataElement)

@@ -14,7 +14,7 @@ extension KanaKanjiConverter {
     ///   - inputData: 入力情報。
     /// - note:
     ///    現在英字のみ。ギリシャ文字や数字に対応する必要あり。
-    func toSeirekiCandidates(_ inputData: ComposingText) -> [Candidate] {
+    func toSeirekiCandidates(_ inputData: borrowing ComposingText) -> [Candidate] {
         let string = inputData.convertTarget.toKatakana()
         let result = self.toSeireki(string)
         return result.map {[Candidate(

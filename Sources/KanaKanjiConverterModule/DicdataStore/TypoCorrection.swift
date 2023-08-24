@@ -64,7 +64,7 @@ extension ComposingText {
             }
             // 訂正数上限(3個)
             if penalty >= maxPenalty {
-                var convertTargetElements = convertTargetElements
+                var convertTargetElements = consume convertTargetElements
                 let correct = [self.input[left + count]].map {InputElement(character: $0.character.toKatakana(), inputStyle: $0.inputStyle)}
                 if count + correct.count > nodes.endIndex {
                     continue
@@ -145,7 +145,7 @@ extension ComposingText {
             }
             // 訂正数上限(3個)
             if penalty >= maxPenalty {
-                var convertTargetElements = convertTargetElements
+                var convertTargetElements = consume convertTargetElements
                 let correct = [self.input[left + count]].map {InputElement(character: $0.character.toKatakana(), inputStyle: $0.inputStyle)}
                 if count + correct.count > nodes.endIndex {
                     continue
@@ -153,13 +153,13 @@ extension ComposingText {
                 for element in correct {
                     ComposingText.updateConvertTargetElements(currentElements: &convertTargetElements, newElement: element)
                 }
-                stack.append((convertTargetElements, correct.last!, count + correct.count, penalty))
+                stack.append((consume convertTargetElements, correct.last!, count + correct.count, penalty))
             } else {
                 stack.append(contentsOf: nodes[count].compactMap {
                     if count + $0.inputElements.count > nodes.endIndex {
                         return nil
                     }
-                    var convertTargetElements = convertTargetElements
+                    var convertTargetElements = copy convertTargetElements
                     for element in $0.inputElements {
                         ComposingText.updateConvertTargetElements(currentElements: &convertTargetElements, newElement: element)
                     }
@@ -167,7 +167,7 @@ extension ComposingText {
                         return nil
                     }
                     return (
-                        convertTargetElements: convertTargetElements,
+                        convertTargetElements: consume convertTargetElements,
                         lastElement: $0.inputElements.last!,
                         count: count + $0.inputElements.count,
                         penalty: penalty + $0.weight
@@ -178,7 +178,7 @@ extension ComposingText {
         return Dictionary(stringToPenalty, uniquingKeysWith: max)
     }
 
-    private static func getTypo(_ elements: some Collection<InputElement>) -> [TypoCandidate] {
+    private static func getTypo(_ elements: borrowing some Collection<InputElement>) -> [TypoCandidate] {
         let key = elements.reduce(into: "") {$0.append($1.character)}.toKatakana()
 
         if (elements.allSatisfy {$0.inputStyle == .direct}) {

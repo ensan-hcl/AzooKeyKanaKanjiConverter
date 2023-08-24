@@ -106,8 +106,8 @@ public struct Candidate: Sendable {
     private static let randomExpression = "<random type=\".*?\" value=\".*?\">"
 
     /// テンプレートをパースして、変換候補のテキストを生成する。
-    public static func parseTemplate(_ text: String) -> String {
-        var newText = text
+    public static func parseTemplate(_ text: consuming String) -> String {
+        var newText = consume text
         while let range = newText.range(of: Self.dateExpression, options: .regularExpression) {
             let templateString = String(newText[range])
             let template = DateTemplateLiteral.import(from: templateString)

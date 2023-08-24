@@ -118,7 +118,7 @@ public final class DicdataStore {
     }
 
     /// ペナルティ関数。文字数で決める。
-    private static func getPenalty(data: DicdataElement) -> PValue {
+    private static func getPenalty(data: borrowing DicdataElement) -> PValue {
         -2.0 / PValue(data.word.count)
     }
 
@@ -133,7 +133,7 @@ public final class DicdataStore {
     }
 
     /// 計算時に利用。無視すべきデータかどうか。
-    internal func shouldBeRemoved(data: DicdataElement) -> Bool {
+    internal func shouldBeRemoved(data: borrowing DicdataElement) -> Bool {
         let d = data.value() - self.threshold
         if d < 0 {
             return true
@@ -156,14 +156,14 @@ public final class DicdataStore {
         }
     }
 
-    private func perfectMatchLOUDS(identifier: String, charIDs: [UInt8]) -> [Int] {
+    private func perfectMatchLOUDS(identifier: String, charIDs: borrowing [UInt8]) -> [Int] {
         guard let louds = self.loadLOUDS(identifier: identifier) else {
             return []
         }
         return [louds.searchNodeIndex(chars: charIDs)].compactMap {$0}
     }
 
-    private func throughMatchLOUDS(identifier: String, charIDs: [UInt8], depth: Range<Int>) -> [Int] {
+    private func throughMatchLOUDS(identifier: String, charIDs: borrowing [UInt8], depth: Range<Int>) -> [Int] {
         guard let louds = self.loadLOUDS(identifier: identifier) else {
             return []
         }
@@ -172,14 +172,14 @@ public final class DicdataStore {
         return Array(result[min(depth.lowerBound + 1, result.endIndex) ..< min(depth.upperBound + 1, result.endIndex)])
     }
 
-    private func prefixMatchLOUDS(identifier: String, charIDs: [UInt8], depth: Int = .max) -> [Int] {
+    private func prefixMatchLOUDS(identifier: String, charIDs: borrowing [UInt8], depth: Int = .max) -> [Int] {
         guard let louds = self.loadLOUDS(identifier: identifier) else {
             return []
         }
         return louds.prefixNodeIndices(chars: charIDs, maxDepth: depth)
     }
 
-    private func getDicdataFromLoudstxt3(identifier: String, indices: Set<Int>) -> [DicdataElement] {
+    private func getDicdataFromLoudstxt3(identifier: String, indices: consuming Set<Int>) -> [DicdataElement] {
         debug("getDicdataFromLoudstxt3", identifier, indices)
         // split = 2048
         let dict = [Int: [Int]].init(grouping: indices, by: {$0 >> 11})
@@ -228,7 +228,7 @@ public final class DicdataStore {
         }
         // MARK: 検索によって得たindicesから辞書データを実際に取り出していく
         var dicdata: [DicdataElement] = []
-        for (identifier, value) in indices {
+        for (identifier, value) in consume indices {
             let result: [DicdataElement] = self.getDicdataFromLoudstxt3(identifier: identifier, indices: value).compactMap { (data) -> DicdataElement? in
                 let rubyArray = Array(data.ruby)
                 let penalty = stringToInfo[rubyArray, default: (0, .zero)].penalty
@@ -245,7 +245,7 @@ public final class DicdataStore {
             }
             dicdata.append(contentsOf: result)
         }
-        dicdata.append(contentsOf: stringSet.flatMap {self.learningManager.temporaryThroughMatch(charIDs: $0.1, depth: depth)})
+        dicdata.append(contentsOf: (consume stringSet).flatMap {self.learningManager.temporaryThroughMatch(charIDs: $0.1, depth: depth)})
 
         for i in toIndexLeft ..< toIndexRight {
             do {
@@ -289,7 +289,7 @@ public final class DicdataStore {
     ///   - inputData: 入力データ
     ///   - from: 始点
     ///   - to: 終点
-    public func getLOUDSData(inputData: ComposingText, from fromIndex: Int, to toIndex: Int) -> [LatticeNode] {
+    public func getLOUDSData(inputData: borrowing ComposingText, from fromIndex: Int, to toIndex: Int) -> [LatticeNode] {
         if toIndex - fromIndex > self.maxlength || fromIndex > toIndex {
             return []
         }
@@ -304,7 +304,7 @@ public final class DicdataStore {
         }
         let group = [Character: [(key: [Character], charIDs: [UInt8])]].init(grouping: strings, by: {$0.key.first!})
 
-        var indices: [(String, Set<Int>)] = group.map {dic in
+        var indices: [(String, Set<Int>)] = (consume group).map {dic in
             let head = String(dic.key)
             let set = dic.value.flatMapSet { (_, charIDs) in
                 self.perfectMatchLOUDS(identifier: head, charIDs: charIDs)
@@ -323,8 +323,9 @@ public final class DicdataStore {
             }
             indices.append(("memory", set))
         }
+
         var dicdata: [DicdataElement] = []
-        for (identifier, value) in indices {
+        for (identifier, value) in consume indices {
             let result: [DicdataElement] = self.getDicdataFromLoudstxt3(identifier: identifier, indices: value).compactMap { (data) -> DicdataElement? in
                 let rubyArray = Array(data.ruby)
                 let penalty = string2penalty[rubyArray, default: .zero]
@@ -346,14 +347,14 @@ public final class DicdataStore {
         dicdata.append(contentsOf: self.getMatchOSUserDict(segment))
 
         if fromIndex == .zero {
-            let result: [LatticeNode] = dicdata.map {
+            let result: [LatticeNode] = (consume dicdata).map {
                 let node = LatticeNode(data: $0, inputRange: fromIndex ..< toIndex + 1)
                 node.prevs.append(RegisteredNode.BOSNode())
                 return node
             }
             return result
         } else {
-            let result: [LatticeNode] = dicdata.map {LatticeNode(data: $0, inputRange: fromIndex ..< toIndex + 1)}
+            let result: [LatticeNode] = (consume dicdata).map {LatticeNode(data: $0, inputRange: fromIndex ..< toIndex + 1)}
             return result
         }
     }
@@ -366,7 +367,7 @@ public final class DicdataStore {
             let csvString = try String(contentsOf: requestOptions.dictionaryResourceURL.appendingPathComponent("p/p_null.csv", isDirectory: false), encoding: String.Encoding.utf8)
             let csvLines = csvString.split(separator: "\n")
             let csvData = csvLines.map {$0.split(separator: ",", omittingEmptySubsequences: false)}
-            let dicdata: [DicdataElement] = csvData.map {self.parseLoudstxt2FormattedEntry(from: $0)}
+            let dicdata: [DicdataElement] = (consume csvData).map {self.parseLoudstxt2FormattedEntry(from: $0)}
             self.zeroHintPredictionDicdata = dicdata
             return dicdata
         } catch {
@@ -392,7 +393,7 @@ public final class DicdataStore {
                 let csvString = try String(contentsOf: requestOptions.dictionaryResourceURL.appendingPathComponent("p/p_\(key).csv", isDirectory: false), encoding: String.Encoding.utf8)
                 let csvLines = csvString.split(separator: "\n")
                 let csvData = csvLines.map {$0.split(separator: ",", omittingEmptySubsequences: false)}
-                let dicdata: [DicdataElement] = csvData.map {self.parseLoudstxt2FormattedEntry(from: $0)}
+                let dicdata = (consume csvData).map {self.parseLoudstxt2FormattedEntry(from: $0)}
                 return dicdata
             } catch {
                 debug("ファイルが存在しません: \(error)")
@@ -404,12 +405,12 @@ public final class DicdataStore {
             let charIDs = key.map {self.charsID[$0, default: .max]}
             // 最大700件に絞ることによって低速化を回避する。
             let prefixIndices = self.prefixMatchLOUDS(identifier: first, charIDs: charIDs, depth: 5).prefix(700)
-            result.append(contentsOf: self.getDicdataFromLoudstxt3(identifier: first, indices: Set(prefixIndices)))
+            result.append(contentsOf: self.getDicdataFromLoudstxt3(identifier: first, indices: Set(consume prefixIndices)))
             let userDictIndices = self.prefixMatchLOUDS(identifier: "user", charIDs: charIDs, depth: 5).prefix(700)
-            result.append(contentsOf: self.getDicdataFromLoudstxt3(identifier: "user", indices: Set(userDictIndices)))
+            result.append(contentsOf: self.getDicdataFromLoudstxt3(identifier: "user", indices: Set(consume userDictIndices)))
             if learningManager.enabled {
                 let memoryDictIndices = self.prefixMatchLOUDS(identifier: "memory", charIDs: charIDs, depth: 5).prefix(700)
-                result.append(contentsOf: self.getDicdataFromLoudstxt3(identifier: "memory", indices: Set(memoryDictIndices)))
+                result.append(contentsOf: self.getDicdataFromLoudstxt3(identifier: "memory", indices: Set(consume memoryDictIndices)))
                 result.append(contentsOf: self.learningManager.temporaryPrefixMatch(charIDs: charIDs))
             }
             return result
@@ -419,19 +420,19 @@ public final class DicdataStore {
             let charIDs = key.map {self.charsID[$0, default: .max]}
             // 最大700件に絞ることによって低速化を回避する。
             let prefixIndices = self.prefixMatchLOUDS(identifier: first, charIDs: charIDs).prefix(700)
-            result.append(contentsOf: self.getDicdataFromLoudstxt3(identifier: first, indices: Set(prefixIndices)))
+            result.append(contentsOf: self.getDicdataFromLoudstxt3(identifier: first, indices: Set(consume prefixIndices)))
             let userDictIndices = self.prefixMatchLOUDS(identifier: "user", charIDs: charIDs).prefix(700)
-            result.append(contentsOf: self.getDicdataFromLoudstxt3(identifier: "user", indices: Set(userDictIndices)))
+            result.append(contentsOf: self.getDicdataFromLoudstxt3(identifier: "user", indices: Set(consume userDictIndices)))
             if learningManager.enabled {
                 let memoryDictIndices = self.prefixMatchLOUDS(identifier: "memory", charIDs: charIDs).prefix(700)
-                result.append(contentsOf: self.getDicdataFromLoudstxt3(identifier: "memory", indices: Set(memoryDictIndices)))
+                result.append(contentsOf: self.getDicdataFromLoudstxt3(identifier: "memory", indices: Set(consume memoryDictIndices)))
                 result.append(contentsOf: self.learningManager.temporaryPrefixMatch(charIDs: charIDs))
             }
             return result
         }
     }
 
-    private func parseLoudstxt2FormattedEntry(from dataString: [some StringProtocol]) -> DicdataElement {
+    private func parseLoudstxt2FormattedEntry(from dataString: consuming [some StringProtocol]) -> DicdataElement {
         let ruby = String(dataString[0])
         let word = dataString[1].isEmpty ? ruby:String(dataString[1])
         let lcid = Int(dataString[2]) ?? .zero
@@ -446,7 +447,7 @@ public final class DicdataStore {
     ///     - convertTarget: カタカナ変換済みの文字列
     /// - note
     ///     - 入力全体をカタカナとかひらがなに変換するやつは、Converter側でやっているので注意。
-    private func getWiseDicdata(convertTarget: String, inputData: ComposingText, inputRange: Range<Int>) -> [DicdataElement] {
+    private func getWiseDicdata(convertTarget: String, inputData: borrowing ComposingText, inputRange: Range<Int>) -> [DicdataElement] {
         var result: [DicdataElement] = []
         result.append(contentsOf: self.getJapaneseNumberDicdata(head: convertTarget))
         if inputData.input[..<inputRange.startIndex].last?.character.isNumber != true && inputData.input[inputRange.endIndex...].first?.character.isNumber != true, let number = Float(convertTarget) {
@@ -580,10 +581,10 @@ public final class DicdataStore {
         ["√", "∛", "∜"]  // 根号
     ]
 
-    private func loadCCBinary(url: URL) -> [(Int32, Float)] {
+    private func loadCCBinary(url: borrowing URL) -> [(Int32, Float)] {
         do {
             let binaryData = try Data(contentsOf: url, options: [.uncached])
-            return binaryData.toArray(of: (Int32, Float).self)
+            return (consume binaryData).toArray(of: (Int32, Float).self)
         } catch {
             debug("Failed to read the file.", error)
             return []
@@ -602,7 +603,7 @@ public final class DicdataStore {
 
     // 学習を反映する
     // TODO: previousの扱いを改善したい
-    internal func updateLearningData(_ candidate: Candidate, with previous: DicdataElement?) {
+    internal func updateLearningData(_ candidate: borrowing Candidate, with previous: consuming DicdataElement?) {
         if let previous {
             self.learningManager.update(data: [previous] + candidate.data)
         } else {
@@ -617,15 +618,15 @@ public final class DicdataStore {
     ///   連接確率の対数。
     /// - 要求があった場合ごとにファイルを読み込んで
     /// 速度: ⏱0.115224 : 変換_処理_連接コスト計算_CCValue
-    public func getCCValue(_ former: Int, _ latter: Int) -> PValue {
+    public func getCCValue(_ former: borrowing Int, _ latter: borrowing Int) -> PValue {
         if !ccParsed[former] {
             let url = requestOptions.dictionaryResourceURL.appendingPathComponent("cb/\(former).binary", isDirectory: false)
-            let values = loadCCBinary(url: url)
-            ccLines[former] = [Int: PValue].init(uniqueKeysWithValues: values.map {(Int($0.0), PValue($0.1))})
+            let values = loadCCBinary(url: consume url)
+            ccLines[former] = [Int: PValue].init(uniqueKeysWithValues: (consume values).map {(Int($0.0), PValue($0.1))})
             ccParsed[former] = true
         }
         let defaultValue = ccLines[former][-1, default: -25]
-        return ccLines[former][latter, default: defaultValue]
+        return ccLines[former][latter, default: consume defaultValue]
     }
 
     /// meaning idから意味連接尤度を得る関数
@@ -635,7 +636,7 @@ public final class DicdataStore {
     /// - Returns:
     ///   意味連接確率の対数。
     /// - 要求があった場合ごとに確率値をパースして取得する。
-    public func getMMValue(_ former: Int, _ latter: Int) -> PValue {
+    public func getMMValue(_ former: borrowing Int, _ latter: Int) -> PValue {
         if former == 500 || latter == 500 {
             return 0
         }
@@ -647,7 +648,7 @@ public final class DicdataStore {
     ]
 
     // 誤り訂正候補の構築の際、ファイルが存在しているか事前にチェックし、存在していなければ以後の計算を打ち切ることで、計算を減らす。
-    internal static func existLOUDS(for character: Character) -> Bool {
+    internal static func existLOUDS(for character: borrowing Character) -> Bool {
         Self.possibleLOUDS.contains(character)
     }
 
@@ -673,7 +674,7 @@ public final class DicdataStore {
     ///   - c_latter: 右側の語のid
     /// - Returns:
     ///   そこが文節の境界であるかどうか。
-    internal static func isClause(_ former: Int, _ latter: Int) -> Bool {
+    internal static func isClause(_ former: borrowing Int, _ latter: borrowing Int) -> Bool {
         // EOSが基本多いので、この順の方がヒット率が上がると思われる。
         let latter_wordtype = Self.wordTypes[latter]
         if latter_wordtype == 3 {
@@ -723,7 +724,7 @@ public final class DicdataStore {
     static let wordTypes = (0...1319).map(_judgeWordType)
 
     /// wordTypesの初期化時に使うのみ。
-    private static func _judgeWordType(cid: Int) -> UInt8 {
+    private static func _judgeWordType(cid: borrowing Int) -> UInt8 {
         if Self.BOS_EOS_wordIDs.contains(cid) {
             return 3    // BOS/EOS
         }
@@ -753,7 +754,7 @@ public final class DicdataStore {
     static let penaltyRatio = (0...1319).map(_getTypoPenaltyRatio)
 
     /// penaltyRatioの初期化時に使うのみ。
-    internal static func _getTypoPenaltyRatio(_ lcid: Int) -> PValue {
+    internal static func _getTypoPenaltyRatio(_ lcid: borrowing Int) -> PValue {
         // 助詞147...368, 助動詞369...554
         if 147...554 ~= lcid {
             return 2.5
@@ -762,7 +763,7 @@ public final class DicdataStore {
     }
 
     // 学習を有効にする語彙を決める。
-    internal static func needWValueMemory(_ data: DicdataElement) -> Bool {
+    internal static func needWValueMemory(_ data: borrowing DicdataElement) -> Bool {
         // 助詞、助動詞
         if 147...554 ~= data.lcid {
             return false

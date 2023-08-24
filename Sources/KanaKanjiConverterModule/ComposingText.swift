@@ -445,7 +445,7 @@ extension ComposingText {
     ///   - originalElements: 領域を取り出した元の`input`
     ///   - rightIndex: 領域の右隣の要素のインデックス
     /// - Returns: 正当か否か
-    static func isRightSideValid(lastElement: InputElement, convertTargetElements: [ConvertTargetElement], of originalElements: [InputElement], to rightIndex: Int) -> Bool {
+    static func isRightSideValid(lastElement: consuming InputElement, convertTargetElements: [ConvertTargetElement], of originalElements: borrowing [InputElement], to rightIndex: Int) -> Bool {
         // rightIndexの位置にあるerのチェック
         // 許されるパターンは以下の通り
         // * rightIndex == endIndex
@@ -494,7 +494,7 @@ extension ComposingText {
     ///   - convertTargetElements: 領域内まで読んで作成した`convertTarget`
     /// - Returns: 領域がvalidであれば`convertTarget`を返し、invalidなら`nil`を返す。
     /// - Note: `elements = [r(k, a, n, s, h, a)]`のとき、`k,a,n,s,h,a`や`k, a`は正当だが`a, n`や`s, h`は正当ではない。`k, a, n`は特に正当であるとみなす。
-    static func getConvertTargetIfRightSideIsValid(lastElement: InputElement, of originalElements: [InputElement], to rightIndex: Int, convertTargetElements: [ConvertTargetElement]) -> [Character]? {
+    static func getConvertTargetIfRightSideIsValid(lastElement: consuming InputElement, of originalElements: borrowing [InputElement], to rightIndex: Int, convertTargetElements: consuming [ConvertTargetElement]) -> [Character]? {
         debug("getConvertTargetIfRightSideIsValid", lastElement, rightIndex)
         if originalElements.endIndex < rightIndex {
             return nil
@@ -506,7 +506,7 @@ extension ComposingText {
             return nil
         }
         // ここまで来たらvalid
-        var convertTargetElements = convertTargetElements
+        var convertTargetElements = consume convertTargetElements
         if let lastElement = convertTargetElements.last, lastElement.inputStyle == .roman2kana, rightIndex < originalElements.endIndex {
             let nextFirstElement = originalElements[rightIndex]
 
@@ -537,19 +537,19 @@ extension ComposingText {
         // currentElementsが空の場合、および
         // 直前のElementの入力方式が同じでない場合は、新たなConvertTargetElementを作成して追加する
         if currentElements.last?.inputStyle != newElement.inputStyle {
-            currentElements.append(ConvertTargetElement(string: updateConvertTarget(current: [], inputStyle: newElement.inputStyle, newCharacter: newElement.character), inputStyle: newElement.inputStyle))
+            currentElements.append(ConvertTargetElement(string: createConvertTarget(inputStyle: newElement.inputStyle, newCharacter: newElement.character), inputStyle: newElement.inputStyle))
             return
         }
         // 末尾のエレメントの文字列を更新する
         updateConvertTarget(&currentElements[currentElements.endIndex - 1].string, inputStyle: newElement.inputStyle, newCharacter: newElement.character)
     }
 
-    static func updateConvertTarget(current: [Character], inputStyle: InputStyle, newCharacter: Character) -> [Character] {
+    static func createConvertTarget(inputStyle: InputStyle, newCharacter: Character) -> [Character] {
         switch inputStyle {
         case .direct:
-            return current + [newCharacter]
+            return [newCharacter]
         case .roman2kana:
-            return Roman2Kana.toHiragana(currentText: current, added: newCharacter)
+            return Roman2Kana.toHiragana(currentText: [], added: newCharacter)
         }
     }
 
@@ -558,7 +558,7 @@ extension ComposingText {
         case .direct:
             convertTarget.append(newCharacter)
         case .roman2kana:
-            convertTarget = Roman2Kana.toHiragana(currentText: convertTarget, added: newCharacter)
+            convertTarget = Roman2Kana.toHiragana(currentText: consume convertTarget, added: newCharacter)
         }
     }
 
