@@ -24,6 +24,7 @@ struct LOUDS {
     /// 0の数（1の数ではない）
     private let rankLarge: [Int]
 
+    @inlinable
     init(bytes: [UInt64], nodeIndex2ID: [UInt8]) {
         self.bits = bytes
         self.char2nodeIndices = nodeIndex2ID.enumerated().reduce(into: .init(repeating: [], count: 1 << 8)) { list, data in
