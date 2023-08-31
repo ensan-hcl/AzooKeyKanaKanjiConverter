@@ -54,7 +54,7 @@ extension LOUDS {
     /// LOUDSをファイルから読み込む関数
     /// - Parameter identifier: ファイル名
     /// - Returns: 存在すればLOUDSデータを返し、存在しなければ`nil`を返す。
-    internal static func load(_ identifier: String, option: ConvertRequestOptions) -> LOUDS? {
+    static func load(_ identifier: String, option: ConvertRequestOptions) -> LOUDS? {
         let (charsURL, loudsURL) = getLOUDSURL(identifier, option: option)
         let nodeIndex2ID: [UInt8]
         do {
@@ -104,7 +104,7 @@ extension LOUDS {
 
     }
 
-    internal static func getDataForLoudstxt3(_ identifier: String, indices: [Int], option: ConvertRequestOptions) -> [DicdataElement] {
+    static func getDataForLoudstxt3(_ identifier: String, indices: [Int], option: ConvertRequestOptions) -> [DicdataElement] {
         let binary: Data
         do {
             let url = getLoudstxt3URL(identifier, option: option)

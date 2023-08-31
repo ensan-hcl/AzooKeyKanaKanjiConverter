@@ -6,7 +6,6 @@
 //  Copyright © 2020 ensan. All rights reserved.
 //
 
-import Algorithms
 import Foundation
 import SwiftUtils
 
@@ -25,7 +24,6 @@ public final class DicdataStore {
     private var ccParsed: [Bool] = .init(repeating: false, count: 1319)
     private var ccLines: [[Int: PValue]] = []
     private var mmValue: [PValue] = []
-    private let threshold: PValue = -17
 
     private var loudses: [String: LOUDS] = [:]
     private var importedLoudses: Set<String> = []
@@ -35,7 +33,12 @@ public final class DicdataStore {
 
     private var osUserDict: [DicdataElement] = []
 
-    internal let maxlength: Int = 20
+    /// 辞書のエントリの最大長さ
+    ///  - TODO: make this value as an option
+    public let maxlength: Int = 20
+    /// この値以下のスコアを持つエントリは積極的に無視する
+    ///  - TODO: make this value as an option
+    public let threshold: PValue = -17
     private let midCount = 502
     private let cidCount = 1319
 
@@ -118,7 +121,7 @@ public final class DicdataStore {
     }
 
     /// ペナルティ関数。文字数で決める。
-    private static func getPenalty(data: DicdataElement) -> PValue {
+    @inlinable static func getPenalty(data: DicdataElement) -> PValue {
         -2.0 / PValue(data.word.count)
     }
 
@@ -133,7 +136,7 @@ public final class DicdataStore {
     }
 
     /// 計算時に利用。無視すべきデータかどうか。
-    internal func shouldBeRemoved(data: DicdataElement) -> Bool {
+    @inlinable func shouldBeRemoved(data: DicdataElement) -> Bool {
         let d = data.value() - self.threshold
         if d < 0 {
             return true
@@ -358,7 +361,7 @@ public final class DicdataStore {
         }
     }
 
-    internal func getZeroHintPredictionDicdata() -> [DicdataElement] {
+    func getZeroHintPredictionDicdata() -> [DicdataElement] {
         if let dicdata = self.zeroHintPredictionDicdata {
             return dicdata
         }
@@ -381,7 +384,7 @@ public final class DicdataStore {
     ///   - head: 辞書を引く文字列
     /// - Returns:
     ///   発見されたデータのリスト。
-    internal func getPredictionLOUDSDicdata(key: some StringProtocol) -> [DicdataElement] {
+    func getPredictionLOUDSDicdata(key: some StringProtocol) -> [DicdataElement] {
         let count = key.count
         if count == .zero {
             return []
@@ -591,18 +594,18 @@ public final class DicdataStore {
     }
 
     /// OSのユーザ辞書からrubyに等しい語を返す。
-    private func getMatchOSUserDict(_ ruby: some StringProtocol) -> [DicdataElement] {
+    func getMatchOSUserDict(_ ruby: some StringProtocol) -> [DicdataElement] {
         self.osUserDict.filter {$0.ruby == ruby}
     }
 
     /// OSのユーザ辞書からrubyに先頭一致する語を返す。
-    internal func getPrefixMatchOSUserDict(_ ruby: some StringProtocol) -> [DicdataElement] {
+    func getPrefixMatchOSUserDict(_ ruby: some StringProtocol) -> [DicdataElement] {
         self.osUserDict.filter {$0.ruby.hasPrefix(ruby)}
     }
 
     // 学習を反映する
     // TODO: previousの扱いを改善したい
-    internal func updateLearningData(_ candidate: Candidate, with previous: DicdataElement?) {
+    func updateLearningData(_ candidate: Candidate, with previous: DicdataElement?) {
         if let previous {
             self.learningManager.update(data: [previous] + candidate.data)
         } else {
@@ -647,7 +650,7 @@ public final class DicdataStore {
     ]
 
     // 誤り訂正候補の構築の際、ファイルが存在しているか事前にチェックし、存在していなければ以後の計算を打ち切ることで、計算を減らす。
-    internal static func existLOUDS(for character: Character) -> Bool {
+    static func existLOUDS(for character: Character) -> Bool {
         Self.possibleLOUDS.contains(character)
     }
 
@@ -673,7 +676,7 @@ public final class DicdataStore {
     ///   - c_latter: 右側の語のid
     /// - Returns:
     ///   そこが文節の境界であるかどうか。
-    internal static func isClause(_ former: Int, _ latter: Int) -> Bool {
+    @inlinable static func isClause(_ former: Int, _ latter: Int) -> Bool {
         // EOSが基本多いので、この順の方がヒット率が上がると思われる。
         let latter_wordtype = Self.wordTypes[latter]
         if latter_wordtype == 3 {
@@ -720,7 +723,7 @@ public final class DicdataStore {
     ///   - 1 when core
     ///   - 2 when postposition
     /// - データ1つあたり1Bなので、1.3KBくらいのメモリを利用する。
-    static let wordTypes = (0...1319).map(_judgeWordType)
+    public static let wordTypes = (0...1319).map(_judgeWordType)
 
     /// wordTypesの初期化時に使うのみ。
     private static func _judgeWordType(cid: Int) -> UInt8 {
@@ -736,7 +739,7 @@ public final class DicdataStore {
         return 2   // 後置
     }
 
-    internal static func includeMMValueCalculation(_ data: DicdataElement) -> Bool {
+    @inlinable static func includeMMValueCalculation(_ data: DicdataElement) -> Bool {
         // 非自立動詞
         if 895...1280 ~= data.lcid || 895...1280 ~= data.rcid {
             return true
@@ -753,7 +756,7 @@ public final class DicdataStore {
     static let penaltyRatio = (0...1319).map(_getTypoPenaltyRatio)
 
     /// penaltyRatioの初期化時に使うのみ。
-    internal static func _getTypoPenaltyRatio(_ lcid: Int) -> PValue {
+    static func _getTypoPenaltyRatio(_ lcid: Int) -> PValue {
         // 助詞147...368, 助動詞369...554
         if 147...554 ~= lcid {
             return 2.5
@@ -762,7 +765,7 @@ public final class DicdataStore {
     }
 
     // 学習を有効にする語彙を決める。
-    internal static func needWValueMemory(_ data: DicdataElement) -> Bool {
+    @inlinable static func needWValueMemory(_ data: DicdataElement) -> Bool {
         // 助詞、助動詞
         if 147...554 ~= data.lcid {
             return false
@@ -786,7 +789,7 @@ public final class DicdataStore {
         return true
     }
 
-    internal static let possibleNexts: [String: [String]] = [
+    static let possibleNexts: [String: [String]] = [
         "x": ["ァ", "ィ", "ゥ", "ェ", "ォ", "ッ", "ャ", "ュ", "ョ", "ヮ"],
         "l": ["ァ", "ィ", "ゥ", "ェ", "ォ", "ッ", "ャ", "ュ", "ョ", "ヮ"],
         "xt": ["ッ"],
