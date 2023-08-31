@@ -24,7 +24,7 @@ struct LOUDS {
     /// 0の数（1の数ではない）
     private let rankLarge: [Int]
 
-    init(bytes: [UInt64], nodeIndex2ID: [UInt8]) {
+    @inlinable init(bytes: [UInt64], nodeIndex2ID: [UInt8]) {
         self.bits = bytes
         self.char2nodeIndices = nodeIndex2ID.enumerated().reduce(into: .init(repeating: [], count: 1 << 8)) { list, data in
             list[Int(data.element)].append(data.offset)
@@ -36,7 +36,7 @@ struct LOUDS {
     }
 
     /// parentNodeIndex個の0を探索し、その次から1個増えるまでのIndexを返す。
-    private func childNodeIndices(from parentNodeIndex: Int) -> Range<Int> {
+    @inlinable func childNodeIndices(from parentNodeIndex: Int) -> Range<Int> {
         // 求めるのは、
         // startIndex == 自身の左側にparentNodeIndex個の0があるような最小のindex
         // endIndex == 自身の左側にparentNodeIndex+1個の0があるような最小のindex
@@ -98,7 +98,7 @@ struct LOUDS {
 
     /// charIndexを取得する
     /// `childNodeIndices`と差し引きして、二分探索部分の速度への影響は高々0.02秒ほど
-    private func searchCharNodeIndex(from parentNodeIndex: Int, char: UInt8) -> Int? {
+    @inlinable func searchCharNodeIndex(from parentNodeIndex: Int, char: UInt8) -> Int? {
         // char2nodeIndicesには単調増加性があるので二分探索が成立する
         let childNodeIndices = self.childNodeIndices(from: parentNodeIndex)
         let nodeIndices = self.char2nodeIndices[Int(char)]
@@ -122,7 +122,7 @@ struct LOUDS {
     /// 完全一致検索を実行する
     /// - Parameter chars: CharIDに変換した文字列
     /// - Returns: 対応するloudstxt3ファイル内のインデックス
-    internal func searchNodeIndex(chars: [UInt8]) -> Int? {
+    @inlinable func searchNodeIndex(chars: [UInt8]) -> Int? {
         var index = 1
         for char in chars {
             if let nodeIndex = self.searchCharNodeIndex(from: index, char: char) {
@@ -134,7 +134,7 @@ struct LOUDS {
         return index
     }
 
-    private func prefixNodeIndices(nodeIndex: Int, depth: Int = 0, maxDepth: Int) -> [Int] {
+    @inlinable func prefixNodeIndices(nodeIndex: Int, depth: Int = 0, maxDepth: Int) -> [Int] {
         var childNodeIndices = Array(self.childNodeIndices(from: nodeIndex))
         if depth == maxDepth {
             return childNodeIndices
@@ -151,7 +151,7 @@ struct LOUDS {
     /// - Parameter chars: CharIDに変換した文字列
     /// - Parameter maxDepth: 先に進む深さの最大値
     /// - Returns: 対応するloudstxt3ファイル内のインデックスのリスト
-    internal func prefixNodeIndices(chars: [UInt8], maxDepth: Int) -> [Int] {
+    @inlinable func prefixNodeIndices(chars: [UInt8], maxDepth: Int) -> [Int] {
         guard let nodeIndex = self.searchNodeIndex(chars: chars) else {
             return []
         }
@@ -164,7 +164,7 @@ struct LOUDS {
     /// - Parameter chars: CharIDに変換した文字列
     /// - Returns: 対応するloudstxt3ファイル内のインデックスのリスト
     /// - Note: より適切な名前に変更したい
-    internal func byfixNodeIndices(chars: [UInt8]) -> [Int] {
+    @inlinable func byfixNodeIndices(chars: [UInt8]) -> [Int] {
         var indices = [1]
         for char in chars {
             if let nodeIndex = self.searchCharNodeIndex(from: indices.last!, char: char) {
