@@ -477,7 +477,7 @@ import SwiftUtils
         result.append(contentsOf: word_candidates)
 
         result.mutatingForeach { item in
-            item.withActions(self.getApporopriateActions(item))
+            item.withActions(self.getAppropriateActions(item))
             item.parseTemplate()
         }
         return (result, Array(clause_candidates))
@@ -557,7 +557,7 @@ import SwiftUtils
         }
     }
 
-    public func getApporopriateActions(_ candidate: Candidate) -> [CompleteAction] {
+    public func getAppropriateActions(_ candidate: Candidate) -> [CompleteAction] {
         if ["[]", "()", "｛｝", "〈〉", "〔〕", "（）", "「」", "『』", "【】", "{}", "<>", "《》", "\"\"", "\'\'", "””"].contains(candidate.text) {
             return [.moveCursor(-1)]
         }
