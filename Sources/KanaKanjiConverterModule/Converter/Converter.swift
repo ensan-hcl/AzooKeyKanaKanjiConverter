@@ -366,13 +366,13 @@ import SwiftUtils
     ///   重複のない変換候補。
     /// - Note:
     ///   現在の実装は非常に複雑な方法で候補の順序を決定している。
-    private func processResult(inputData: ComposingText, result: (result: LatticeNode, nodes: [[LatticeNode]]), options: ConvertRequestOptions) -> (mainResults: [Candidate], firstClauseResults: [Candidate]) {
+    private func processResult(inputData: ComposingText, result: (result: LatticeNode, nodes: [[LatticeNode]]), options: ConvertRequestOptions) -> ConversionResult {
         self.previousInputData = inputData
         self.nodes = result.nodes
         let clauseResult = result.result.getCandidateData()
         if clauseResult.isEmpty {
             let candidates = self.getUniqueCandidate(self.getAdditionalCandidate(inputData, options: options))
-            return (candidates, candidates)   // アーリーリターン
+            return ConversionResult(mainResults: candidates, firstClauseResults: candidates)   // アーリーリターン
         }
         let clauseCandidates: [Candidate] = clauseResult.map {(candidateData: CandidateData) -> Candidate in
             let first = candidateData.clauses.first!
@@ -480,7 +480,7 @@ import SwiftUtils
             item.withActions(self.getAppropriateActions(item))
             item.parseTemplate()
         }
-        return (result, Array(clause_candidates))
+        return ConversionResult(mainResults: result, firstClauseResults: Array(clause_candidates))
     }
 
     /// 入力からラティスを構築する関数。状況に応じて呼ぶ関数を分ける。
@@ -572,29 +572,21 @@ import SwiftUtils
     /// - Parameters:
     ///   - inputData: 変換対象のInputData。
     ///   - options: リクエストにかかるパラメータ。
-    /// - Returns:
-    ///   重複のない変換候補。
-    public func requestCandidates(_ inputData: ComposingText, options: ConvertRequestOptions) -> (mainResults: [Candidate], firstClauseResults: [Candidate]) {
+    /// - Returns: `ConversionResult`
+    public func requestCandidates(_ inputData: ComposingText, options: ConvertRequestOptions) -> ConversionResult {
         debug("requestCandidates 入力は", inputData)
         // 変換対象が無の場合
         if inputData.convertTarget.isEmpty {
-            return (.init(), .init())
+            return ConversionResult(mainResults: [], firstClauseResults: [])
         }
-        let start1 = Date()
 
         // DicdataStoreにRequestOptionを通知する
         self.sendToDicdataStore(.setRequestOptions(options))
 
         guard let result = self.convertToLattice(inputData, N_best: options.N_best) else {
-            return (.init(), .init())
+            return ConversionResult(mainResults: [], firstClauseResults: [])
         }
 
-        debug("ラティス構築", -start1.timeIntervalSinceNow)
-        let start2 = Date()
-        let candidates = self.processResult(inputData: inputData, result: result, options: options)
-        debug("ラティス処理", -start2.timeIntervalSinceNow)
-        debug("全体", -start1.timeIntervalSinceNow)
-
-        return candidates
+        return self.processResult(inputData: inputData, result: result, options: options)
     }
 }
