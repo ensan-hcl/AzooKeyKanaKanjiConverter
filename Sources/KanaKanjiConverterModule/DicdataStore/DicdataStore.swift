@@ -395,7 +395,9 @@ public final class DicdataStore {
                 let csvString = try String(contentsOf: requestOptions.dictionaryResourceURL.appendingPathComponent("p/p_\(key).csv", isDirectory: false), encoding: String.Encoding.utf8)
                 let csvLines = csvString.split(separator: "\n")
                 let csvData = csvLines.map {$0.split(separator: ",", omittingEmptySubsequences: false)}
-                let dicdata: [DicdataElement] = csvData.map {self.parseLoudstxt2FormattedEntry(from: $0)}
+                let dicdata: [DicdataElement] = csvData
+                    .map {self.parseLoudstxt2FormattedEntry(from: $0)}
+                    .filter { Self.predictionUsable[$0.rcid] }
                 return dicdata
             } catch {
                 debug("ファイルが存在しません: \(error)")
@@ -407,7 +409,10 @@ public final class DicdataStore {
             let charIDs = key.map {self.charsID[$0, default: .max]}
             // 最大700件に絞ることによって低速化を回避する。
             let prefixIndices = self.prefixMatchLOUDS(identifier: first, charIDs: charIDs, depth: 5).prefix(700)
-            result.append(contentsOf: self.getDicdataFromLoudstxt3(identifier: first, indices: Set(prefixIndices)))
+            result.append(
+                contentsOf: self.getDicdataFromLoudstxt3(identifier: first, indices: Set(prefixIndices))
+                    .filter { Self.predictionUsable[$0.rcid] }
+            )
             let userDictIndices = self.prefixMatchLOUDS(identifier: "user", charIDs: charIDs, depth: 5).prefix(700)
             result.append(contentsOf: self.getDicdataFromLoudstxt3(identifier: "user", indices: Set(userDictIndices)))
             if learningManager.enabled {
@@ -422,7 +427,10 @@ public final class DicdataStore {
             let charIDs = key.map {self.charsID[$0, default: .max]}
             // 最大700件に絞ることによって低速化を回避する。
             let prefixIndices = self.prefixMatchLOUDS(identifier: first, charIDs: charIDs).prefix(700)
-            result.append(contentsOf: self.getDicdataFromLoudstxt3(identifier: first, indices: Set(prefixIndices)))
+            result.append(
+                contentsOf: self.getDicdataFromLoudstxt3(identifier: first, indices: Set(prefixIndices))
+                    .filter { Self.predictionUsable[$0.rcid] }
+            )
             let userDictIndices = self.prefixMatchLOUDS(identifier: "user", charIDs: charIDs).prefix(700)
             result.append(contentsOf: self.getDicdataFromLoudstxt3(identifier: "user", indices: Set(userDictIndices)))
             if learningManager.enabled {
@@ -762,6 +770,59 @@ public final class DicdataStore {
             return 2.5
         }
         return 1
+    }
+
+    /// 予測変換で終端になれない品詞id
+    static let predictionUsable = (0...1319).map(_getPredictionUsable)
+    /// penaltyRatioの初期化時に使うのみ。
+    static func _getPredictionUsable(_ rcid: Int) -> Bool {
+        // 連用タ接続
+        // 次のコマンドにより機械的に生成`cat cid.txt | grep 連用タ | awk '{print $1}' | xargs -I {} echo -n "{}, "`
+        if Set([33, 34, 50, 86, 87, 88, 103, 127, 128, 144, 397, 398, 408, 426, 427, 450, 457, 480, 687, 688, 703, 704, 727, 742, 750, 758, 766, 786, 787, 798, 810, 811, 829, 830, 831, 893, 973, 974, 975, 976, 977, 1007, 1008, 1009, 1010, 1063, 1182, 1183, 1184, 1185, 1186, 1187, 1188, 1189, 1190, 1191, 1192, 1193, 1194, 1240, 1241, 1242, 1243, 1268, 1269, 1270, 1271]).contains(rcid) {
+            return false
+        }
+        // 仮定縮約
+        // cat cid.txt | grep 仮定縮約 | awk '{print $1}' | xargs -I {} echo -n "{}, "
+        if Set([15, 16, 17, 18, 41, 42, 59, 60, 61, 62, 63, 64, 94, 95, 109, 110, 111, 112, 135, 136, 379, 380, 381, 382, 402, 412, 413, 442, 443, 471, 472, 562, 572, 582, 591, 598, 618, 627, 677, 678, 693, 694, 709, 710, 722, 730, 737, 745, 753, 761, 770, 771, 791, 869, 878, 885, 896, 906, 917, 918, 932, 948, 949, 950, 951, 952, 987, 988, 989, 990, 1017, 1018, 1033, 1034, 1035, 1036, 1058, 1078, 1079, 1080, 1081, 1082, 1083, 1084, 1085, 1086, 1087, 1088, 1089, 1090, 1212, 1213, 1214, 1215]).contains(rcid) {
+            return false
+        }
+        // 未然形
+        // cat cid.txt | grep 未然形 | awk '{print $1}' | xargs -I {} echo -n "{}, "
+        if Set([372, 406, 418, 419, 431, 437, 438, 455, 462, 463, 464, 495, 496, 504, 533, 534, 540, 551, 567, 577, 587, 595, 606, 614, 622, 630, 641, 647, 653, 659, 665, 672, 683, 684, 699, 700, 715, 716, 725, 733, 740, 748, 756, 764, 780, 781, 794, 806, 807, 823, 824, 825, 837, 842, 847, 852, 859, 865, 873, 881, 890, 901, 911, 925, 935, 963, 964, 965, 966, 967, 999, 1000, 1001, 1002, 1023, 1024, 1045, 1046, 1047, 1048, 1061, 1143, 1144, 1145, 1146, 1147, 1148, 1149, 1150, 1151, 1152, 1153, 1154, 1155, 1224, 1225, 1226, 1227, 1260, 1261, 1262, 1263, 1278]).contains(rcid) {
+            return false
+        }
+        // 未然特殊
+        // cat cid.txt | grep 未然特殊 | awk '{print $1}' | xargs -I {} echo -n "{}, "
+        if Set([420, 421, 631, 782, 783, 795, 891, 936, 1156, 1157, 1158, 1159, 1160, 1161, 1162, 1163, 1164, 1165, 1166, 1167, 1168, 1228, 1229, 1230, 1231]).contains(rcid) {
+            return false
+        }
+        // 未然ウ接続
+        // cat cid.txt | grep 未然ウ接続 | awk '{print $1}' | xargs -I {} echo -n "{}, "
+        if Set([25, 26, 46, 74, 75, 76, 99, 119, 120, 140, 389, 390, 405, 416, 417, 447, 476, 493, 494, 566, 576, 585, 594, 603, 621, 629, 671, 681, 682, 697, 698, 713, 714, 724, 732, 739, 747, 755, 763, 778, 779, 793, 804, 805, 820, 821, 822, 872, 880, 889, 900, 910, 923, 924, 934, 958, 959, 960, 961, 962, 995, 996, 997, 998, 1021, 1022, 1041, 1042, 1043, 1044, 1060, 1130, 1131, 1132, 1133, 1134, 1135, 1136, 1137, 1138, 1139, 1140, 1141, 1142, 1220, 1221, 1222, 1223, 1256, 1257, 1258, 1259]).contains(rcid) {
+            return false
+        }
+        // 未然ヌ接続
+        // cat cid.txt | grep 未然ヌ接続 | awk '{print $1}' | xargs -I {} echo -n "{}, "
+        if Set([27, 28, 47, 77, 78, 79, 100, 121, 122, 141, 391, 392, 448, 477, 604]).contains(rcid) {
+            return false
+        }
+        // 体言接続特殊
+        // cat cid.txt | grep 体言接続特殊 | awk '{print $1}' | xargs -I {} echo -n "{}, "
+        if Set([404, 564, 565, 574, 575, 600, 601, 620, 774, 775, 776, 777, 871, 887, 888, 898, 899, 908, 909, 921, 922, 1104, 1105, 1106, 1107, 1108, 1109, 1110, 1111, 1112, 1113, 1114, 1115, 1116, 1117, 1118, 1119, 1120, 1121, 1122, 1123, 1124, 1125, 1126, 1127, 1128, 1129]).contains(rcid) {
+            return false
+        }
+        // 仮定形
+        // cat cid.txt | grep 仮定形 | awk '{print $1}' | xargs -I {} echo -n "{}, "
+        if Set([13, 14, 40, 56, 57, 58, 93, 107, 108, 134, 369, 377, 378, 401, 410, 411, 433, 434, 441, 452, 470, 483, 489, 490, 527, 528, 537, 542, 548, 561, 571, 581, 590, 597, 611, 617, 626, 636, 638, 644, 650, 656, 662, 668, 675, 676, 691, 692, 707, 708, 721, 729, 736, 744, 752, 760, 768, 769, 790, 800, 801, 814, 815, 816, 835, 840, 845, 850, 855, 862, 868, 877, 884, 895, 905, 915, 916, 931, 941, 943, 944, 945, 946, 947, 983, 984, 985, 986, 1015, 1016, 1029, 1030, 1031, 1032, 1057, 1065, 1066, 1067, 1068, 1069, 1070, 1071, 1072, 1073, 1074, 1075, 1076, 1077, 1208, 1209, 1210, 1211, 1248, 1249, 1250, 1251, 1276]).contains(rcid) {
+            return false
+        }
+        // 「食べよ」のような命令形も除外する
+        // 命令ｙｏ
+        // cat cid.txt | grep 命令ｙｏ | awk '{print $1}' | xargs -I {} echo -n "{}, "
+        if Set([373, 553, 569, 579, 589, 596, 609, 624, 634, 642, 648, 654, 660, 666, 673, 860, 866, 875, 903, 913, 928, 929, 939]).contains(rcid) {
+            return false
+        }
+        return true
     }
 
     // 学習を有効にする語彙を決める。
