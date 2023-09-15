@@ -1,6 +1,6 @@
 //
-//  Converter.swift
-//  Kana2KajiProject
+//  KanaKanjiConverter.swift
+//  AzooKeyKanaKanjiConverter
 //
 //  Created by ensan on 2020/09/03.
 //  Copyright © 2020 ensan. All rights reserved.
@@ -430,9 +430,6 @@ import SwiftUtils
         // 文節のみ変換するパターン（上位5件）
         let clause_candidates = self.getUniqueCandidate(clauseCandidates, seenCandidates: seenCandidate).min(count: 5, sortedBy: {$0.value > $1.value})
         seenCandidate.formUnion(clause_candidates.map {$0.text})
-        // 賢く変換するパターン（任意件数）
-        let wise_candidates: [Candidate] = self.getWiseCandidate(inputData, options: options)
-        seenCandidate.formUnion(wise_candidates.map {$0.text})
 
         // 最初の辞書データ
         let dicCandidates: [Candidate] = result.nodes[0]
@@ -449,12 +446,18 @@ import SwiftUtils
         let additionalCandidates: [Candidate] = self.getAdditionalCandidate(inputData, options: options)
 
         // 文字列の長さごとに並べ、かつその中で評価の高いものから順に並べる。
-        let word_candidates: [Candidate] = self.getUniqueCandidate(dicCandidates.chained(additionalCandidates), seenCandidates: seenCandidate)
+        var word_candidates: [Candidate] = self.getUniqueCandidate(dicCandidates.chained(additionalCandidates), seenCandidates: seenCandidate)
             .sorted {
                 let count0 = $0.correspondingCount
                 let count1 = $1.correspondingCount
                 return count0 == count1 ? $0.value > $1.value : count0 > count1
             }
+        seenCandidate.formUnion(word_candidates.map {$0.text})
+
+        // 賢く変換するパターン（任意件数）
+        let wise_candidates: [Candidate] = self.getUniqueCandidate(self.getWiseCandidate(inputData, options: options), seenCandidates: seenCandidate)
+        // 途中でwise_candidatesを挟む
+        word_candidates.insert(contentsOf: wise_candidates, at: min(5, word_candidates.endIndex))
 
         var result = Array(full_candidate)
 
@@ -473,7 +476,6 @@ import SwiftUtils
         }
 
         result.append(contentsOf: clause_candidates)
-        result.append(contentsOf: wise_candidates)
         result.append(contentsOf: word_candidates)
 
         result.mutatingForeach { item in
