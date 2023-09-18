@@ -414,15 +414,12 @@ import SwiftUtils
 
         // 文全体変換5件と予測変換3件を混ぜてベスト8を出す
         let best8 = getUniqueCandidate(sentence_candidates.chained(prediction_candidates)).sorted {$0.value > $1.value}
-        // ゼロヒント予測変換
-        let zeroHintPrediction_candidates = converter.getZeroHintPredictionCandidates(preparts: best8, N_best: 3)
         // その他のトップレベル変換（先頭に表示されうる変換候補）
         let toplevel_additional_candidate = self.getTopLevelAdditionalCandidate(inputData, options: options)
         // best8、foreign_candidates、zeroHintPrediction_candidates、toplevel_additional_candidateを混ぜて上位5件を取得する
         let full_candidate = getUniqueCandidate(
             best8
                 .chained(foreign_candidates)
-                .chained(zeroHintPrediction_candidates)
                 .chained(toplevel_additional_candidate)
         ).min(count: 5, sortedBy: {$0.value > $1.value})
         // 重複のない変換候補を作成するための集合
@@ -570,6 +567,11 @@ import SwiftUtils
 
     }
 
+    /// 2つの連続する`Candidate`をマージする
+    public func mergeCandidates(_ left: Candidate, _ right: Candidate) -> Candidate {
+        converter.mergeCandidates(left, right)
+    }
+
     /// 外部から呼ばれる変換候補を要求する関数。
     /// - Parameters:
     ///   - inputData: 変換対象のInputData。
@@ -590,5 +592,18 @@ import SwiftUtils
         }
 
         return self.processResult(inputData: inputData, result: result, options: options)
+    }
+    
+    /// 変換確定後の予測変換候補を要求する関数
+    public func requestPredictionCandidates(leftSideCandidate: Candidate, options: ConvertRequestOptions) -> [Candidate] {
+        // ゼロヒント予測変換に基づく候補を列挙
+        let zeroHintResults = self.converter.getZeroHintPredictionCandidates(preparts: [leftSideCandidate], N_best: 10)
+        // 予測変換に基づく候補を列挙
+        // TODO: implement
+        // 学習・ユーザ辞書に基づく候補を列挙
+        // TODO: implement
+        // 絵文字、記号類を列挙
+        // TODO: implement
+        return zeroHintResults
     }
 }

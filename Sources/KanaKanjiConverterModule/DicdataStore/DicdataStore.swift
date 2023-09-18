@@ -29,7 +29,6 @@ public final class DicdataStore {
     private var importedLoudses: Set<String> = []
     private var charsID: [Character: UInt8] = [:]
     private var learningManager = LearningManager()
-    private var zeroHintPredictionDicdata: [DicdataElement]?
 
     private var osUserDict: [DicdataElement] = []
 
@@ -361,20 +360,15 @@ public final class DicdataStore {
         }
     }
 
-    func getZeroHintPredictionDicdata() -> [DicdataElement] {
-        if let dicdata = self.zeroHintPredictionDicdata {
-            return dicdata
-        }
+    func getZeroHintPredictionDicdata(lastRcid: Int) -> [DicdataElement] {
         do {
-            let csvString = try String(contentsOf: requestOptions.dictionaryResourceURL.appendingPathComponent("p/p_null.csv", isDirectory: false), encoding: String.Encoding.utf8)
+            let csvString = try String(contentsOf: requestOptions.dictionaryResourceURL.appendingPathComponent("p/pc_\(lastRcid).csv", isDirectory: false), encoding: .utf8)
             let csvLines = csvString.split(separator: "\n")
             let csvData = csvLines.map {$0.split(separator: ",", omittingEmptySubsequences: false)}
             let dicdata: [DicdataElement] = csvData.map {self.parseLoudstxt2FormattedEntry(from: $0)}
-            self.zeroHintPredictionDicdata = dicdata
             return dicdata
         } catch {
             debug(error)
-            self.zeroHintPredictionDicdata = []
             return []
         }
     }
