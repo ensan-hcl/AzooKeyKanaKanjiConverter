@@ -36,6 +36,15 @@ public enum PredictionCandidate: Sendable {
         }
     }
     
+    public var text: String {
+        switch self {
+        case .additional(let c):
+            c.text
+        case .replacement(let c):
+            c.text
+        }
+    }
+
     public func join(to candidate: consuming Candidate) -> Candidate {
         switch self {
         case .additional(let c):
