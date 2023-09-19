@@ -637,8 +637,8 @@ import SwiftUtils
     
         var results: [PredictionCandidate] = []
         results.append(contentsOf: emojiCandidates.suffix(3))
-        results.append(contentsOf: predictionResults.max(count: (10 - results.count) / 2, sortedBy: {$0.value < $1.value}))
-        results.append(contentsOf: zeroHintResults.max(count: 10 - results.count, sortedBy: {$0.value < $1.value}))
+        results.append(contentsOf: predictionResults.min(count: (10 - results.count) / 2, sortedBy: {$0.value > $1.value}))
+        results.append(contentsOf: zeroHintResults.min(count: 10 - results.count, sortedBy: {$0.value > $1.value}))
         return results
     }
 }
