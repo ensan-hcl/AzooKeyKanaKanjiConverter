@@ -7,16 +7,16 @@
 
 import Foundation
 
-public enum PredictionCandidate: Sendable {
+public enum PredictionCandidate: Sendable, Hashable {
     case additional(AdditionalPredictionCandidate)
     case replacement(ReplacementPredictionCandidate)
     
-    public struct AdditionalPredictionCandidate: Sendable {
+    public struct AdditionalPredictionCandidate: Sendable, Hashable {
         public var text: String
         public var data: [DicdataElement]
         public var value: PValue
     }
-    public struct ReplacementPredictionCandidate: Sendable {
+    public struct ReplacementPredictionCandidate: Sendable, Hashable {
         /// 予測変換として表示するデータ
         public var text: String
         /// 置換対象のデータ

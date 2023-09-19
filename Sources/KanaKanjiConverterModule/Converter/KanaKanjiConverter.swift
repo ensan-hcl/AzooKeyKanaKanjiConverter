@@ -116,6 +116,27 @@ import SwiftUtils
         }
         return result
     }
+
+    /// 変換候補の重複を除去する関数。
+    /// - Parameters:
+    ///   - candidates: uniqueを実行する候補列。
+    /// - Returns:
+    ///   `candidates`から重複を削除したもの。
+    private func getUniquePredictionCandidate(_ candidates: some Sequence<PredictionCandidate>, seenCandidates: Set<String> = []) -> [PredictionCandidate] {
+        var result = [PredictionCandidate]()
+        for candidate in candidates where !candidate.text.isEmpty && !seenCandidates.contains(candidate.text) {
+            if let index = result.firstIndex(where: {$0.text == candidate.text}) {
+                if result[index].value < candidate.value {
+                    result[index] = candidate
+                }
+            } else {
+                result.append(candidate)
+            }
+        }
+        return result
+    }
+
+
     /// 外国語への予測変換候補を生成する関数
     /// - Parameters:
     ///   - inputData: 変換対象のデータ。
@@ -596,10 +617,14 @@ import SwiftUtils
     
     /// 変換確定後の予測変換候補を要求する関数
     public func requestPredictionCandidates(leftSideCandidate: Candidate, options: ConvertRequestOptions) -> [PredictionCandidate] {
+        var seenCandidates: Set<String> = []
         // ゼロヒント予測変換に基づく候補を列挙
-        let zeroHintResults = self.converter.getZeroHintPredictionCandidates(preparts: [leftSideCandidate], N_best: 10)
+        let zeroHintResults = self.getUniquePredictionCandidate(self.converter.getZeroHintPredictionCandidates(preparts: [leftSideCandidate], N_best: 15))
+        seenCandidates.formUnion(zeroHintResults.map{$0.text})
         // 予測変換に基づく候補を列挙
-        let predictionResults = self.converter.getPredictionCandidates(prepart: leftSideCandidate, N_best: 10)
+        let predictionResults = self.getUniquePredictionCandidate(self.converter.getPredictionCandidates(prepart: leftSideCandidate, N_best: 15), seenCandidates: seenCandidates)
+        seenCandidates.formUnion(predictionResults.map{$0.text})
+
         // 学習・ユーザ辞書に基づく候補を列挙
         // TODO: implement
         // 絵文字、記号類を列挙
