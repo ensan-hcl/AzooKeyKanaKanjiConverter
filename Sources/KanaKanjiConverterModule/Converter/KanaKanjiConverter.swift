@@ -624,11 +624,17 @@ import SwiftUtils
         // 予測変換に基づく候補を列挙
         let predictionResults = self.getUniquePredictionCandidate(self.converter.getPredictionCandidates(prepart: leftSideCandidate, N_best: 15), seenCandidates: seenCandidates)
         seenCandidates.formUnion(predictionResults.map{$0.text})
-
-        // 学習・ユーザ辞書に基づく候補を列挙
-        // TODO: implement
-        // 絵文字、記号類を列挙
-        // TODO: implement
-        return zeroHintResults.chained(predictionResults).max(count: 10, sortedBy: {$0.value < $1.value})
+        // 絵文字を追加
+        let replacer = TextReplacer()
+        var emojiCandidates: [PredictionCandidate] = []
+        for data in leftSideCandidate.data where DicdataStore.includeMMValueCalculation(data) {
+            let result = replacer.getSearchResult(query: data.word, target: [.emoji])
+            for emoji in result {
+                emojiCandidates.append(.additional(.init(text: emoji.text, data: [.init(ruby: "エモジ", cid: CIDData.記号.cid, mid: MIDData.絵文字.mid, value: -5)], value: -5)))
+            }
+        }
+        emojiCandidates = self.getUniquePredictionCandidate(emojiCandidates, seenCandidates: seenCandidates)
+    
+        return zeroHintResults.chained(predictionResults).chained(emojiCandidates.suffix(3)).max(count: 10, sortedBy: {$0.value < $1.value})
     }
 }
