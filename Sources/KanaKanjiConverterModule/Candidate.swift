@@ -72,13 +72,13 @@ public struct Candidate: Sendable {
     /// 入力となるテキスト
     public var text: String
     /// 評価値
-    public let value: PValue
+    public var value: PValue
     /// composingText.inputにおいて対応する文字数。
     public var correspondingCount: Int
     /// 最後のmid(予測変換に利用)
-    public let lastMid: Int
+    public var lastMid: Int
     /// DicdataElement列
-    public let data: [DicdataElement]
+    public var data: [DicdataElement]
     /// 変換として選択した際に実行する`action`。
     /// - note: 括弧を入力した際にカーソルを移動するために追加した変数
     public var actions: [CompleteAction]

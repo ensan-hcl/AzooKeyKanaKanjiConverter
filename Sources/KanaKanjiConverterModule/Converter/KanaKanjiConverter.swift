@@ -595,15 +595,15 @@ import SwiftUtils
     }
     
     /// 変換確定後の予測変換候補を要求する関数
-    public func requestPredictionCandidates(leftSideCandidate: Candidate, options: ConvertRequestOptions) -> [Candidate] {
+    public func requestPredictionCandidates(leftSideCandidate: Candidate, options: ConvertRequestOptions) -> [PredictionCandidate] {
         // ゼロヒント予測変換に基づく候補を列挙
         let zeroHintResults = self.converter.getZeroHintPredictionCandidates(preparts: [leftSideCandidate], N_best: 10)
         // 予測変換に基づく候補を列挙
-        // TODO: implement
+        let predictionResults = self.converter.getPredictionCandidates(prepart: leftSideCandidate, N_best: 10)
         // 学習・ユーザ辞書に基づく候補を列挙
         // TODO: implement
         // 絵文字、記号類を列挙
         // TODO: implement
-        return zeroHintResults
+        return zeroHintResults.chained(predictionResults).max(count: 10, sortedBy: {$0.value < $1.value})
     }
 }
