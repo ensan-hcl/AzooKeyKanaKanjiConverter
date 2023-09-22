@@ -24,7 +24,8 @@ public struct PredictionCandidate {
     public var type: PredictionType
     public var isTerminal: Bool
 
-    public func join(to candidate: consuming Candidate) -> Candidate {
+    public func join(to candidate: Candidate) -> Candidate {
+        var candidate = candidate
         switch self.type {
         case .additional(let data):
             for data in data {
