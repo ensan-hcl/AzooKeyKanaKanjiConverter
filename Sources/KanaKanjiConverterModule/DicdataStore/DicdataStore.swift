@@ -614,6 +614,16 @@ public final class DicdataStore {
             self.learningManager.update(data: candidate.data)
         }
     }
+    // 予測変換に基づいて学習を反映する
+    // TODO: previousの扱いを改善したい
+    func updateLearningData(_ candidate: Candidate, with predictionCandidate: PredictionCandidate) {
+        switch predictionCandidate.type {
+        case .additional(data: let data):
+            self.learningManager.update(data: candidate.data, updatePart: data)
+        case .replacement(targetData: let targetData, replacementData: let replacementData):
+            self.learningManager.update(data: candidate.data.dropLast(targetData.count), updatePart: replacementData)
+        }
+    }
     /// class idから連接確率を得る関数
     /// - Parameters:
     ///   - former: 左側の語のid

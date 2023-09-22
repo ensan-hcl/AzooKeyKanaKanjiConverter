@@ -52,4 +52,12 @@ public struct PredictionCandidate {
         case replacement(targetData: [DicdataElement], replacementData: [DicdataElement])
     }
 
+    var lastData: DicdataElement? {
+        switch self.type {
+        case .additional(let data):
+            return data.last
+        case .replacement(_, let replacementData):
+            return replacementData.last
+        }
+    }
 }

@@ -75,6 +75,14 @@ import SwiftUtils
         self.lastData = candidate.data.last
     }
 
+    /// 確定操作後、学習メモリをアップデートする関数。
+    /// - Parameters:
+    ///   - candidate: 確定された候補。
+    public func updateLearningData(_ candidate: Candidate, with predictionCandidate: PredictionCandidate) {
+        self.converter.dicdataStore.updateLearningData(candidate, with: predictionCandidate)
+        self.lastData = predictionCandidate.lastData
+    }
+
     /// 賢い変換候補を生成する関数。
     /// - Parameters:
     ///   - string: 入力されたString
