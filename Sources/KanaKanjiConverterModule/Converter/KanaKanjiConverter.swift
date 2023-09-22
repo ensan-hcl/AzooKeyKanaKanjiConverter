@@ -617,28 +617,53 @@ import SwiftUtils
     
     /// 変換確定後の予測変換候補を要求する関数
     public func requestPredictionCandidates(leftSideCandidate: Candidate, options: ConvertRequestOptions) -> [PredictionCandidate] {
-        var seenCandidates: Set<String> = []
         // ゼロヒント予測変換に基づく候補を列挙
-        let zeroHintResults = self.getUniquePredictionCandidate(self.converter.getZeroHintPredictionCandidates(preparts: [leftSideCandidate], N_best: 15))
-        seenCandidates.formUnion(zeroHintResults.map{$0.text})
+        var zeroHintResults = self.getUniquePredictionCandidate(self.converter.getZeroHintPredictionCandidates(preparts: [leftSideCandidate], N_best: 15))
+        do {
+            // 助詞は最大3つに制限する
+            var joshiCount = 0
+            zeroHintResults = zeroHintResults.reduce(into: []) { results, candidate in
+                switch candidate.type {
+                case .additional(data: let data):
+                    if CIDData.isJoshi(cid: data.last?.rcid ?? CIDData.EOS.cid) {
+                        if joshiCount < 3 {
+                            results.append(candidate)
+                            joshiCount += 1
+                        }
+                    } else {
+                        results.append(candidate)
+                    }
+                case .replacement:
+                    results.append(candidate)
+                }
+            }
+        }
+        
         // 予測変換に基づく候補を列挙
-        let predictionResults = self.getUniquePredictionCandidate(self.converter.getPredictionCandidates(prepart: leftSideCandidate, N_best: 15), seenCandidates: seenCandidates)
-        seenCandidates.formUnion(predictionResults.map{$0.text})
+        let predictionResults = self.converter.getPredictionCandidates(prepart: leftSideCandidate, N_best: 15)
         // 絵文字を追加
         let replacer = TextReplacer()
         var emojiCandidates: [PredictionCandidate] = []
         for data in leftSideCandidate.data where DicdataStore.includeMMValueCalculation(data) {
             let result = replacer.getSearchResult(query: data.word, target: [.emoji], ignoreNonBaseEmoji: true)
             for emoji in result {
-                emojiCandidates.append(.additional(.init(text: emoji.text, data: [.init(ruby: "エモジ", cid: CIDData.記号.cid, mid: MIDData.一般.mid, value: -3)], value: -3)))
+                emojiCandidates.append(PredictionCandidate(text: emoji.text, value: -3, type: .additional(data: [.init(word: emoji.text, ruby: "エモジ", cid: CIDData.記号.cid, mid: MIDData.一般.mid, value: -3)])))
             }
         }
-        emojiCandidates = self.getUniquePredictionCandidate(emojiCandidates, seenCandidates: seenCandidates)
-    
+        emojiCandidates = self.getUniquePredictionCandidate(emojiCandidates)
+        
         var results: [PredictionCandidate] = []
+        var seenCandidates: Set<String> = []
+
         results.append(contentsOf: emojiCandidates.suffix(3))
-        results.append(contentsOf: predictionResults.min(count: (10 - results.count) / 2, sortedBy: {$0.value > $1.value}))
-        results.append(contentsOf: zeroHintResults.min(count: 10 - results.count, sortedBy: {$0.value > $1.value}))
+        seenCandidates.formUnion(emojiCandidates.suffix(3).map{$0.text})
+
+        let predictions =  self.getUniquePredictionCandidate(predictionResults, seenCandidates: seenCandidates).min(count: (10 - results.count) / 2, sortedBy: {$0.value > $1.value})
+        results.append(contentsOf: predictions)
+        seenCandidates.formUnion(predictions.map{$0.text})
+
+        let zeroHints = self.getUniquePredictionCandidate(zeroHintResults, seenCandidates: seenCandidates)
+        results.append(contentsOf: zeroHints.min(count: 10 - results.count, sortedBy: {$0.value > $1.value}))
         return results
     }
 }

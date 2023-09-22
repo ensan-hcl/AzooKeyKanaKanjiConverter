@@ -84,7 +84,7 @@ extension Kana2Kanji {
                 }
                 // 共通接頭辞を切り落とす
                 let text = String(data.word.dropFirst(totalWord.count))
-                result.insert(.replacement(.init(text: text, targetData: totalData, replacementData: [data], value: newValue)), at: lastindex)
+                result.insert(.init(text: text, value: newValue, type: .replacement(targetData: totalData, replacementData: [data])), at: lastindex)
             }
         }
         return result
@@ -111,15 +111,15 @@ extension Kana2Kanji {
                     let newValue = candidate.value + mmValue + ccValue + wValue
 
                     // 追加すべきindexを取得する
-                    let lastindex: Int = (result.lastIndex(where: {$0.value >= newValue}) ?? -1) + 1
-                    if lastindex == N_best {
+                    let lastIndex: Int = (result.lastIndex(where: {$0.value >= newValue}) ?? -1) + 1
+                    if lastIndex == N_best {
                         continue
                     }
                     // カウントがオーバーしている場合は除去する
                     if result.count >= N_best {
                         result.removeLast()
                     }
-                    result.insert(.additional(.init(text: data.word, data: [data], value: newValue)), at: lastindex)
+                    result.insert(.init(text: data.word, value: newValue, type: .additional(data: [data])), at: lastIndex)
                 }
             }
         }
