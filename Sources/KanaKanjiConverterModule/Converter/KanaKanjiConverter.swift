@@ -628,7 +628,7 @@ import SwiftUtils
         let replacer = TextReplacer()
         var emojiCandidates: [PredictionCandidate] = []
         for data in leftSideCandidate.data where DicdataStore.includeMMValueCalculation(data) {
-            let result = replacer.getSearchResult(query: data.word, target: [.emoji])
+            let result = replacer.getSearchResult(query: data.word, target: [.emoji], ignoreNonBaseEmoji: true)
             for emoji in result {
                 emojiCandidates.append(.additional(.init(text: emoji.text, data: [.init(ruby: "エモジ", cid: CIDData.記号.cid, mid: MIDData.一般.mid, value: -3)], value: -3)))
             }
