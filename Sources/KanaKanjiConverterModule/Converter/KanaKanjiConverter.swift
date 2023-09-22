@@ -144,7 +144,6 @@ import SwiftUtils
         return result
     }
 
-
     /// 外国語への予測変換候補を生成する関数
     /// - Parameters:
     ///   - inputData: 変換対象のデータ。
@@ -622,7 +621,7 @@ import SwiftUtils
 
         return self.processResult(inputData: inputData, result: result, options: options)
     }
-    
+
     /// 変換確定後の予測変換候補を要求する関数
     public func requestPredictionCandidates(leftSideCandidate: Candidate, options: ConvertRequestOptions) -> [PredictionCandidate] {
         // ゼロヒント予測変換に基づく候補を列挙
@@ -646,7 +645,7 @@ import SwiftUtils
                 }
             }
         }
-        
+
         // 予測変換に基づく候補を列挙
         let predictionResults = self.converter.getPredictionCandidates(prepart: leftSideCandidate, N_best: 15)
         // 絵文字を追加
@@ -659,16 +658,16 @@ import SwiftUtils
             }
         }
         emojiCandidates = self.getUniquePredictionCandidate(emojiCandidates)
-        
+
         var results: [PredictionCandidate] = []
         var seenCandidates: Set<String> = []
 
         results.append(contentsOf: emojiCandidates.suffix(3))
-        seenCandidates.formUnion(emojiCandidates.suffix(3).map{$0.text})
+        seenCandidates.formUnion(emojiCandidates.suffix(3).map {$0.text})
 
         let predictions =  self.getUniquePredictionCandidate(predictionResults, seenCandidates: seenCandidates).min(count: (10 - results.count) / 2, sortedBy: {$0.value > $1.value})
         results.append(contentsOf: predictions)
-        seenCandidates.formUnion(predictions.map{$0.text})
+        seenCandidates.formUnion(predictions.map {$0.text})
 
         let zeroHints = self.getUniquePredictionCandidate(zeroHintResults, seenCandidates: seenCandidates)
         results.append(contentsOf: zeroHints.min(count: 10 - results.count, sortedBy: {$0.value > $1.value}))

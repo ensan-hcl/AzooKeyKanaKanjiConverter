@@ -54,19 +54,18 @@ extension Kana2Kanji {
                     prefixCandidate.value -= self.dicdataStore.getMMValue(previousMid, element.mid)
                 }
                 prefixCandidate.data = prefixCandidateData
-                
+
                 prefixCandidate.text = prefixCandidateData.reduce(into: "") { $0 += $1.word }
                 prefixCandidate.correspondingCount = prefixCandidateData.reduce(into: 0) { $0 += $1.ruby.count }
             }
 
-            
             totalWord.insert(contentsOf: element.word, at: totalWord.startIndex)
             totalRuby.insert(contentsOf: element.ruby, at: totalRuby.startIndex)
             totalData.insert(element, at: 0)
             let dicdata = self.dicdataStore.getPredictionLOUDSDicdata(key: totalRuby).filter {
                 DicdataStore.predictionUsable[$0.rcid] && $0.word.hasPrefix(totalWord)
             }
-            
+
             for data in dicdata {
                 let ccValue = self.dicdataStore.getCCValue(prefixCandidateData.last?.rcid ?? CIDData.BOS.cid, data.lcid)
                 let includeMMValueCalculation = DicdataStore.includeMMValueCalculation(data)

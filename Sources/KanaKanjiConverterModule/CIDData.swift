@@ -36,7 +36,7 @@ public enum CIDData: Sendable {
         case .EOS: return 1316
         }
     }
-    
+
     public static func isJoshi(cid: Int) -> Bool {
         return 147 <= cid && cid <= 368
     }

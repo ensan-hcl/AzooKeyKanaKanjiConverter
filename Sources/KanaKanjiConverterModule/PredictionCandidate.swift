@@ -18,7 +18,7 @@ public struct PredictionCandidate {
             self.isTerminal = false
         }
     }
-    
+
     public var text: String
     public var value: PValue
     public var type: PredictionType
