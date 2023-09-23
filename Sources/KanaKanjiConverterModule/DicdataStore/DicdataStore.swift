@@ -120,7 +120,7 @@ public final class DicdataStore {
     }
 
     /// ペナルティ関数。文字数で決める。
-    @inlinable static func getPenalty(data: DicdataElement) -> PValue {
+    @inlinable static func getPenalty(data: borrowing DicdataElement) -> PValue {
         -2.0 / PValue(data.word.count)
     }
 
@@ -135,7 +135,7 @@ public final class DicdataStore {
     }
 
     /// 計算時に利用。無視すべきデータかどうか。
-    @inlinable func shouldBeRemoved(data: DicdataElement) -> Bool {
+    @inlinable func shouldBeRemoved(data: borrowing DicdataElement) -> Bool {
         let d = data.value() - self.threshold
         if d < 0 {
             return true
@@ -247,7 +247,23 @@ public final class DicdataStore {
             }
             dicdata.append(contentsOf: result)
         }
-        dicdata.append(contentsOf: stringSet.flatMap {self.learningManager.temporaryThroughMatch(charIDs: $0.1, depth: depth)})
+        // temporalな学習結果にpenaltyを加えて追加する
+        for (_, charIds) in consume stringSet {
+            for data in self.learningManager.temporaryThroughMatch(charIDs: consume charIds, depth: depth) {
+                let rubyArray = Array(data.ruby)
+                let penalty = stringToInfo[rubyArray, default: (0, .zero)].penalty
+                if penalty.isZero {
+                    dicdata.append(data)
+                }
+                let ratio = Self.penaltyRatio[data.lcid]
+                let pUnit: PValue = Self.getPenalty(data: data) / 2   // 負の値
+                let adjust = pUnit * penalty * ratio
+                if self.shouldBeRemoved(value: data.value() + adjust, wordCount: rubyArray.count) {
+                    continue
+                }
+                dicdata.append(data.adjustedData(adjust))
+            }
+        }
 
         for i in toIndexLeft ..< toIndexRight {
             do {
@@ -343,7 +359,24 @@ public final class DicdataStore {
             }
             dicdata.append(contentsOf: result)
         }
-        dicdata.append(contentsOf: strings.flatMap {self.learningManager.temporaryPerfectMatch(charIDs: $0.charIDs)})
+        // temporalな学習結果にpenaltyを加えて追加する
+        for (characters, charIds) in consume strings {
+            for data in self.learningManager.temporaryPerfectMatch(charIDs: consume charIds) {
+                // perfect matchなので、Array(data.ruby)はcharactersに等しい
+                let penalty = string2penalty[characters, default: .zero]
+                if penalty.isZero {
+                    dicdata.append(data)
+                }
+                let ratio = Self.penaltyRatio[data.lcid]
+                let pUnit: PValue = Self.getPenalty(data: data) / 2   // 負の値
+                let adjust = pUnit * penalty * ratio
+                if self.shouldBeRemoved(value: data.value() + adjust, wordCount: characters.count) {
+                    continue
+                }
+                dicdata.append(data.adjustedData(adjust))
+            }
+        }
+
         dicdata.append(contentsOf: self.getWiseDicdata(convertTarget: segment, inputData: inputData, inputRange: fromIndex ..< toIndex + 1))
         dicdata.append(contentsOf: self.getMatchOSUserDict(segment))
 
