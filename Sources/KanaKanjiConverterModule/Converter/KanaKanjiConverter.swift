@@ -78,7 +78,7 @@ import SwiftUtils
     /// 確定操作後、学習メモリをアップデートする関数。
     /// - Parameters:
     ///   - candidate: 確定された候補。
-    public func updateLearningData(_ candidate: Candidate, with predictionCandidate: PredictionCandidate) {
+    public func updateLearningData(_ candidate: Candidate, with predictionCandidate: PostCompositionPredictionCandidate) {
         self.converter.dicdataStore.updateLearningData(candidate, with: predictionCandidate)
         self.lastData = predictionCandidate.lastData
     }
@@ -130,8 +130,8 @@ import SwiftUtils
     ///   - candidates: uniqueを実行する候補列。
     /// - Returns:
     ///   `candidates`から重複を削除したもの。
-    private func getUniquePredictionCandidate(_ candidates: some Sequence<PredictionCandidate>, seenCandidates: Set<String> = []) -> [PredictionCandidate] {
-        var result = [PredictionCandidate]()
+    private func getUniquePostCompositionPredictionCandidate(_ candidates: some Sequence<PostCompositionPredictionCandidate>, seenCandidates: Set<String> = []) -> [PostCompositionPredictionCandidate] {
+        var result = [PostCompositionPredictionCandidate]()
         for candidate in candidates where !candidate.text.isEmpty && !seenCandidates.contains(candidate.text) {
             if let index = result.firstIndex(where: {$0.text == candidate.text}) {
                 if result[index].value < candidate.value {
@@ -623,9 +623,9 @@ import SwiftUtils
     }
 
     /// 変換確定後の予測変換候補を要求する関数
-    public func requestPredictionCandidates(leftSideCandidate: Candidate, options: ConvertRequestOptions) -> [PredictionCandidate] {
+    public func requestPostCompositionPredictionCandidates(leftSideCandidate: Candidate, options: ConvertRequestOptions) -> [PostCompositionPredictionCandidate] {
         // ゼロヒント予測変換に基づく候補を列挙
-        var zeroHintResults = self.getUniquePredictionCandidate(self.converter.getZeroHintPredictionCandidates(preparts: [leftSideCandidate], N_best: 15))
+        var zeroHintResults = self.getUniquePostCompositionPredictionCandidate(self.converter.getZeroHintPredictionCandidates(preparts: [leftSideCandidate], N_best: 15))
         do {
             // 助詞は最大3つに制限する
             var joshiCount = 0
@@ -650,26 +650,28 @@ import SwiftUtils
         let predictionResults = self.converter.getPredictionCandidates(prepart: leftSideCandidate, N_best: 15)
         // 絵文字を追加
         let replacer = TextReplacer()
-        var emojiCandidates: [PredictionCandidate] = []
+        var emojiCandidates: [PostCompositionPredictionCandidate] = []
         for data in leftSideCandidate.data where DicdataStore.includeMMValueCalculation(data) {
             let result = replacer.getSearchResult(query: data.word, target: [.emoji], ignoreNonBaseEmoji: true)
             for emoji in result {
-                emojiCandidates.append(PredictionCandidate(text: emoji.text, value: -3, type: .additional(data: [.init(word: emoji.text, ruby: "エモジ", cid: CIDData.記号.cid, mid: MIDData.一般.mid, value: -3)])))
+                emojiCandidates.append(PostCompositionPredictionCandidate(text: emoji.text, value: -3, type: .additional(data: [.init(word: emoji.text, ruby: "エモジ", cid: CIDData.記号.cid, mid: MIDData.一般.mid, value: -3)])))
             }
         }
-        emojiCandidates = self.getUniquePredictionCandidate(emojiCandidates)
+        emojiCandidates = self.getUniquePostCompositionPredictionCandidate(emojiCandidates)
 
-        var results: [PredictionCandidate] = []
+        var results: [PostCompositionPredictionCandidate] = []
         var seenCandidates: Set<String> = []
 
         results.append(contentsOf: emojiCandidates.suffix(3))
         seenCandidates.formUnion(emojiCandidates.suffix(3).map {$0.text})
 
-        let predictions =  self.getUniquePredictionCandidate(predictionResults, seenCandidates: seenCandidates).min(count: (10 - results.count) / 2, sortedBy: {$0.value > $1.value})
+        // 残りの半分。ただしzeroHintResultsが足りない場合は全部で10個になるようにする。
+        let predictionsCount = max((10 - results.count) / 2, 10 - results.count - zeroHintResults.count)
+        let predictions =  self.getUniquePostCompositionPredictionCandidate(predictionResults, seenCandidates: seenCandidates).min(count: predictionsCount, sortedBy: {$0.value > $1.value})
         results.append(contentsOf: predictions)
         seenCandidates.formUnion(predictions.map {$0.text})
 
-        let zeroHints = self.getUniquePredictionCandidate(zeroHintResults, seenCandidates: seenCandidates)
+        let zeroHints = self.getUniquePostCompositionPredictionCandidate(zeroHintResults, seenCandidates: seenCandidates)
         results.append(contentsOf: zeroHints.min(count: 10 - results.count, sortedBy: {$0.value > $1.value}))
         return results
     }

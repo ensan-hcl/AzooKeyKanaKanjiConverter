@@ -1,12 +1,13 @@
 //
-//  prediction.swift
-//  
+//  post_composition_prediction.swift
+//
 //
 //  Created by miwa on 2023/09/19.
 //
 
 import Foundation
 
+// 確定後の予測変換に関係する実装
 extension Kana2Kanji {
     func mergeCandidates(_ left: Candidate, _ right: Candidate) -> Candidate {
         guard let leftLast = left.data.last, let rightFirst = right.data.first else {
@@ -31,8 +32,8 @@ extension Kana2Kanji {
         )
     }
 
-    func getPredictionCandidates(prepart: Candidate, N_best: Int) -> [PredictionCandidate] {
-        var result: [PredictionCandidate] = []
+    func getPredictionCandidates(prepart: Candidate, N_best: Int) -> [PostCompositionPredictionCandidate] {
+        var result: [PostCompositionPredictionCandidate] = []
         var count = 1
         var prefixCandidate = prepart
         prefixCandidate.actions = []
@@ -97,8 +98,8 @@ extension Kana2Kanji {
     ///   ゼロヒント予測変換の結果
     /// - note:
     ///   「食べちゃ-てる」「食べちゃ-いる」などの間抜けな候補を返すことが多いため、学習によるもの以外を無効化している。
-    func getZeroHintPredictionCandidates(preparts: some Collection<Candidate>, N_best: Int) -> [PredictionCandidate] {
-        var result: [PredictionCandidate] = []
+    func getZeroHintPredictionCandidates(preparts: some Collection<Candidate>, N_best: Int) -> [PostCompositionPredictionCandidate] {
+        var result: [PostCompositionPredictionCandidate] = []
         for candidate in preparts {
             if let last = candidate.data.last {
                 let dicdata = self.dicdataStore.getZeroHintPredictionDicdata(lastRcid: last.rcid)

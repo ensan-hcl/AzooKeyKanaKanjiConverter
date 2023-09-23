@@ -1,5 +1,5 @@
 //
-//  PredictionCandidate.swift
+//  PostCompositionPredictionCandidate.swift
 //
 //
 //  Created by miwa on 2023/09/19.
@@ -7,8 +7,9 @@
 
 import Foundation
 
-public struct PredictionCandidate {
-    public init(text: String, value: PValue, type: PredictionCandidate.PredictionType) {
+/// 確定後予測変換候補を表す型
+public struct PostCompositionPredictionCandidate {
+    public init(text: String, value: PValue, type: PostCompositionPredictionCandidate.PredictionType) {
         self.text = text
         self.value = value
         self.type = type
@@ -22,6 +23,8 @@ public struct PredictionCandidate {
     public var text: String
     public var value: PValue
     public var type: PredictionType
+
+    /// 確定後予測変換を終了すべきか否か。句点では終了する。
     public var isTerminal: Bool
 
     public func join(to candidate: Candidate) -> Candidate {

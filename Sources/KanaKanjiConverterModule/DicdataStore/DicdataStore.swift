@@ -616,7 +616,7 @@ public final class DicdataStore {
     }
     // 予測変換に基づいて学習を反映する
     // TODO: previousの扱いを改善したい
-    func updateLearningData(_ candidate: Candidate, with predictionCandidate: PredictionCandidate) {
+    func updateLearningData(_ candidate: Candidate, with predictionCandidate: PostCompositionPredictionCandidate) {
         switch predictionCandidate.type {
         case .additional(data: let data):
             self.learningManager.update(data: candidate.data, updatePart: data)

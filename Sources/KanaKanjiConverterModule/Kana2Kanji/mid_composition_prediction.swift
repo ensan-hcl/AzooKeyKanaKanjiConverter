@@ -1,6 +1,6 @@
 //
-//  getPrediction.swift
-//  Keyboard
+//  mid_composition_prediction.swift
+//  AzooKeyKanaKanjiConverter
 //
 //  Created by ensan on 2020/12/09.
 //  Copyright © 2020 ensan. All rights reserved.
@@ -9,6 +9,7 @@
 import Foundation
 import SwiftUtils
 
+// 変換中の予測変換に関する実装
 extension Kana2Kanji {
     /// CandidateDataの状態から予測変換候補を取得する関数
     /// - parameters:
