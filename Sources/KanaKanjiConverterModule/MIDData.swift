@@ -20,16 +20,23 @@ public enum MIDData: Sendable {
     case 小さい数字
     case 年
     case 絵文字
+    case 人名姓
+    case 人名名
+    case 組織
+
     public var mid: Int {
         switch self {
-        case .BOS: return 500
-        case .EOS: return 500
-        case .一般: return 501
-        case .年: return 237
-        case .英単語: return 40
-        case .数: return 452
-        case .小さい数字: return 361
-        case .絵文字: return 502
+        case .BOS: 500
+        case .EOS: 500
+        case .一般: 501
+        case .人名姓: 344
+        case .人名名: 370
+        case .組織: 378
+        case .年: 237
+        case .英単語: 40
+        case .数: 452
+        case .小さい数字: 361
+        case .絵文字: 501  // 502を追加する
         }
     }
 }
