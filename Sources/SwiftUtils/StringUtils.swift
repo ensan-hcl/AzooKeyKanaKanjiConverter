@@ -83,7 +83,6 @@ public extension StringProtocol {
         self.index(self.startIndex, offsetBy: offset)
     }
 
-
     // FIXME: レガシーな実装なのでどうにかしたい。Migrationする……？
     // エスケープが必要なのは次の文字:
     /*

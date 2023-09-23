@@ -204,9 +204,9 @@ public struct RandomTemplateLiteral: TemplateLiteralProtocol, Equatable, Sendabl
 
         public var type: ValueType {
             switch self {
-            case .int(from: _, to: _):
+            case .int:
                 return .int
-            case .double(from: _, to: _):
+            case .double:
                 return .double
             case .string:
                 return .string
