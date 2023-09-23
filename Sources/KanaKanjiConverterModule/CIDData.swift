@@ -19,7 +19,7 @@ public enum CIDData: Sendable {
     case 一般名詞
     case 固有名詞
     case 人名一般
-    case 人名性
+    case 人名姓
     case 人名名
     case 固有名詞組織
     case 地名一般
@@ -34,7 +34,7 @@ public enum CIDData: Sendable {
         case .一般名詞: 1285
         case .固有名詞: 1288
         case .人名一般: 1289
-        case .人名性: 1290
+        case .人名姓: 1290
         case .人名名: 1291
         case .固有名詞組織: 1292
         case .地名一般: 1293
