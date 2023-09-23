@@ -17,6 +17,7 @@ public struct TextReplacer {
     // TODO: prefix trieなどの方が便利だと思う
     private var emojiSearchDict: [String: [String]] = [:]
     private var emojiGroups: [EmojiGroup] = []
+    private var nonBaseEmojis: Set<String> = []
 
     public init() {
         let fileURL: URL
@@ -48,6 +49,7 @@ public struct TextReplacer {
                     emojiSearchDict[String(query), default: []].append(base)
                     emojiSearchDict[String(query), default: []].append(contentsOf: variations)
                 }
+                nonBaseEmojis.formUnion(variations)
                 emojiGroups.append(EmojiGroup(base: base, variations: variations))
             }
             self.emojiGroups = emojiGroups
@@ -60,7 +62,7 @@ public struct TextReplacer {
         }
     }
 
-    public func getSearchResult(query: String, target: [ConverterBehaviorSemantics.ReplacementTarget]) -> [SearchResultItem] {
+    public func getSearchResult(query: String, target: [ConverterBehaviorSemantics.ReplacementTarget], ignoreNonBaseEmoji: Bool = false) -> [SearchResultItem] {
         // 正規化する
         let query = query.lowercased().toHiragana()
         var results: [SearchResultItem] = []
@@ -71,7 +73,11 @@ public struct TextReplacer {
                 }
             }
         }
-        return results
+        if ignoreNonBaseEmoji {
+            return results.filter { !self.nonBaseEmojis.contains($0.text) }
+        } else {
+            return results
+        }
     }
 
     public struct SearchResultItem: Sendable {

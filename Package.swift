@@ -9,7 +9,7 @@ let swiftSettings: [SwiftSetting] = [
     .enableUpcomingFeature("ExistentialAny"),
     .enableUpcomingFeature("ForwardTrailingClosures"),
     .enableUpcomingFeature("ImplicitOpenExistentials"),
-    .enableUpcomingFeature("StrictConcurrency"),
+    .enableUpcomingFeature("StrictConcurrency")
 ]
 let package = Package(
     name: "AzooKeyKanakanjiConverter",

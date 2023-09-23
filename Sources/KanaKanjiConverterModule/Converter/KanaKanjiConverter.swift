@@ -75,6 +75,14 @@ import SwiftUtils
         self.lastData = candidate.data.last
     }
 
+    /// 確定操作後、学習メモリをアップデートする関数。
+    /// - Parameters:
+    ///   - candidate: 確定された候補。
+    public func updateLearningData(_ candidate: Candidate, with predictionCandidate: PostCompositionPredictionCandidate) {
+        self.converter.dicdataStore.updateLearningData(candidate, with: predictionCandidate)
+        self.lastData = predictionCandidate.lastData
+    }
+
     /// 賢い変換候補を生成する関数。
     /// - Parameters:
     ///   - string: 入力されたString
@@ -116,6 +124,26 @@ import SwiftUtils
         }
         return result
     }
+
+    /// 変換候補の重複を除去する関数。
+    /// - Parameters:
+    ///   - candidates: uniqueを実行する候補列。
+    /// - Returns:
+    ///   `candidates`から重複を削除したもの。
+    private func getUniquePostCompositionPredictionCandidate(_ candidates: some Sequence<PostCompositionPredictionCandidate>, seenCandidates: Set<String> = []) -> [PostCompositionPredictionCandidate] {
+        var result = [PostCompositionPredictionCandidate]()
+        for candidate in candidates where !candidate.text.isEmpty && !seenCandidates.contains(candidate.text) {
+            if let index = result.firstIndex(where: {$0.text == candidate.text}) {
+                if result[index].value < candidate.value {
+                    result[index] = candidate
+                }
+            } else {
+                result.append(candidate)
+            }
+        }
+        return result
+    }
+
     /// 外国語への予測変換候補を生成する関数
     /// - Parameters:
     ///   - inputData: 変換対象のデータ。
@@ -414,15 +442,12 @@ import SwiftUtils
 
         // 文全体変換5件と予測変換3件を混ぜてベスト8を出す
         let best8 = getUniqueCandidate(sentence_candidates.chained(prediction_candidates)).sorted {$0.value > $1.value}
-        // ゼロヒント予測変換
-        let zeroHintPrediction_candidates = converter.getZeroHintPredictionCandidates(preparts: best8, N_best: 3)
         // その他のトップレベル変換（先頭に表示されうる変換候補）
         let toplevel_additional_candidate = self.getTopLevelAdditionalCandidate(inputData, options: options)
         // best8、foreign_candidates、zeroHintPrediction_candidates、toplevel_additional_candidateを混ぜて上位5件を取得する
         let full_candidate = getUniqueCandidate(
             best8
                 .chained(foreign_candidates)
-                .chained(zeroHintPrediction_candidates)
                 .chained(toplevel_additional_candidate)
         ).min(count: 5, sortedBy: {$0.value > $1.value})
         // 重複のない変換候補を作成するための集合
@@ -570,6 +595,11 @@ import SwiftUtils
 
     }
 
+    /// 2つの連続する`Candidate`をマージする
+    public func mergeCandidates(_ left: Candidate, _ right: Candidate) -> Candidate {
+        converter.mergeCandidates(left, right)
+    }
+
     /// 外部から呼ばれる変換候補を要求する関数。
     /// - Parameters:
     ///   - inputData: 変換対象のInputData。
@@ -590,5 +620,59 @@ import SwiftUtils
         }
 
         return self.processResult(inputData: inputData, result: result, options: options)
+    }
+
+    /// 変換確定後の予測変換候補を要求する関数
+    public func requestPostCompositionPredictionCandidates(leftSideCandidate: Candidate, options: ConvertRequestOptions) -> [PostCompositionPredictionCandidate] {
+        // ゼロヒント予測変換に基づく候補を列挙
+        var zeroHintResults = self.getUniquePostCompositionPredictionCandidate(self.converter.getZeroHintPredictionCandidates(preparts: [leftSideCandidate], N_best: 15))
+        do {
+            // 助詞は最大3つに制限する
+            var joshiCount = 0
+            zeroHintResults = zeroHintResults.reduce(into: []) { results, candidate in
+                switch candidate.type {
+                case .additional(data: let data):
+                    if CIDData.isJoshi(cid: data.last?.rcid ?? CIDData.EOS.cid) {
+                        if joshiCount < 3 {
+                            results.append(candidate)
+                            joshiCount += 1
+                        }
+                    } else {
+                        results.append(candidate)
+                    }
+                case .replacement:
+                    results.append(candidate)
+                }
+            }
+        }
+
+        // 予測変換に基づく候補を列挙
+        let predictionResults = self.converter.getPredictionCandidates(prepart: leftSideCandidate, N_best: 15)
+        // 絵文字を追加
+        let replacer = TextReplacer()
+        var emojiCandidates: [PostCompositionPredictionCandidate] = []
+        for data in leftSideCandidate.data where DicdataStore.includeMMValueCalculation(data) {
+            let result = replacer.getSearchResult(query: data.word, target: [.emoji], ignoreNonBaseEmoji: true)
+            for emoji in result {
+                emojiCandidates.append(PostCompositionPredictionCandidate(text: emoji.text, value: -3, type: .additional(data: [.init(word: emoji.text, ruby: "エモジ", cid: CIDData.記号.cid, mid: MIDData.一般.mid, value: -3)])))
+            }
+        }
+        emojiCandidates = self.getUniquePostCompositionPredictionCandidate(emojiCandidates)
+
+        var results: [PostCompositionPredictionCandidate] = []
+        var seenCandidates: Set<String> = []
+
+        results.append(contentsOf: emojiCandidates.suffix(3))
+        seenCandidates.formUnion(emojiCandidates.suffix(3).map {$0.text})
+
+        // 残りの半分。ただしzeroHintResultsが足りない場合は全部で10個になるようにする。
+        let predictionsCount = max((10 - results.count) / 2, 10 - results.count - zeroHintResults.count)
+        let predictions =  self.getUniquePostCompositionPredictionCandidate(predictionResults, seenCandidates: seenCandidates).min(count: predictionsCount, sortedBy: {$0.value > $1.value})
+        results.append(contentsOf: predictions)
+        seenCandidates.formUnion(predictions.map {$0.text})
+
+        let zeroHints = self.getUniquePostCompositionPredictionCandidate(zeroHintResults, seenCandidates: seenCandidates)
+        results.append(contentsOf: zeroHints.min(count: 10 - results.count, sortedBy: {$0.value > $1.value}))
+        return results
     }
 }

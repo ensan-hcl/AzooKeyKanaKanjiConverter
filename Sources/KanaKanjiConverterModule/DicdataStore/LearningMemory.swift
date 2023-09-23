@@ -696,25 +696,30 @@ final class LearningManager {
     }
 
     func update(data: [DicdataElement]) {
+        self.update(data: [], updatePart: data)
+    }
+
+    /// `updatePart`のみを更新する。`data`の部分は更新しない。
+    func update(data: [DicdataElement], updatePart: [DicdataElement]) {
         if !options.learningType.needUpdateMemory {
             return
         }
         // 単語単位
-        for datum in data where DicdataStore.needWValueMemory(datum) {
+        for datum in updatePart where DicdataStore.needWValueMemory(datum) {
             guard let chars = Self.keyToChars(datum.ruby, char2UInt8: char2UInt8) else {
                 continue
             }
             self.temporaryMemory.memorize(dicdataElement: datum, chars: chars)
         }
 
-        if data.count == 1 {
+        if data.count + updatePart.count == 1 {
             return
         }
         // 文節単位bigram
         do {
             var firstClause: DicdataElement?
             var secondClause: DicdataElement?
-            for datum in data {
+            for (datum, index) in zip(data.chained(updatePart), 0 ..< data.count + updatePart.count) {
                 if var newFirstClause = firstClause {
                     if var newSecondClause = secondClause {
                         if DicdataStore.isClause(newFirstClause.rcid, datum.lcid) {
@@ -730,6 +735,10 @@ final class LearningManager {
                             // firstClauseを押し出す
                             firstClause = secondClause
                             secondClause = datum
+                            // 更新対象のindexでなければcontinueする
+                            guard data.endIndex <= index else {
+                                continue
+                            }
                             guard let chars = Self.keyToChars(element.ruby, char2UInt8: char2UInt8) else {
                                 continue
                             }
@@ -782,6 +791,7 @@ final class LearningManager {
             }
         }
         // 全体
+        let data = data.chained(updatePart)
         let element = DicdataElement(
             word: data.reduce(into: "") {$0.append(contentsOf: $1.word)},
             ruby: data.reduce(into: "") {$0.append(contentsOf: $1.ruby)},
