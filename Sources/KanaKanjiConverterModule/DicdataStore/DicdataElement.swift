@@ -42,8 +42,9 @@ public struct DicdataElement: Equatable, Hashable, Sendable {
         self.adjust = adjust
     }
 
-    public func adjustedData(_ adjustValue: PValue) -> Self {
-        .init(word: word, ruby: ruby, lcid: lcid, rcid: rcid, mid: mid, value: baseValue, adjust: adjustValue + self.adjust)
+    public consuming func adjustedData(_ adjustValue: PValue) -> Self {
+        self.adjust += adjustValue
+        return self
     }
 
     public var word: String
