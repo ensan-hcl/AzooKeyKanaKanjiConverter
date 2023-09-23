@@ -1,4 +1,4 @@
-// swift-tools-version: 5.8
+// swift-tools-version: 5.9
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -9,7 +9,9 @@ let swiftSettings: [SwiftSetting] = [
     .enableUpcomingFeature("ExistentialAny"),
     .enableUpcomingFeature("ForwardTrailingClosures"),
     .enableUpcomingFeature("ImplicitOpenExistentials"),
-    .enableUpcomingFeature("StrictConcurrency")
+    .enableUpcomingFeature("StrictConcurrency"),
+    .enableUpcomingFeature("DisableOutwardActorInference"),
+    .enableUpcomingFeature("ImportObjcForwardDeclarations")
 ]
 let package = Package(
     name: "AzooKeyKanakanjiConverter",
