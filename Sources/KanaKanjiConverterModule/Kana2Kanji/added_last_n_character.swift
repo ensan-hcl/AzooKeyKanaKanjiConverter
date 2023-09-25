@@ -28,10 +28,10 @@ extension Kana2Kanji {
     /// (3)(1)のregisterされた結果をresultノードに追加していく。この際EOSとの連接コストを計算しておく。
     ///
     /// (4)ノードをアップデートした上で返却する。
-    func kana2lattice_added(_ inputData: ComposingText, N_best: Int, addedCount: Int, previousResult: (inputData: ComposingText, nodes: Nodes)) -> (result: LatticeNode, nodes: Nodes) {
+    func kana2lattice_added(_ inputData: ComposingText, N_best: Int, addedCount: Int, previousResult: (inputData: ComposingText, nodes: Nodes)) async -> (result: LatticeNode, nodes: Nodes)? {
         debug("\(addedCount)文字追加。追加されたのは「\(inputData.input.suffix(addedCount))」")
         if addedCount == 1 {
-            return kana2lattice_addedLast(inputData, N_best: N_best, previousResult: previousResult)
+            return await kana2lattice_addedLast(inputData, N_best: N_best, previousResult: previousResult)
         }
         // (0)
         var nodes = previousResult.nodes
@@ -48,6 +48,10 @@ extension Kana2Kanji {
 
         // (2)
         for nodeArray in nodes {
+            if Task.isCancelled {
+                return nil
+            }
+            await Task.yield()
             for node in nodeArray {
                 if node.prevs.isEmpty {
                     continue
@@ -89,6 +93,10 @@ extension Kana2Kanji {
         let result = LatticeNode.EOSNode
 
         for (i, nodeArray) in addedNodes.enumerated() {
+            if Task.isCancelled {
+                return nil
+            }
+            await Task.yield()
             for node in nodeArray {
                 if node.prevs.isEmpty {
                     continue

@@ -514,14 +514,14 @@ public final class KanaKanjiConverter {
     ///   - N_best: 計算途中で保存する候補数。実際に得られる候補数とは異なる。
     /// - Returns:
     ///   結果のラティスノードと、計算済みノードの全体
-    private func convertToLattice(_ inputData: ComposingText, N_best: Int) -> (result: LatticeNode, nodes: [[LatticeNode]])? {
+    private func convertToLattice(_ inputData: ComposingText, N_best: Int) async -> (result: LatticeNode, nodes: [[LatticeNode]])? {
         if inputData.convertTarget.isEmpty {
             return nil
         }
 
         guard let previousInputData else {
             debug("convertToLattice: 新規計算用の関数を呼びますA")
-            let result = converter.kana2lattice_all(inputData, N_best: N_best)
+            let result = await converter.kana2lattice_all(inputData, N_best: N_best)
             self.previousInputData = inputData
             return result
         }
@@ -529,16 +529,16 @@ public final class KanaKanjiConverter {
         debug("convertToLattice: before \(previousInputData) after \(inputData)")
 
         // 完全一致の場合
-        if previousInputData == inputData {
-            let result = converter.kana2lattice_no_change(N_best: N_best, previousResult: (inputData: previousInputData, nodes: nodes))
+        if previousInputData == inputData,
+           let result = await converter.kana2lattice_no_change(N_best: N_best, previousResult: (inputData: previousInputData, nodes: nodes)) {
             self.previousInputData = inputData
             return result
         }
 
         // 文節確定の後の場合
-        if let completedData, previousInputData.inputHasSuffix(inputOf: inputData) {
+        if let completedData, previousInputData.inputHasSuffix(inputOf: inputData),
+           let result = await converter.kana2lattice_afterComplete(inputData, completedData: completedData, N_best: N_best, previousResult: (inputData: previousInputData, nodes: nodes)) {
             debug("convertToLattice: 文節確定用の関数を呼びます、確定された文節は\(completedData)")
-            let result = converter.kana2lattice_afterComplete(inputData, completedData: completedData, N_best: N_best, previousResult: (inputData: previousInputData, nodes: nodes))
             self.previousInputData = inputData
             self.completedData = nil
             return result
@@ -550,36 +550,36 @@ public final class KanaKanjiConverter {
         let diff = inputData.differenceSuffix(to: previousInputData)
 
         // 一文字消した場合
-        if diff.deleted > 0 && diff.addedCount == 0 {
+        if diff.deleted > 0 && diff.addedCount == 0,
+           let result = await converter.kana2lattice_deletedLast(deletedCount: diff.deleted, N_best: N_best, previousResult: (inputData: previousInputData, nodes: nodes)) {
             debug("convertToLattice: 最後尾削除用の関数を呼びます, 消した文字数は\(diff.deleted)")
-            let result = converter.kana2lattice_deletedLast(deletedCount: diff.deleted, N_best: N_best, previousResult: (inputData: previousInputData, nodes: nodes))
             self.previousInputData = inputData
             return result
         }
 
         // 一文字変わった場合
-        if diff.deleted > 0 {
-            debug("convertToLattice: 最後尾文字置換用の関数を呼びます、差分は\(diff)")
-            let result = converter.kana2lattice_changed(inputData, N_best: N_best, counts: (diff.deleted, diff.addedCount), previousResult: (inputData: previousInputData, nodes: nodes))
+        if diff.deleted > 0,
+           let result = await converter.kana2lattice_changed(inputData, N_best: N_best, counts: (diff.deleted, diff.addedCount), previousResult: (inputData: previousInputData, nodes: nodes)) {
+                debug("convertToLattice: 最後尾文字置換用の関数を呼びます、差分は\(diff)")
             self.previousInputData = inputData
             return result
         }
 
         // 1文字増やした場合
-        if diff.deleted == 0 && diff.addedCount != 0 {
+        if diff.deleted == 0 && diff.addedCount != 0,
+           let result = await converter.kana2lattice_added(inputData, N_best: N_best, addedCount: diff.addedCount, previousResult: (inputData: previousInputData, nodes: nodes)) {
             debug("convertToLattice: 最後尾追加用の関数を呼びます、追加文字数は\(diff.addedCount)")
-            let result = converter.kana2lattice_added(inputData, N_best: N_best, addedCount: diff.addedCount, previousResult: (inputData: previousInputData, nodes: nodes))
             self.previousInputData = inputData
             return result
         }
 
         // 一文字増やしていない場合
-        if true {
+        if let result = await converter.kana2lattice_all(inputData, N_best: N_best) {
             debug("convertToLattice: 新規計算用の関数を呼びますB")
-            let result = converter.kana2lattice_all(inputData, N_best: N_best)
             self.previousInputData = inputData
             return result
         }
+        return nil
     }
 
     public func getAppropriateActions(_ candidate: Candidate) -> [CompleteAction] {
@@ -613,10 +613,13 @@ public final class KanaKanjiConverter {
         // DicdataStoreにRequestOptionを通知する
         self.sendToDicdataStore(.setRequestOptions(options))
 
-        guard let result = self.convertToLattice(inputData, N_best: options.N_best) else {
+        guard let result = await self.convertToLattice(inputData, N_best: options.N_best) else {
             return ConversionResult(mainResults: [], firstClauseResults: [])
         }
-
+        if Task.isCancelled {
+            return ConversionResult(mainResults: [], firstClauseResults: [])
+        }
+        await Task.yield()
         return await self.processResult(inputData: inputData, result: result, options: options)
     }
 
