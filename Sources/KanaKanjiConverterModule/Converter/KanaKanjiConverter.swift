@@ -10,7 +10,7 @@ import Foundation
 import SwiftUtils
 
 /// かな漢字変換の管理を受け持つクラス
-@MainActor public final class KanaKanjiConverter {
+public final class KanaKanjiConverter {
     public init() {}
     public init(dicdataStore: DicdataStore) {
         self.converter = .init(dicdataStore: dicdataStore)
@@ -150,7 +150,7 @@ import SwiftUtils
     ///   - language: 言語コード。現在は`en-US`と`el(ギリシャ語)`のみ対応している。
     /// - Returns:
     ///   予測変換候補
-    private func getForeignPredictionCandidate(inputData: ComposingText, language: String, penalty: PValue = -5) -> [Candidate] {
+    @MainActor private func getForeignPredictionCandidate(inputData: ComposingText, language: String, penalty: PValue = -5) -> [Candidate] {
         switch language {
         case "en-US":
             var result: [Candidate] = []
@@ -280,7 +280,7 @@ import SwiftUtils
     ///   - inputData: 変換対象のInputData。
     /// - Returns:
     ///   付加的な変換候補
-    private func getTopLevelAdditionalCandidate(_ inputData: ComposingText, options: ConvertRequestOptions) -> [Candidate] {
+    @MainActor private func getTopLevelAdditionalCandidate(_ inputData: ComposingText, options: ConvertRequestOptions) -> [Candidate] {
         var candidates: [Candidate] = []
         if inputData.input.allSatisfy({$0.inputStyle == .roman2kana}) {
             if options.englishCandidateInRoman2KanaInput {
@@ -394,7 +394,12 @@ import SwiftUtils
     ///   重複のない変換候補。
     /// - Note:
     ///   現在の実装は非常に複雑な方法で候補の順序を決定している。
-    private func processResult(inputData: ComposingText, result: (result: LatticeNode, nodes: [[LatticeNode]]), options: ConvertRequestOptions) -> ConversionResult {
+    private func processResult(inputData: ComposingText, result: (result: LatticeNode, nodes: [[LatticeNode]]), options: ConvertRequestOptions) async -> ConversionResult {
+        async let englishCandidates: [Candidate] = options.requireEnglishPrediction ? await self.getForeignPredictionCandidate(inputData: inputData, language: "en-US") : []
+        async let greekCandidates: [Candidate] = options.keyboardLanguage == .el_GR ? await self.getForeignPredictionCandidate(inputData: inputData, language: "en-US") : []
+        // その他のトップレベル変換（先頭に表示されうる変換候補）
+        async let toplevel_additional_candidate = self.getTopLevelAdditionalCandidate(inputData, options: options)
+
         self.previousInputData = inputData
         self.nodes = result.nodes
         let clauseResult = result.result.getCandidateData()
@@ -432,23 +437,16 @@ import SwiftUtils
 
         // 英単語の予測変換。appleのapiを使うため、処理が異なる。
         var foreign_candidates: [Candidate] = []
-
-        if options.requireEnglishPrediction {
-            foreign_candidates.append(contentsOf: self.getForeignPredictionCandidate(inputData: inputData, language: "en-US"))
-        }
-        if options.keyboardLanguage == .el_GR {
-            foreign_candidates.append(contentsOf: self.getForeignPredictionCandidate(inputData: inputData, language: "el"))
-        }
+        foreign_candidates.append(contentsOf: await englishCandidates)
+        foreign_candidates.append(contentsOf: await greekCandidates)
 
         // 文全体変換5件と予測変換3件を混ぜてベスト8を出す
         let best8 = getUniqueCandidate(sentence_candidates.chained(prediction_candidates)).sorted {$0.value > $1.value}
-        // その他のトップレベル変換（先頭に表示されうる変換候補）
-        let toplevel_additional_candidate = self.getTopLevelAdditionalCandidate(inputData, options: options)
         // best8、foreign_candidates、zeroHintPrediction_candidates、toplevel_additional_candidateを混ぜて上位5件を取得する
         let full_candidate = getUniqueCandidate(
             best8
                 .chained(foreign_candidates)
-                .chained(toplevel_additional_candidate)
+                .chained(await toplevel_additional_candidate)
         ).min(count: 5, sortedBy: {$0.value > $1.value})
         // 重複のない変換候補を作成するための集合
         var seenCandidate: Set<String> = full_candidate.mapSet {$0.text}
@@ -605,7 +603,7 @@ import SwiftUtils
     ///   - inputData: 変換対象のInputData。
     ///   - options: リクエストにかかるパラメータ。
     /// - Returns: `ConversionResult`
-    public func requestCandidates(_ inputData: ComposingText, options: ConvertRequestOptions) -> ConversionResult {
+    public func requestCandidates(_ inputData: ComposingText, options: ConvertRequestOptions) async -> ConversionResult {
         debug("requestCandidates 入力は", inputData)
         // 変換対象が無の場合
         if inputData.convertTarget.isEmpty {
@@ -619,7 +617,7 @@ import SwiftUtils
             return ConversionResult(mainResults: [], firstClauseResults: [])
         }
 
-        return self.processResult(inputData: inputData, result: result, options: options)
+        return await self.processResult(inputData: inputData, result: result, options: options)
     }
 
     /// 変換確定後の予測変換候補を要求する関数

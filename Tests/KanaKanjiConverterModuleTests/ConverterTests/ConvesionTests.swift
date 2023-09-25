@@ -31,13 +31,13 @@ import XCTest
     }
 
     // 変換されてはいけないケースを示す
-    func testMustNotCases() throws {
+    func testMustNotCases() async throws {
         do {
             // 改行文字に対して本当に改行が入ってしまうケース
             let converter = KanaKanjiConverter()
             var c = ComposingText()
             c.insertAtCursorPosition("\\n", inputStyle: .direct)
-            let results = converter.requestCandidates(c, options: requestOptions())
+            let results = await converter.requestCandidates(c, options: requestOptions())
             XCTAssertFalse(results.mainResults.contains(where: {$0.text == "\n"}))
         }
     }
