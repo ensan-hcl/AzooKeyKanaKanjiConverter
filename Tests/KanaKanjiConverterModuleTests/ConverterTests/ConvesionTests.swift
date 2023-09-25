@@ -37,7 +37,7 @@ import XCTest
             let converter = KanaKanjiConverter()
             var c = ComposingText()
             c.insertAtCursorPosition("\\n", inputStyle: .direct)
-            let results = await converter.requestCandidates(c, options: requestOptions())
+            let results = try await converter.requestCandidates(c, options: requestOptions())
             XCTAssertFalse(results.mainResults.contains(where: {$0.text == "\n"}))
         }
     }

@@ -15,7 +15,7 @@ extension Kana2Kanji {
     /// (1)まず、計算済みnodeの確定分以降を取り出し、registeredにcompletedDataの値を反映したBOSにする。
     ///
     /// (2)次に、再度計算して良い候補を得る。
-    func kana2lattice_afterComplete(_ inputData: ComposingText, completedData: Candidate, N_best: Int, previousResult: (inputData: ComposingText, nodes: Nodes)) async -> (result: LatticeNode, nodes: Nodes)? {
+    func kana2lattice_afterComplete(_ inputData: ComposingText, completedData: Candidate, N_best: Int, previousResult: (inputData: ComposingText, nodes: Nodes)) async throws -> (result: LatticeNode, nodes: Nodes) {
         debug("確定直後の変換、前は：", previousResult.inputData, "後は：", inputData)
         let count = inputData.input.count
         // (1)
@@ -40,9 +40,7 @@ extension Kana2Kanji {
         let result = LatticeNode.EOSNode
 
         for (i, nodeArray) in nodes.enumerated() {
-            if Task.isCancelled {
-                return nil
-            }
+            try Task.checkCancellation()
             await Task.yield()
             for node in nodeArray {
                 if node.prevs.isEmpty {
