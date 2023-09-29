@@ -10,7 +10,7 @@ import Foundation
 import SwiftUtils
 
 /// かな漢字変換の管理を受け持つクラス
-public final class KanaKanjiConverter {
+public final actor KanaKanjiConverter {
     public init() {}
     public init(dicdataStore: DicdataStore) {
         self.converter = .init(dicdataStore: dicdataStore)
@@ -34,20 +34,17 @@ public final class KanaKanjiConverter {
         self.lastData = nil
     }
 
+
     /// 入力する言語が分かったらこの関数をなるべく早い段階で呼ぶことで、SpellCheckerの初期化が行われ、変換がスムーズになる
-    public func setKeyboardLanguage(_ language: KeyboardLanguage) {
+    public func setKeyboardLanguage(_ language: KeyboardLanguage) async {
         if !checkerInitialized[language, default: false] {
             switch language {
             case .en_US:
-                Task { @MainActor in
-                    _ = self.checker.completions(forPartialWordRange: NSRange(location: 0, length: 1), in: "a", language: "en-US")
-                    self.checkerInitialized[language] = true
-                }
+                _ = await self.checker.completions(forPartialWordRange: NSRange(location: 0, length: 1), in: "a", language: "en-US")
+                self.checkerInitialized[language] = true
             case .el_GR:
-                Task { @MainActor in
-                    _ = self.checker.completions(forPartialWordRange: NSRange(location: 0, length: 1), in: "a", language: "el-GR")
-                    self.checkerInitialized[language] = true
-                }
+                _ = await self.checker.completions(forPartialWordRange: NSRange(location: 0, length: 1), in: "a", language: "el-GR")
+                self.checkerInitialized[language] = true
             case .none, .ja_JP:
                 checkerInitialized[language] = true
             }
