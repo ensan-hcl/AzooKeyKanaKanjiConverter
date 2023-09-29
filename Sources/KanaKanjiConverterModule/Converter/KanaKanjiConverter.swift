@@ -499,7 +499,7 @@ public final actor KanaKanjiConverter {
         result.append(contentsOf: word_candidates)
 
         result.mutatingForeach { item in
-            item.withActions(self.getAppropriateActions(item))
+            item.withActions(KanaKanjiConverter.getAppropriateActions(item))
             item.parseTemplate()
         }
         return ConversionResult(mainResults: result, firstClauseResults: Array(clause_candidates))
@@ -579,7 +579,7 @@ public final actor KanaKanjiConverter {
         }
     }
 
-    public func getAppropriateActions(_ candidate: Candidate) -> [CompleteAction] {
+    public static func getAppropriateActions(_ candidate: Candidate) -> [CompleteAction] {
         if ["[]", "()", "｛｝", "〈〉", "〔〕", "（）", "「」", "『』", "【】", "{}", "<>", "《》", "\"\"", "\'\'", "””"].contains(candidate.text) {
             return [.moveCursor(-1)]
         }
