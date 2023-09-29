@@ -601,6 +601,8 @@ public final actor KanaKanjiConverter {
     ///   - options: リクエストにかかるパラメータ。
     /// - Returns: `ConversionResult`
     public func requestCandidates(_ inputData: ComposingText, options: ConvertRequestOptions) async throws -> ConversionResult {
+        try Task.checkCancellation()
+        await Task.yield()
         debug("requestCandidates 入力は", inputData)
         // 変換対象が無の場合
         if inputData.convertTarget.isEmpty {
