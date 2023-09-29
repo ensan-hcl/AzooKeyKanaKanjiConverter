@@ -34,7 +34,6 @@ extension Kana2Kanji {
         for nodeArray in previousResult.nodes {
             try Task.checkCancellation()
             await Task.yield()
-            await Task.yield()
             for node in nodeArray {
                 if node.prevs.isEmpty {
                     continue

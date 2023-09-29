@@ -20,19 +20,23 @@ extension Kana2Kanji {
         let count = inputData.input.count
         // (1)
         let start = RegisteredNode.fromLastCandidate(completedData)
-        let nodes: Nodes = previousResult.nodes.suffix(count)
+        var nodes: Nodes = previousResult.nodes.suffix(count)
+        // ここでnodeそのものを変更しないで、コピーする
+        // ここでnodesの中は全て新しいnodeになっている
         for (i, nodeArray) in nodes.enumerated() {
             if i == .zero {
-                for node in nodeArray {
+                nodes[i] = nodeArray.map {
+                    let node = $0.copy()
                     node.prevs = [start]
-                    // inputRangeを確定した部分のカウント分ずらす
-                    node.inputRange = node.inputRange.startIndex - completedData.correspondingCount ..< node.inputRange.endIndex - completedData.correspondingCount
+                    node.inputRange = $0.inputRange.startIndex - completedData.correspondingCount ..< $0.inputRange.endIndex - completedData.correspondingCount
+                    return node
                 }
             } else {
-                for node in nodeArray {
+                nodes[i] = nodeArray.map {
+                    let node = $0.copy()
                     node.prevs = []
-                    // inputRangeを確定した部分のカウント分ずらす
-                    node.inputRange = node.inputRange.startIndex - completedData.correspondingCount ..< node.inputRange.endIndex - completedData.correspondingCount
+                    node.inputRange = $0.inputRange.startIndex - completedData.correspondingCount ..< $0.inputRange.endIndex - completedData.correspondingCount
+                    return node
                 }
             }
         }
