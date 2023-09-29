@@ -30,7 +30,6 @@ extension Kana2Kanji {
     func kana2lattice_addedLast(_ inputData: ComposingText, N_best: Int, previousResult: (inputData: ComposingText, nodes: Nodes) ) async throws -> (result: LatticeNode, nodes: Nodes) {
         debug("一文字追加。内部文字列は\(inputData.input).\(previousResult.nodes.map {($0.first?.data.ruby, $0.first?.inputRange)})")
         // (0)
-        var nodes = previousResult.nodes
         let count = previousResult.inputData.input.count
 
         // (1)
@@ -40,7 +39,7 @@ extension Kana2Kanji {
 
         // ココが一番時間がかかっていた。
         // (2)
-        for nodeArray in nodes {
+        for nodeArray in previousResult.nodes {
             try Task.checkCancellation()
             await Task.yield()
             for node in nodeArray {
@@ -106,6 +105,7 @@ extension Kana2Kanji {
         }
 
         // (4)
+        var nodes = previousResult.nodes
         for (index, nodeArray) in addedNodes.enumerated() where index < nodes.endIndex {
             nodes[index].append(contentsOf: nodeArray)
         }

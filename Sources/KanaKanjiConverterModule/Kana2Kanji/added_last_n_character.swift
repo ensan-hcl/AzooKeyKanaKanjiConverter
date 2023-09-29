@@ -34,7 +34,6 @@ extension Kana2Kanji {
             return try await kana2lattice_addedLast(inputData, N_best: N_best, previousResult: previousResult)
         }
         // (0)
-        var nodes = previousResult.nodes
         let count = inputData.input.count
 
         // (1)
@@ -47,7 +46,7 @@ extension Kana2Kanji {
         }
 
         // (2)
-        for nodeArray in nodes {
+        for nodeArray in previousResult.nodes {
             try Task.checkCancellation()
             await Task.yield()
             for node in nodeArray {
@@ -59,7 +58,6 @@ extension Kana2Kanji {
                 }
                 // 変換した文字数
                 let nextIndex = node.inputRange.endIndex
-                assert(nextIndex == node.inputRange.endIndex)
                 for nextnode in addedNodes[nextIndex] {
                     // この関数はこの時点で呼び出して、後のnode.registered.isEmptyで最終的に弾くのが良い。
                     if self.dicdataStore.shouldBeRemoved(data: nextnode.data) {
@@ -146,6 +144,7 @@ extension Kana2Kanji {
             }
         }
 
+        var nodes = previousResult.nodes
         for (index, nodeArray) in addedNodes.enumerated() {
             if index < nodes.endIndex {
                 nodes[index].append(contentsOf: nodeArray)
