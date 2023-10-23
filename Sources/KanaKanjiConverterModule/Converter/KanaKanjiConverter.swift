@@ -513,10 +513,6 @@ public final actor KanaKanjiConverter {
     /// - Returns:
     ///   結果のラティスノードと、計算済みノードの全体
     private func convertToLattice(_ inputData: ComposingText, N_best: Int, cache: consuming Cache) async throws -> ResultAndCache {
-        if inputData.convertTarget.isEmpty {
-            return ResultAndCache(.EOSNode, .none())
-        }
-
         guard let previousInputData = cache.previousInputData else {
             debug("convertToLattice: 新規計算用の関数を呼びますA")
             let result = try await converter.kana2lattice_all(inputData, N_best: N_best)
@@ -616,13 +612,9 @@ public final actor KanaKanjiConverter {
         if inputData.convertTarget.isEmpty {
             return ConversionResult(mainResults: [], firstClauseResults: [], cache: .none())
         }
-
         // DicdataStoreにRequestOptionを通知する
         self.sendToDicdataStore(.setRequestOptions(options))
         let result = try await self.convertToLattice(inputData, N_best: options.N_best, cache: cache)
-        if result.result.inputRange.isEmpty {
-            return ConversionResult(mainResults: [], firstClauseResults: [], cache: .none())
-        }
         try Task.checkCancellation()
         await Task.yield()
         let _result = result.result
