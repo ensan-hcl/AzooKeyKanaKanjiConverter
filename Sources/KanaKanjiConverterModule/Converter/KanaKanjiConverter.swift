@@ -26,6 +26,13 @@ public final actor KanaKanjiConverter {
             self.completedData = candidate
             self.lastData = candidate.data.last
         }
+
+        /// 即座に再代入されることを前提に、一時的に`.none()`で`Self`を埋めつつ`consume`な操作を実施する関数
+        public mutating func consumed() -> Self {
+            let tmp = self
+            self = .none()
+            return tmp
+        }
     }
 
     public init() {}
@@ -390,8 +397,6 @@ public final actor KanaKanjiConverter {
         async let greekCandidates: [Candidate] = options.keyboardLanguage == .el_GR ? await self.getForeignPredictionCandidate(inputData: inputData, language: "en-US") : []
         // その他のトップレベル変換（先頭に表示されうる変換候補）
         async let toplevel_additional_candidate = self.getTopLevelAdditionalCandidate(inputData, options: options)
-
-        cache.previousInputData = inputData
         let clauseResult = result.getCandidateData()
         if clauseResult.isEmpty {
             let candidates = self.getUniqueCandidate(self.getAdditionalCandidate(inputData, options: options))
