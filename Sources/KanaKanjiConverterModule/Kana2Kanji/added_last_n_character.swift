@@ -37,13 +37,7 @@ extension Kana2Kanji {
         let count = inputData.input.count
 
         // (1)
-        let addedNodes: [[LatticeNode]] = (.zero ..< count).map {(i: Int) in
-            self.dicdataStore.getLOUDSDataInRange(
-                inputData: inputData,
-                from: i,
-                toIndexRange: (max(previousResult.inputData.input.count, i) ..< max(previousResult.inputData.input.count, min(count, i + self.dicdataStore.maxlength + 1)))
-            )
-        }
+        let addedNodes: [[LatticeNode]] = await self.dicdataStore.getAddedNodes(inputData: inputData, previousInputData: previousResult.inputData, count: count)
 
         // (2)
         for nodeArray in previousResult.nodes {
@@ -53,18 +47,18 @@ extension Kana2Kanji {
                 if node.prevs.isEmpty {
                     continue
                 }
-                if self.dicdataStore.shouldBeRemoved(data: node.data) {
+                if DicdataStore.shouldBeRemoved(data: node.data) {
                     continue
                 }
                 // 変換した文字数
                 let nextIndex = node.inputRange.endIndex
                 for nextnode in addedNodes[nextIndex] {
                     // この関数はこの時点で呼び出して、後のnode.registered.isEmptyで最終的に弾くのが良い。
-                    if self.dicdataStore.shouldBeRemoved(data: nextnode.data) {
+                    if DicdataStore.shouldBeRemoved(data: nextnode.data) {
                         continue
                     }
                     // クラスの連続確率を計算する。
-                    let ccValue: PValue = self.dicdataStore.getCCValue(node.data.rcid, nextnode.data.lcid)
+                    let ccValue: PValue = await self.dicdataStore.getCCValue(node.data.rcid, nextnode.data.lcid)
                     // nodeの持っている全てのprevnodeに対して
                     for (index, value) in node.values.enumerated() {
                         let newValue: PValue = ccValue + value
@@ -95,14 +89,20 @@ extension Kana2Kanji {
                 if node.prevs.isEmpty {
                     continue
                 }
-                if self.dicdataStore.shouldBeRemoved(data: node.data) {
+                if DicdataStore.shouldBeRemoved(data: node.data) {
                     continue
                 }
                 // 生起確率を取得する。
                 let wValue = node.data.value()
                 if i == 0 {
                     // valuesを更新する
-                    node.values = node.prevs.map {$0.totalValue + wValue + self.dicdataStore.getCCValue($0.data.rcid, node.data.lcid)}
+                    node.values = await self.dicdataStore.getCCValues(
+                        queries: node.prevs.map {(
+                            former: $0.data.rcid,
+                            latter: node.data.lcid,
+                            offset: $0.totalValue + wValue
+                        )}
+                    )
                 } else {
                     // valuesを更新する
                     node.values = node.prevs.map {$0.totalValue + wValue}
@@ -118,11 +118,11 @@ extension Kana2Kanji {
                 } else {
                     for nextnode in addedNodes[nextIndex] {
                         // この関数はこの時点で呼び出して、後のnode.registered.isEmptyで最終的に弾くのが良い。
-                        if self.dicdataStore.shouldBeRemoved(data: nextnode.data) {
+                        if DicdataStore.shouldBeRemoved(data: nextnode.data) {
                             continue
                         }
                         // クラスの連続確率を計算する。
-                        let ccValue: PValue = self.dicdataStore.getCCValue(node.data.rcid, nextnode.data.lcid)
+                        let ccValue: PValue = await self.dicdataStore.getCCValue(node.data.rcid, nextnode.data.lcid)
                         // nodeの持っている全てのprevnodeに対して
                         for (index, value) in node.values.enumerated() {
                             let newValue: PValue = ccValue + value
@@ -153,5 +153,17 @@ extension Kana2Kanji {
             }
         }
         return (result: result, nodes: nodes)
+    }
+}
+
+private extension DicdataStore {
+    func getAddedNodes(inputData: ComposingText, previousInputData: borrowing ComposingText, count: Int) -> [[LatticeNode]] {
+        (.zero ..< count).map {(i: Int) in
+            self.getLOUDSDataInRange(
+                inputData: inputData,
+                from: i,
+                toIndexRange: (max(previousInputData.input.count, i) ..< max(previousInputData.input.count, min(count, i + self.maxlength + 1)))
+            )
+        }
     }
 }

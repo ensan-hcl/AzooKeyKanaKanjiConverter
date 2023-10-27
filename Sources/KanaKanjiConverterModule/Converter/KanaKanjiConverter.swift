@@ -63,22 +63,22 @@ public final actor KanaKanjiConverter {
     /// 上流の関数から`dicdataStore`で行うべき操作を伝播する関数。
     /// - Parameters:
     ///   - data: 行うべき操作。
-    public func sendToDicdataStore(_ data: DicdataStore.Notification) {
-        self.converter.dicdataStore.sendToDicdataStore(data)
+    public func sendToDicdataStore(_ data: DicdataStore.Notification) async {
+        await self.converter.dicdataStore.sendToDicdataStore(data)
     }
 
     /// 確定操作後、学習メモリをアップデートする関数。
     /// - Parameters:
     ///   - candidate: 確定された候補。
-    public func updateLearningData(_ candidate: Candidate) {
-        self.converter.dicdataStore.updateLearningData(candidate, with: candidate.data.last)
+    public func updateLearningData(_ candidate: Candidate) async {
+        await self.converter.dicdataStore.updateLearningData(candidate, with: candidate.data.last)
     }
 
     /// 確定操作後、学習メモリをアップデートする関数。
     /// - Parameters:
     ///   - candidate: 確定された候補。
-    public func updateLearningData(_ candidate: Candidate, with predictionCandidate: PostCompositionPredictionCandidate) {
-        self.converter.dicdataStore.updateLearningData(candidate, with: predictionCandidate)
+    public func updateLearningData(_ candidate: Candidate, with predictionCandidate: PostCompositionPredictionCandidate) async {
+        await self.converter.dicdataStore.updateLearningData(candidate, with: predictionCandidate)
     }
 
     /// 賢い変換候補を生成する関数。
@@ -227,7 +227,7 @@ public final actor KanaKanjiConverter {
     ///   - sums: 変換対象のデータ。
     /// - Returns:
     ///   予測変換候補
-    private func getPredictionCandidate(_ sums: [(CandidateData, Candidate)], composingText: ComposingText, options: ConvertRequestOptions) -> [Candidate] {
+    private func getPredictionCandidate(_ sums: [(CandidateData, Candidate)], composingText: ComposingText, options: ConvertRequestOptions) async -> [Candidate] {
         // 予測変換は次の方針で行う。
         // prepart: 前半文節 lastPart: 最終文節とする。
         // まず、lastPartがnilであるところから始める
@@ -250,7 +250,7 @@ public final actor KanaKanjiConverter {
                 newUnit.merge(with: oldlastPart.clause)     // マージする。(最終文節の範囲を広げたことになる)
                 let newValue = lastUnit.value + oldlastPart.value
                 let newlastPart: CandidateData.ClausesUnit = (clause: newUnit, value: newValue)
-                let predictions = converter.getPredictionCandidates(composingText: composingText, prepart: prepart, lastClause: newlastPart.clause, N_best: 5)
+                let predictions = await converter.getPredictionCandidates(composingText: composingText, prepart: prepart, lastClause: newlastPart.clause, N_best: 5)
                 lastpart = newlastPart
                 // 結果がemptyでなければ
                 if !predictions.isEmpty {
@@ -261,7 +261,7 @@ public final actor KanaKanjiConverter {
                 // 最終分節を取得
                 lastpart = prepart.clauses.popLast()
                 // 予測変換を受け取る
-                let predictions = converter.getPredictionCandidates(composingText: composingText, prepart: prepart, lastClause: lastpart!.clause, N_best: 5)
+                let predictions = await converter.getPredictionCandidates(composingText: composingText, prepart: prepart, lastClause: lastpart!.clause, N_best: 5)
                 // 結果がemptyでなければ
                 if !predictions.isEmpty {
                     // 結果に追加
@@ -423,12 +423,12 @@ public final actor KanaKanjiConverter {
                 data: Array(candidateData.data[0...count])
             )
         }
-        let sums: [(CandidateData, Candidate)] = clauseResult.map {($0, converter.processClauseCandidate($0))}
+        let sums: [(CandidateData, Candidate)] = await self.converter.processCandidateData(clauseResult)
         // 文章全体を変換した場合の候補上位5件を作る
         let whole_sentence_unique_candidates = self.getUniqueCandidate(sums.map {$0.1})
         let sentence_candidates = whole_sentence_unique_candidates.min(count: 5, sortedBy: {$0.value > $1.value})
         // 予測変換を最大3件作成する
-        let prediction_candidates: [Candidate] = options.requireJapanesePrediction ? Array(self.getUniqueCandidate(self.getPredictionCandidate(sums, composingText: inputData, options: options)).min(count: 3, sortedBy: {$0.value > $1.value})) : []
+        let prediction_candidates: [Candidate] = options.requireJapanesePrediction ? Array(self.getUniqueCandidate(await self.getPredictionCandidate(sums, composingText: inputData, options: options)).min(count: 3, sortedBy: {$0.value > $1.value})) : []
 
         // 英単語の予測変換。appleのapiを使うため、処理が異なる。
         var foreign_candidates: [Candidate] = []
@@ -600,8 +600,8 @@ public final actor KanaKanjiConverter {
     }
 
     /// 2つの連続する`Candidate`をマージする
-    public func mergeCandidates(_ left: Candidate, _ right: Candidate) -> Candidate {
-        converter.mergeCandidates(left, right)
+    public func mergeCandidates(_ left: Candidate, _ right: Candidate) async -> Candidate {
+        await converter.mergeCandidates(left, right)
     }
 
     /// 外部から呼ばれる変換候補を要求する関数。
@@ -618,7 +618,7 @@ public final actor KanaKanjiConverter {
             return ConversionResult(mainResults: [], firstClauseResults: [], cache: .none())
         }
         // DicdataStoreにRequestOptionを通知する
-        self.sendToDicdataStore(.setRequestOptions(options))
+        await self.sendToDicdataStore(.setRequestOptions(options))
         let result = try await self.convertToLattice(inputData, N_best: options.N_best, cache: cache)
         try Task.checkCancellation()
         await Task.yield()
@@ -628,9 +628,9 @@ public final actor KanaKanjiConverter {
     }
 
     /// 変換確定後の予測変換候補を要求する関数
-    public func requestPostCompositionPredictionCandidates(leftSideCandidate: Candidate, options: ConvertRequestOptions, cache: consuming Cache = .none()) -> [PostCompositionPredictionCandidate] {
+    public func requestPostCompositionPredictionCandidates(leftSideCandidate: Candidate, options: ConvertRequestOptions, cache: consuming Cache = .none()) async -> [PostCompositionPredictionCandidate] {
         // ゼロヒント予測変換に基づく候補を列挙
-        var zeroHintResults = self.getUniquePostCompositionPredictionCandidate(self.converter.getZeroHintPredictionCandidates(preparts: [leftSideCandidate], N_best: 15))
+        var zeroHintResults = self.getUniquePostCompositionPredictionCandidate(await self.converter.getZeroHintPredictionCandidates(preparts: [leftSideCandidate], N_best: 15))
         do {
             // 助詞は最大3つに制限する
             var joshiCount = 0
@@ -652,7 +652,7 @@ public final actor KanaKanjiConverter {
         }
 
         // 予測変換に基づく候補を列挙
-        let predictionResults = self.converter.getPredictionCandidates(prepart: leftSideCandidate, N_best: 15)
+        let predictionResults = await self.converter.getPredictionCandidates(prepart: leftSideCandidate, N_best: 15)
         // 絵文字を追加
         let replacer = TextReplacer()
         var emojiCandidates: [PostCompositionPredictionCandidate] = []

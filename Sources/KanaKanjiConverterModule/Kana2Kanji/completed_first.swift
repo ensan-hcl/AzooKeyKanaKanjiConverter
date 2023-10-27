@@ -50,14 +50,20 @@ extension Kana2Kanji {
                 if node.prevs.isEmpty {
                     continue
                 }
-                if self.dicdataStore.shouldBeRemoved(data: node.data) {
+                if DicdataStore.shouldBeRemoved(data: node.data) {
                     continue
                 }
                 // 生起確率を取得する。
                 let wValue = node.data.value()
                 if i == 0 {
                     // valuesを更新する
-                    node.values = node.prevs.map {$0.totalValue + wValue + self.dicdataStore.getCCValue($0.data.rcid, node.data.lcid)}
+                    node.values = await self.dicdataStore.getCCValues(
+                        queries: node.prevs.map {(
+                            former: $0.data.rcid,
+                            latter: node.data.lcid,
+                            offset: $0.totalValue + wValue
+                        )}
+                    )
                 } else {
                     // valuesを更新する
                     node.values = node.prevs.map {$0.totalValue + wValue}
@@ -67,11 +73,11 @@ extension Kana2Kanji {
                 // 文字数がcountと等しくない場合は先に進む
                 if nextIndex != count {
                     for nextnode in nodes[nextIndex] {
-                        if self.dicdataStore.shouldBeRemoved(data: nextnode.data) {
+                        if DicdataStore.shouldBeRemoved(data: nextnode.data) {
                             continue
                         }
                         // クラスの連続確率を計算する。
-                        let ccValue = self.dicdataStore.getCCValue(node.data.rcid, nextnode.data.lcid)
+                        let ccValue = await self.dicdataStore.getCCValue(node.data.rcid, nextnode.data.lcid)
                         // nodeの持っている全てのprevnodeに対して
                         for (index, value) in node.values.enumerated() {
                             let newValue = ccValue + value

@@ -33,7 +33,8 @@ extension Kana2Kanji {
         debug("新規に計算を行います。inputされた文字列は\(inputData.input.count)文字分の\(inputData.convertTarget)")
         let count: Int = inputData.input.count
         let result: LatticeNode = LatticeNode.EOSNode
-        let nodes: [[LatticeNode]] = (.zero ..< count).map {dicdataStore.getLOUDSDataInRange(inputData: inputData, from: $0)}
+
+        let nodes: [[LatticeNode]] = await dicdataStore.getAllData(inputData: inputData, count: count)
         // 「i文字目から始まるnodes」に対して
         for (i, nodeArray) in nodes.enumerated() {
             try Task.checkCancellation()
@@ -43,14 +44,20 @@ extension Kana2Kanji {
                 if node.prevs.isEmpty {
                     continue
                 }
-                if self.dicdataStore.shouldBeRemoved(data: node.data) {
+                if DicdataStore.shouldBeRemoved(data: node.data) {
                     continue
                 }
                 // 生起確率を取得する。
                 let wValue: PValue = node.data.value()
                 if i == 0 {
                     // valuesを更新する
-                    node.values = node.prevs.map {$0.totalValue + wValue + self.dicdataStore.getCCValue($0.data.rcid, node.data.lcid)}
+                    node.values = await self.dicdataStore.getCCValues(
+                        queries: node.prevs.map {(
+                            former: $0.data.rcid,
+                            latter: node.data.lcid,
+                            offset: $0.totalValue + wValue
+                        )}
+                    )
                 } else {
                     // valuesを更新する
                     node.values = node.prevs.map {$0.totalValue + wValue}
@@ -67,11 +74,11 @@ extension Kana2Kanji {
                     // nodeの繋がる次にあり得る全てのnextnodeに対して
                     for nextnode in nodes[nextIndex] {
                         // この関数はこの時点で呼び出して、後のnode.registered.isEmptyで最終的に弾くのが良い。
-                        if self.dicdataStore.shouldBeRemoved(data: nextnode.data) {
+                        if DicdataStore.shouldBeRemoved(data: nextnode.data) {
                             continue
                         }
                         // クラスの連続確率を計算する。
-                        let ccValue: PValue = self.dicdataStore.getCCValue(node.data.rcid, nextnode.data.lcid)
+                        let ccValue: PValue = await self.dicdataStore.getCCValue(node.data.rcid, nextnode.data.lcid)
                         // nodeの持っている全てのprevnodeに対して
                         for (index, value) in node.values.enumerated() {
                             let newValue: PValue = ccValue + value
@@ -95,4 +102,10 @@ extension Kana2Kanji {
         return (result: result, nodes: nodes)
     }
 
+}
+
+private extension DicdataStore {
+    func getAllData(inputData: ComposingText, count: Int) -> [[LatticeNode]] {
+        (.zero ..< count).map {self.getLOUDSDataInRange(inputData: inputData, from: $0)}
+    }
 }

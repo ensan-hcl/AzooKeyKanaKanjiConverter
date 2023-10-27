@@ -24,13 +24,8 @@ struct Kana2Kanji {
     ///    Candidateとなった値を返す。
     /// - note:
     ///     この関数の役割は意味連接の考慮にある。
-    func processClauseCandidate(_ data: CandidateData) -> Candidate {
-        let mmValue: (value: PValue, mid: Int) = data.clauses.reduce((value: .zero, mid: MIDData.EOS.mid)) { result, data in
-            (
-                value: result.value + self.dicdataStore.getMMValue(result.mid, data.clause.mid),
-                mid: data.clause.mid
-            )
-        }
+    func processClauseCandidate(_ data: CandidateData) async -> Candidate {
+        let mmValue = await self.dicdataStore.getMMInfoSum(clauses: data.clauses)
         let text = data.clauses.map {$0.clause.text}.joined()
         let value = data.clauses.last!.value + mmValue.value
         let lastMid = data.clauses.last!.clause.mid
@@ -42,5 +37,24 @@ struct Kana2Kanji {
             lastMid: lastMid,
             data: data.data
         )
+    }
+
+    func processCandidateData(_ clauseResult: [CandidateData]) async -> [(CandidateData, Candidate)] {
+        var result = [(CandidateData, Candidate)]()
+        for data in clauseResult {
+            result.append((data, await self.processClauseCandidate(data)))
+        }
+        return result
+    }
+}
+
+private extension DicdataStore {
+    func getMMInfoSum(clauses: [CandidateData.ClausesUnit]) -> (value: PValue, mid: Int) {
+        clauses.reduce((value: .zero, mid: MIDData.EOS.mid)) { result, data in
+            (
+                value: result.value + self.getMMValue(result.mid, data.clause.mid),
+                mid: data.clause.mid
+            )
+        }
     }
 }
