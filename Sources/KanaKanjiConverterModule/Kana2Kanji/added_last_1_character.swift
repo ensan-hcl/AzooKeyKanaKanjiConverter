@@ -27,36 +27,35 @@ extension Kana2Kanji {
     /// (3)(1)のregisterされた結果をresultノードに追加していく。この際EOSとの連接コストを計算しておく。
     ///
     /// (4)ノードをアップデートした上で返却する。
-    func kana2lattice_addedLast(_ inputData: ComposingText, N_best: Int, previousResult: (inputData: ComposingText, nodes: Nodes) ) -> (result: LatticeNode, nodes: Nodes) {
+    func kana2lattice_addedLast(_ inputData: ComposingText, N_best: Int, previousResult: (inputData: ComposingText, nodes: Nodes) ) async throws -> (result: LatticeNode, nodes: Nodes) {
         debug("一文字追加。内部文字列は\(inputData.input).\(previousResult.nodes.map {($0.first?.data.ruby, $0.first?.inputRange)})")
         // (0)
-        var nodes = previousResult.nodes
         let count = previousResult.inputData.input.count
 
         // (1)
-        let addedNodes: [[LatticeNode]] = (0...count).map {(i: Int) in
-            self.dicdataStore.getLOUDSData(inputData: inputData, from: i, to: count)
-        }
+        let addedNodes: [[LatticeNode]] = await self.dicdataStore.getAddedNodes(inputData: inputData, count: count)
 
         // ココが一番時間がかかっていた。
         // (2)
-        for nodeArray in nodes {
+        for nodeArray in previousResult.nodes {
+            try Task.checkCancellation()
+            await Task.yield()
             for node in nodeArray {
                 if node.prevs.isEmpty {
                     continue
                 }
-                if self.dicdataStore.shouldBeRemoved(data: node.data) {
+                if DicdataStore.shouldBeRemoved(data: node.data) {
                     continue
                 }
                 // 変換した文字数
                 let nextIndex = node.inputRange.endIndex
                 for nextnode in addedNodes[nextIndex] {
                     // この関数はこの時点で呼び出して、後のnode.registered.isEmptyで最終的に弾くのが良い。
-                    if self.dicdataStore.shouldBeRemoved(data: nextnode.data) {
+                    if DicdataStore.shouldBeRemoved(data: nextnode.data) {
                         continue
                     }
                     // クラスの連続確率を計算する。
-                    let ccValue: PValue = self.dicdataStore.getCCValue(node.data.rcid, nextnode.data.lcid)
+                    let ccValue: PValue = await self.dicdataStore.getCCValue(node.data.rcid, nextnode.data.lcid)
                     // nodeの持っている全てのprevnodeに対して
                     for (index, value) in node.values.enumerated() {
                         let newValue: PValue = ccValue + value
@@ -80,6 +79,8 @@ extension Kana2Kanji {
         // (3)
         let result = LatticeNode.EOSNode
         for (i, nodeArray) in addedNodes.enumerated() {
+            try Task.checkCancellation()
+            await Task.yield()
             for node in nodeArray {
                 if node.prevs.isEmpty {
                     continue
@@ -88,7 +89,13 @@ extension Kana2Kanji {
                 let wValue = node.data.value()
                 if i == 0 {
                     // valuesを更新する
-                    node.values = node.prevs.map {$0.totalValue + wValue + self.dicdataStore.getCCValue($0.data.rcid, node.data.lcid)}
+                    node.values = await self.dicdataStore.getCCValues(
+                        queries: node.prevs.map {(
+                            former: $0.data.rcid,
+                            latter: node.data.lcid,
+                            offset: $0.totalValue + wValue
+                        )}
+                    )
                 } else {
                     // valuesを更新する
                     node.values = node.prevs.map {$0.totalValue + wValue}
@@ -102,10 +109,19 @@ extension Kana2Kanji {
         }
 
         // (4)
+        var nodes = previousResult.nodes
         for (index, nodeArray) in addedNodes.enumerated() where index < nodes.endIndex {
             nodes[index].append(contentsOf: nodeArray)
         }
         nodes.append(addedNodes.last ?? [])
         return (result: result, nodes: nodes)
+    }
+}
+
+private extension DicdataStore {
+    func getAddedNodes(inputData: ComposingText, count: Int) -> [[LatticeNode]] {
+        (0...count).map {(i: Int) in
+            self.getLOUDSData(inputData: inputData, from: i, to: count)
+        }
     }
 }

@@ -21,7 +21,7 @@ extension Kana2Kanji {
     ///    「これはき」から「これは今日」に対応する候補などを作って返す。
     /// - note:
     ///     この関数の役割は意味連接の考慮にある。
-    func getPredictionCandidates(composingText: ComposingText, prepart: CandidateData, lastClause: ClauseDataUnit, N_best: Int) -> [Candidate] {
+    func getPredictionCandidates(composingText: ComposingText, prepart: CandidateData, lastClause: ClauseDataUnit, N_best: Int) async -> [Candidate] {
         debug("getPredictionCandidates", composingText, lastClause.inputRange, lastClause.text)
         let lastRuby = ComposingText.getConvertTarget(for: composingText.input[lastClause.inputRange]).toKatakana()
         let lastRubyCount = lastClause.inputRange.count
@@ -40,20 +40,20 @@ extension Kana2Kanji {
             datas = Array(prepart.data.prefix(count))
         }
 
-        let osuserdict: [DicdataElement] = dicdataStore.getPrefixMatchOSUserDict(lastRuby)
+        let osuserdict: [DicdataElement] = await self.dicdataStore.getPrefixMatchOSUserDict(lastRuby)
 
-        let lastCandidate: Candidate = prepart.isEmpty ? Candidate(text: "", value: .zero, correspondingCount: 0, lastMid: MIDData.EOS.mid, data: []) : self.processClauseCandidate(prepart)
+        let lastCandidate: Candidate = prepart.isEmpty ? Candidate(text: "", value: .zero, correspondingCount: 0, lastMid: MIDData.EOS.mid, data: []) : await self.processClauseCandidate(prepart)
         let lastRcid: Int = lastCandidate.data.last?.rcid ?? CIDData.EOS.cid
         let nextLcid: Int = prepart.lastClause?.nextLcid ?? CIDData.EOS.cid
         let lastMid: Int = lastCandidate.lastMid
         let correspoindingCount: Int = lastCandidate.correspondingCount + lastRubyCount
-        let ignoreCCValue: PValue = self.dicdataStore.getCCValue(lastRcid, nextLcid)
+        let ignoreCCValue: PValue = await self.dicdataStore.getCCValue(lastRcid, nextLcid)
 
         let inputStyle = composingText.input.last?.inputStyle ?? .direct
         let dicdata: [DicdataElement]
         switch inputStyle {
         case .direct:
-            dicdata = self.dicdataStore.getPredictionLOUDSDicdata(key: lastRuby)
+            dicdata = await self.dicdataStore.getPredictionLOUDSDicdata(key: lastRuby)
         case .roman2kana:
             let roman = lastRuby.suffix(while: {String($0).onlyRomanAlphabet})
             if !roman.isEmpty {
@@ -64,10 +64,10 @@ extension Kana2Kanji {
                 }
                 let possibleNexts: [Substring] = DicdataStore.possibleNexts[String(roman), default: []].map {ruby + $0}
                 debug("getPredictionCandidates", lastRuby, ruby, roman, possibleNexts, prepart, lastRubyCount)
-                dicdata = possibleNexts.flatMap { self.dicdataStore.getPredictionLOUDSDicdata(key: $0) }
+                dicdata = await self.dicdataStore.getPredictionDicdata(possibleNexts: possibleNexts)
             } else {
                 debug("getPredicitonCandidates", lastRuby, roman)
-                dicdata = self.dicdataStore.getPredictionLOUDSDicdata(key: lastRuby)
+                dicdata = await self.dicdataStore.getPredictionLOUDSDicdata(key: lastRuby)
             }
         }
 
@@ -76,8 +76,8 @@ extension Kana2Kanji {
         result.reserveCapacity(N_best &+ 1)
         for data in (dicdata + osuserdict) {
             let includeMMValueCalculation = DicdataStore.includeMMValueCalculation(data)
-            let mmValue: PValue = includeMMValueCalculation ? self.dicdataStore.getMMValue(lastMid, data.mid):.zero
-            let ccValue: PValue = self.dicdataStore.getCCValue(lastRcid, data.lcid)
+            let mmValue: PValue = includeMMValueCalculation ? await self.dicdataStore.getMMValue(lastMid, data.mid):.zero
+            let ccValue: PValue = await self.dicdataStore.getCCValue(lastRcid, data.lcid)
             let penalty: PValue = -PValue(data.ruby.count &- lastRuby.count) * 3.0   // 文字数差をペナルティとする
             let wValue: PValue = data.value()
             let newValue: PValue = lastCandidate.value + mmValue + ccValue + wValue + penalty - ignoreCCValue
@@ -104,5 +104,11 @@ extension Kana2Kanji {
         }
 
         return result
+    }
+}
+
+private extension DicdataStore {
+    func getPredictionDicdata(possibleNexts: consuming [Substring]) -> [DicdataElement] {
+        possibleNexts.flatMap { self.getPredictionLOUDSDicdata(key: $0) }
     }
 }

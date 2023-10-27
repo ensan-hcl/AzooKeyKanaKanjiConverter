@@ -15,24 +15,28 @@ extension Kana2Kanji {
     /// (1)まず、計算済みnodeの確定分以降を取り出し、registeredにcompletedDataの値を反映したBOSにする。
     ///
     /// (2)次に、再度計算して良い候補を得る。
-    func kana2lattice_afterComplete(_ inputData: ComposingText, completedData: Candidate, N_best: Int, previousResult: (inputData: ComposingText, nodes: Nodes)) -> (result: LatticeNode, nodes: Nodes) {
+    func kana2lattice_afterComplete(_ inputData: ComposingText, completedData: Candidate, N_best: Int, previousResult: (inputData: ComposingText, nodes: Nodes)) async throws -> (result: LatticeNode, nodes: Nodes) {
         debug("確定直後の変換、前は：", previousResult.inputData, "後は：", inputData)
         let count = inputData.input.count
         // (1)
         let start = RegisteredNode.fromLastCandidate(completedData)
-        let nodes: Nodes = previousResult.nodes.suffix(count)
-        for (i, nodeArray) in nodes.enumerated() {
+        let nodes: Nodes = previousResult.nodes.suffix(count).enumerated().map { i, nodeArray in
+            // ここでnodeそのものを変更しないで、コピーする
+            // ここでnodesの中は全て新しいnodeになっている
+            // iが0始まりであることに注意
             if i == .zero {
-                for node in nodeArray {
+                nodeArray.map {
+                    let node = $0.copy()
                     node.prevs = [start]
-                    // inputRangeを確定した部分のカウント分ずらす
-                    node.inputRange = node.inputRange.startIndex - completedData.correspondingCount ..< node.inputRange.endIndex - completedData.correspondingCount
+                    node.inputRange = $0.inputRange.startIndex - completedData.correspondingCount ..< $0.inputRange.endIndex - completedData.correspondingCount
+                    return node
                 }
             } else {
-                for node in nodeArray {
+                nodeArray.map {
+                    let node = $0.copy()
                     node.prevs = []
-                    // inputRangeを確定した部分のカウント分ずらす
-                    node.inputRange = node.inputRange.startIndex - completedData.correspondingCount ..< node.inputRange.endIndex - completedData.correspondingCount
+                    node.inputRange = $0.inputRange.startIndex - completedData.correspondingCount ..< $0.inputRange.endIndex - completedData.correspondingCount
+                    return node
                 }
             }
         }
@@ -40,18 +44,26 @@ extension Kana2Kanji {
         let result = LatticeNode.EOSNode
 
         for (i, nodeArray) in nodes.enumerated() {
+            try Task.checkCancellation()
+            await Task.yield()
             for node in nodeArray {
                 if node.prevs.isEmpty {
                     continue
                 }
-                if self.dicdataStore.shouldBeRemoved(data: node.data) {
+                if DicdataStore.shouldBeRemoved(data: node.data) {
                     continue
                 }
                 // 生起確率を取得する。
                 let wValue = node.data.value()
                 if i == 0 {
                     // valuesを更新する
-                    node.values = node.prevs.map {$0.totalValue + wValue + self.dicdataStore.getCCValue($0.data.rcid, node.data.lcid)}
+                    node.values = await self.dicdataStore.getCCValues(
+                        queries: node.prevs.map {(
+                            former: $0.data.rcid,
+                            latter: node.data.lcid,
+                            offset: $0.totalValue + wValue
+                        )}
+                    )
                 } else {
                     // valuesを更新する
                     node.values = node.prevs.map {$0.totalValue + wValue}
@@ -61,11 +73,11 @@ extension Kana2Kanji {
                 // 文字数がcountと等しくない場合は先に進む
                 if nextIndex != count {
                     for nextnode in nodes[nextIndex] {
-                        if self.dicdataStore.shouldBeRemoved(data: nextnode.data) {
+                        if DicdataStore.shouldBeRemoved(data: nextnode.data) {
                             continue
                         }
                         // クラスの連続確率を計算する。
-                        let ccValue = self.dicdataStore.getCCValue(node.data.rcid, nextnode.data.lcid)
+                        let ccValue = await self.dicdataStore.getCCValue(node.data.rcid, nextnode.data.lcid)
                         // nodeの持っている全てのprevnodeに対して
                         for (index, value) in node.values.enumerated() {
                             let newValue = ccValue + value

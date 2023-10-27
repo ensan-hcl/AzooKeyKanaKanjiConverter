@@ -10,7 +10,31 @@ import Foundation
 import SwiftUtils
 
 /// かな漢字変換の管理を受け持つクラス
-@MainActor public final class KanaKanjiConverter {
+public final actor KanaKanjiConverter {
+    /// Cache for conversion. Internal information is intentionally hidden.
+    public struct Cache: Sendable, ~Copyable {
+        public static func none() -> Self { Self() }
+        init() {}
+        var previousInputData: ComposingText?
+        var nodes: [[LatticeNode]] = []
+        var completedData: Candidate?
+        var lastData: DicdataElement?
+        /// 確定操作後、内部状態のキャッシュを変更する関数。
+        /// - Parameters:
+        ///   - candidate: 確定された候補。
+        public mutating func setCompletedData(_ candidate: Candidate) {
+            self.completedData = candidate
+            self.lastData = candidate.data.last
+        }
+
+        /// 即座に再代入されることを前提に、一時的に`.none()`で`Self`を埋めつつ`consume`な操作を実施する関数
+        public mutating func consumed() -> Self {
+            let tmp = self
+            self = .none()
+            return tmp
+        }
+    }
+
     public init() {}
     public init(dicdataStore: DicdataStore) {
         self.converter = .init(dicdataStore: dicdataStore)
@@ -20,34 +44,16 @@ import SwiftUtils
     @MainActor private var checker = SpellChecker()
     private var checkerInitialized: [KeyboardLanguage: Bool] = [.none: true, .ja_JP: true]
 
-    // 前回の変換や確定の情報を取っておく部分。
-    private var previousInputData: ComposingText?
-    private var nodes: [[LatticeNode]] = []
-    private var completedData: Candidate?
-    private var lastData: DicdataElement?
-
-    /// リセットする関数
-    public func stopComposition() {
-        self.previousInputData = nil
-        self.nodes = []
-        self.completedData = nil
-        self.lastData = nil
-    }
-
     /// 入力する言語が分かったらこの関数をなるべく早い段階で呼ぶことで、SpellCheckerの初期化が行われ、変換がスムーズになる
-    public func setKeyboardLanguage(_ language: KeyboardLanguage) {
+    public func setKeyboardLanguage(_ language: KeyboardLanguage) async {
         if !checkerInitialized[language, default: false] {
             switch language {
             case .en_US:
-                Task { @MainActor in
-                    _ = self.checker.completions(forPartialWordRange: NSRange(location: 0, length: 1), in: "a", language: "en-US")
-                    self.checkerInitialized[language] = true
-                }
+                _ = await self.checker.completions(forPartialWordRange: NSRange(location: 0, length: 1), in: "a", language: "en-US")
+                self.checkerInitialized[language] = true
             case .el_GR:
-                Task { @MainActor in
-                    _ = self.checker.completions(forPartialWordRange: NSRange(location: 0, length: 1), in: "a", language: "el-GR")
-                    self.checkerInitialized[language] = true
-                }
+                _ = await self.checker.completions(forPartialWordRange: NSRange(location: 0, length: 1), in: "a", language: "el-GR")
+                self.checkerInitialized[language] = true
             case .none, .ja_JP:
                 checkerInitialized[language] = true
             }
@@ -57,30 +63,22 @@ import SwiftUtils
     /// 上流の関数から`dicdataStore`で行うべき操作を伝播する関数。
     /// - Parameters:
     ///   - data: 行うべき操作。
-    public func sendToDicdataStore(_ data: DicdataStore.Notification) {
-        self.converter.dicdataStore.sendToDicdataStore(data)
-    }
-    /// 確定操作後、内部状態のキャッシュを変更する関数。
-    /// - Parameters:
-    ///   - candidate: 確定された候補。
-    public func setCompletedData(_ candidate: Candidate) {
-        self.completedData = candidate
+    public func sendToDicdataStore(_ data: DicdataStore.Notification) async {
+        await self.converter.dicdataStore.sendToDicdataStore(data)
     }
 
     /// 確定操作後、学習メモリをアップデートする関数。
     /// - Parameters:
     ///   - candidate: 確定された候補。
-    public func updateLearningData(_ candidate: Candidate) {
-        self.converter.dicdataStore.updateLearningData(candidate, with: self.lastData)
-        self.lastData = candidate.data.last
+    public func updateLearningData(_ candidate: Candidate) async {
+        await self.converter.dicdataStore.updateLearningData(candidate, with: candidate.data.last)
     }
 
     /// 確定操作後、学習メモリをアップデートする関数。
     /// - Parameters:
     ///   - candidate: 確定された候補。
-    public func updateLearningData(_ candidate: Candidate, with predictionCandidate: PostCompositionPredictionCandidate) {
-        self.converter.dicdataStore.updateLearningData(candidate, with: predictionCandidate)
-        self.lastData = predictionCandidate.lastData
+    public func updateLearningData(_ candidate: Candidate, with predictionCandidate: PostCompositionPredictionCandidate) async {
+        await self.converter.dicdataStore.updateLearningData(candidate, with: predictionCandidate)
     }
 
     /// 賢い変換候補を生成する関数。
@@ -150,7 +148,7 @@ import SwiftUtils
     ///   - language: 言語コード。現在は`en-US`と`el(ギリシャ語)`のみ対応している。
     /// - Returns:
     ///   予測変換候補
-    private func getForeignPredictionCandidate(inputData: ComposingText, language: String, penalty: PValue = -5) -> [Candidate] {
+    @MainActor private func getForeignPredictionCandidate(inputData: ComposingText, language: String, penalty: PValue = -5) -> [Candidate] {
         switch language {
         case "en-US":
             var result: [Candidate] = []
@@ -229,7 +227,7 @@ import SwiftUtils
     ///   - sums: 変換対象のデータ。
     /// - Returns:
     ///   予測変換候補
-    private func getPredictionCandidate(_ sums: [(CandidateData, Candidate)], composingText: ComposingText, options: ConvertRequestOptions) -> [Candidate] {
+    private func getPredictionCandidate(_ sums: [(CandidateData, Candidate)], composingText: ComposingText, options: ConvertRequestOptions) async -> [Candidate] {
         // 予測変換は次の方針で行う。
         // prepart: 前半文節 lastPart: 最終文節とする。
         // まず、lastPartがnilであるところから始める
@@ -252,7 +250,7 @@ import SwiftUtils
                 newUnit.merge(with: oldlastPart.clause)     // マージする。(最終文節の範囲を広げたことになる)
                 let newValue = lastUnit.value + oldlastPart.value
                 let newlastPart: CandidateData.ClausesUnit = (clause: newUnit, value: newValue)
-                let predictions = converter.getPredictionCandidates(composingText: composingText, prepart: prepart, lastClause: newlastPart.clause, N_best: 5)
+                let predictions = await converter.getPredictionCandidates(composingText: composingText, prepart: prepart, lastClause: newlastPart.clause, N_best: 5)
                 lastpart = newlastPart
                 // 結果がemptyでなければ
                 if !predictions.isEmpty {
@@ -263,7 +261,7 @@ import SwiftUtils
                 // 最終分節を取得
                 lastpart = prepart.clauses.popLast()
                 // 予測変換を受け取る
-                let predictions = converter.getPredictionCandidates(composingText: composingText, prepart: prepart, lastClause: lastpart!.clause, N_best: 5)
+                let predictions = await converter.getPredictionCandidates(composingText: composingText, prepart: prepart, lastClause: lastpart!.clause, N_best: 5)
                 // 結果がemptyでなければ
                 if !predictions.isEmpty {
                     // 結果に追加
@@ -280,7 +278,7 @@ import SwiftUtils
     ///   - inputData: 変換対象のInputData。
     /// - Returns:
     ///   付加的な変換候補
-    private func getTopLevelAdditionalCandidate(_ inputData: ComposingText, options: ConvertRequestOptions) -> [Candidate] {
+    @MainActor private func getTopLevelAdditionalCandidate(_ inputData: ComposingText, options: ConvertRequestOptions) -> [Candidate] {
         var candidates: [Candidate] = []
         if inputData.input.allSatisfy({$0.inputStyle == .roman2kana}) {
             if options.englishCandidateInRoman2KanaInput {
@@ -394,13 +392,15 @@ import SwiftUtils
     ///   重複のない変換候補。
     /// - Note:
     ///   現在の実装は非常に複雑な方法で候補の順序を決定している。
-    private func processResult(inputData: ComposingText, result: (result: LatticeNode, nodes: [[LatticeNode]]), options: ConvertRequestOptions) -> ConversionResult {
-        self.previousInputData = inputData
-        self.nodes = result.nodes
-        let clauseResult = result.result.getCandidateData()
+    private func processResult(inputData: ComposingText, result: LatticeNode, cache: consuming Cache, options: ConvertRequestOptions) async -> ConversionResult {
+        async let englishCandidates: [Candidate] = options.requireEnglishPrediction ? await self.getForeignPredictionCandidate(inputData: inputData, language: "en-US") : []
+        async let greekCandidates: [Candidate] = options.keyboardLanguage == .el_GR ? await self.getForeignPredictionCandidate(inputData: inputData, language: "en-US") : []
+        // その他のトップレベル変換（先頭に表示されうる変換候補）
+        async let toplevel_additional_candidate = self.getTopLevelAdditionalCandidate(inputData, options: options)
+        let clauseResult = result.getCandidateData()
         if clauseResult.isEmpty {
             let candidates = self.getUniqueCandidate(self.getAdditionalCandidate(inputData, options: options))
-            return ConversionResult(mainResults: candidates, firstClauseResults: candidates)   // アーリーリターン
+            return ConversionResult(mainResults: candidates, firstClauseResults: candidates, cache: cache)   // アーリーリターン
         }
         let clauseCandidates: [Candidate] = clauseResult.map {(candidateData: CandidateData) -> Candidate in
             let first = candidateData.clauses.first!
@@ -423,32 +423,25 @@ import SwiftUtils
                 data: Array(candidateData.data[0...count])
             )
         }
-        let sums: [(CandidateData, Candidate)] = clauseResult.map {($0, converter.processClauseCandidate($0))}
+        let sums: [(CandidateData, Candidate)] = await self.converter.processCandidateData(clauseResult)
         // 文章全体を変換した場合の候補上位5件を作る
         let whole_sentence_unique_candidates = self.getUniqueCandidate(sums.map {$0.1})
         let sentence_candidates = whole_sentence_unique_candidates.min(count: 5, sortedBy: {$0.value > $1.value})
         // 予測変換を最大3件作成する
-        let prediction_candidates: [Candidate] = options.requireJapanesePrediction ? Array(self.getUniqueCandidate(self.getPredictionCandidate(sums, composingText: inputData, options: options)).min(count: 3, sortedBy: {$0.value > $1.value})) : []
+        let prediction_candidates: [Candidate] = options.requireJapanesePrediction ? Array(self.getUniqueCandidate(await self.getPredictionCandidate(sums, composingText: inputData, options: options)).min(count: 3, sortedBy: {$0.value > $1.value})) : []
 
         // 英単語の予測変換。appleのapiを使うため、処理が異なる。
         var foreign_candidates: [Candidate] = []
-
-        if options.requireEnglishPrediction {
-            foreign_candidates.append(contentsOf: self.getForeignPredictionCandidate(inputData: inputData, language: "en-US"))
-        }
-        if options.keyboardLanguage == .el_GR {
-            foreign_candidates.append(contentsOf: self.getForeignPredictionCandidate(inputData: inputData, language: "el"))
-        }
+        foreign_candidates.append(contentsOf: await englishCandidates)
+        foreign_candidates.append(contentsOf: await greekCandidates)
 
         // 文全体変換5件と予測変換3件を混ぜてベスト8を出す
         let best8 = getUniqueCandidate(sentence_candidates.chained(prediction_candidates)).sorted {$0.value > $1.value}
-        // その他のトップレベル変換（先頭に表示されうる変換候補）
-        let toplevel_additional_candidate = self.getTopLevelAdditionalCandidate(inputData, options: options)
         // best8、foreign_candidates、zeroHintPrediction_candidates、toplevel_additional_candidateを混ぜて上位5件を取得する
         let full_candidate = getUniqueCandidate(
             best8
                 .chained(foreign_candidates)
-                .chained(toplevel_additional_candidate)
+                .chained(await toplevel_additional_candidate)
         ).min(count: 5, sortedBy: {$0.value > $1.value})
         // 重複のない変換候補を作成するための集合
         var seenCandidate: Set<String> = full_candidate.mapSet {$0.text}
@@ -457,7 +450,7 @@ import SwiftUtils
         seenCandidate.formUnion(clause_candidates.map {$0.text})
 
         // 最初の辞書データ
-        let dicCandidates: [Candidate] = result.nodes[0]
+        let dicCandidates: [Candidate] = cache.nodes[0]
             .map {
                 Candidate(
                     text: $0.data.word,
@@ -504,46 +497,53 @@ import SwiftUtils
         result.append(contentsOf: word_candidates)
 
         result.mutatingForeach { item in
-            item.withActions(self.getAppropriateActions(item))
+            item.withActions(KanaKanjiConverter.getAppropriateActions(item))
             item.parseTemplate()
         }
-        return ConversionResult(mainResults: result, firstClauseResults: Array(clause_candidates))
+        return ConversionResult(mainResults: result, firstClauseResults: Array(clause_candidates), cache: cache)
     }
 
+    private struct ResultAndCache: ~Copyable {
+        init(_ result: LatticeNode, _ cache: consuming Cache) {
+            self.result = result
+            self.cache = cache
+        }
+        var result: LatticeNode
+        var cache: Cache
+    }
     /// 入力からラティスを構築する関数。状況に応じて呼ぶ関数を分ける。
     /// - Parameters:
     ///   - inputData: 変換対象のInputData。
     ///   - N_best: 計算途中で保存する候補数。実際に得られる候補数とは異なる。
     /// - Returns:
     ///   結果のラティスノードと、計算済みノードの全体
-    private func convertToLattice(_ inputData: ComposingText, N_best: Int) -> (result: LatticeNode, nodes: [[LatticeNode]])? {
-        if inputData.convertTarget.isEmpty {
-            return nil
-        }
-
-        guard let previousInputData else {
+    private func convertToLattice(_ inputData: ComposingText, N_best: Int, cache: consuming Cache) async throws -> ResultAndCache {
+        guard let previousInputData = cache.previousInputData else {
             debug("convertToLattice: 新規計算用の関数を呼びますA")
-            let result = converter.kana2lattice_all(inputData, N_best: N_best)
-            self.previousInputData = inputData
-            return result
+            let result = try await converter.kana2lattice_all(inputData, N_best: N_best)
+            cache.previousInputData = inputData
+            cache.nodes = result.nodes
+            return ResultAndCache(result.result, cache)
         }
 
         debug("convertToLattice: before \(previousInputData) after \(inputData)")
 
         // 完全一致の場合
         if previousInputData == inputData {
-            let result = converter.kana2lattice_no_change(N_best: N_best, previousResult: (inputData: previousInputData, nodes: nodes))
-            self.previousInputData = inputData
-            return result
+            let result = try await converter.kana2lattice_no_change(N_best: N_best, previousResult: (inputData: previousInputData, nodes: cache.nodes))
+            cache.previousInputData = inputData
+            cache.nodes = result.nodes
+            return ResultAndCache(result.result, cache)
         }
 
         // 文節確定の後の場合
-        if let completedData, previousInputData.inputHasSuffix(inputOf: inputData) {
+        if let completedData = cache.completedData, previousInputData.inputHasSuffix(inputOf: inputData) {
             debug("convertToLattice: 文節確定用の関数を呼びます、確定された文節は\(completedData)")
-            let result = converter.kana2lattice_afterComplete(inputData, completedData: completedData, N_best: N_best, previousResult: (inputData: previousInputData, nodes: nodes))
-            self.previousInputData = inputData
-            self.completedData = nil
-            return result
+            let result = try await converter.kana2lattice_afterComplete(inputData, completedData: completedData, N_best: N_best, previousResult: (inputData: previousInputData, nodes: cache.nodes))
+            cache.previousInputData = inputData
+            cache.nodes = result.nodes
+            cache.completedData = nil
+            return ResultAndCache(result.result, cache)
         }
 
         // TODO: 元々はsuffixになっていないが、文節確定の後であるケースで、確定された文節を考慮できるようにする
@@ -554,37 +554,41 @@ import SwiftUtils
         // 一文字消した場合
         if diff.deleted > 0 && diff.addedCount == 0 {
             debug("convertToLattice: 最後尾削除用の関数を呼びます, 消した文字数は\(diff.deleted)")
-            let result = converter.kana2lattice_deletedLast(deletedCount: diff.deleted, N_best: N_best, previousResult: (inputData: previousInputData, nodes: nodes))
-            self.previousInputData = inputData
-            return result
+            let result = try await converter.kana2lattice_deletedLast(deletedCount: diff.deleted, N_best: N_best, previousResult: (inputData: previousInputData, nodes: cache.nodes))
+            cache.previousInputData = inputData
+            cache.nodes = result.nodes
+            return ResultAndCache(result.result, cache)
         }
 
         // 一文字変わった場合
         if diff.deleted > 0 {
             debug("convertToLattice: 最後尾文字置換用の関数を呼びます、差分は\(diff)")
-            let result = converter.kana2lattice_changed(inputData, N_best: N_best, counts: (diff.deleted, diff.addedCount), previousResult: (inputData: previousInputData, nodes: nodes))
-            self.previousInputData = inputData
-            return result
+            let result = try await converter.kana2lattice_changed(inputData, N_best: N_best, counts: (diff.deleted, diff.addedCount), previousResult: (inputData: previousInputData, nodes: cache.nodes))
+            cache.previousInputData = inputData
+            cache.nodes = result.nodes
+            return ResultAndCache(result.result, cache)
         }
 
         // 1文字増やした場合
         if diff.deleted == 0 && diff.addedCount != 0 {
             debug("convertToLattice: 最後尾追加用の関数を呼びます、追加文字数は\(diff.addedCount)")
-            let result = converter.kana2lattice_added(inputData, N_best: N_best, addedCount: diff.addedCount, previousResult: (inputData: previousInputData, nodes: nodes))
-            self.previousInputData = inputData
-            return result
+            let result = try await converter.kana2lattice_added(inputData, N_best: N_best, addedCount: diff.addedCount, previousResult: (inputData: previousInputData, nodes: cache.nodes))
+            cache.previousInputData = inputData
+            cache.nodes = result.nodes
+            return ResultAndCache(result.result, cache)
         }
 
         // 一文字増やしていない場合
         if true {
             debug("convertToLattice: 新規計算用の関数を呼びますB")
-            let result = converter.kana2lattice_all(inputData, N_best: N_best)
-            self.previousInputData = inputData
-            return result
+            let result = try await converter.kana2lattice_all(inputData, N_best: N_best)
+            cache.previousInputData = inputData
+            cache.nodes = result.nodes
+            return ResultAndCache(result.result, cache)
         }
     }
 
-    public func getAppropriateActions(_ candidate: Candidate) -> [CompleteAction] {
+    public static func getAppropriateActions(_ candidate: Candidate) -> [CompleteAction] {
         if ["[]", "()", "｛｝", "〈〉", "〔〕", "（）", "「」", "『』", "【】", "{}", "<>", "《》", "\"\"", "\'\'", "””"].contains(candidate.text) {
             return [.moveCursor(-1)]
         }
@@ -596,8 +600,8 @@ import SwiftUtils
     }
 
     /// 2つの連続する`Candidate`をマージする
-    public func mergeCandidates(_ left: Candidate, _ right: Candidate) -> Candidate {
-        converter.mergeCandidates(left, right)
+    public func mergeCandidates(_ left: Candidate, _ right: Candidate) async -> Candidate {
+        await converter.mergeCandidates(left, right)
     }
 
     /// 外部から呼ばれる変換候補を要求する関数。
@@ -605,27 +609,28 @@ import SwiftUtils
     ///   - inputData: 変換対象のInputData。
     ///   - options: リクエストにかかるパラメータ。
     /// - Returns: `ConversionResult`
-    public func requestCandidates(_ inputData: ComposingText, options: ConvertRequestOptions) -> ConversionResult {
+    public func requestCandidates(_ inputData: ComposingText, options: ConvertRequestOptions, cache: consuming Cache = .none()) async throws -> ConversionResult {
+        try Task.checkCancellation()
+        await Task.yield()
         debug("requestCandidates 入力は", inputData)
         // 変換対象が無の場合
         if inputData.convertTarget.isEmpty {
-            return ConversionResult(mainResults: [], firstClauseResults: [])
+            return ConversionResult(mainResults: [], firstClauseResults: [], cache: .none())
         }
-
         // DicdataStoreにRequestOptionを通知する
-        self.sendToDicdataStore(.setRequestOptions(options))
-
-        guard let result = self.convertToLattice(inputData, N_best: options.N_best) else {
-            return ConversionResult(mainResults: [], firstClauseResults: [])
-        }
-
-        return self.processResult(inputData: inputData, result: result, options: options)
+        await self.sendToDicdataStore(.setRequestOptions(options))
+        let result = try await self.convertToLattice(inputData, N_best: options.N_best, cache: cache)
+        try Task.checkCancellation()
+        await Task.yield()
+        let _result = result.result
+        let _cache = (consume result).cache
+        return await self.processResult(inputData: inputData, result: _result, cache: _cache, options: options)
     }
 
     /// 変換確定後の予測変換候補を要求する関数
-    public func requestPostCompositionPredictionCandidates(leftSideCandidate: Candidate, options: ConvertRequestOptions) -> [PostCompositionPredictionCandidate] {
+    public func requestPostCompositionPredictionCandidates(leftSideCandidate: Candidate, options: ConvertRequestOptions, cache: consuming Cache = .none()) async -> [PostCompositionPredictionCandidate] {
         // ゼロヒント予測変換に基づく候補を列挙
-        var zeroHintResults = self.getUniquePostCompositionPredictionCandidate(self.converter.getZeroHintPredictionCandidates(preparts: [leftSideCandidate], N_best: 15))
+        var zeroHintResults = self.getUniquePostCompositionPredictionCandidate(await self.converter.getZeroHintPredictionCandidates(preparts: [leftSideCandidate], N_best: 15))
         do {
             // 助詞は最大3つに制限する
             var joshiCount = 0
@@ -647,7 +652,7 @@ import SwiftUtils
         }
 
         // 予測変換に基づく候補を列挙
-        let predictionResults = self.converter.getPredictionCandidates(prepart: leftSideCandidate, N_best: 15)
+        let predictionResults = await self.converter.getPredictionCandidates(prepart: leftSideCandidate, N_best: 15)
         // 絵文字を追加
         let replacer = TextReplacer()
         var emojiCandidates: [PostCompositionPredictionCandidate] = []

@@ -9,7 +9,7 @@ import Foundation
 
 // 確定後の予測変換に関係する実装
 extension Kana2Kanji {
-    func mergeCandidates(_ left: Candidate, _ right: Candidate) -> Candidate {
+    func mergeCandidates(_ left: Candidate, _ right: Candidate) async -> Candidate {
         guard let leftLast = left.data.last, let rightFirst = right.data.first else {
             return Candidate(
                 text: left.text + right.text,
@@ -19,9 +19,9 @@ extension Kana2Kanji {
                 data: left.data + right.data
             )
         }
-        let ccValue = self.dicdataStore.getCCValue(leftLast.lcid, rightFirst.lcid)
+        let ccValue = await self.dicdataStore.getCCValue(leftLast.lcid, rightFirst.lcid)
         let includeMMValueCalculation = DicdataStore.includeMMValueCalculation(rightFirst)
-        let mmValue = includeMMValueCalculation ? self.dicdataStore.getMMValue(left.lastMid, rightFirst.mid):.zero
+        let mmValue = includeMMValueCalculation ? await self.dicdataStore.getMMValue(left.lastMid, rightFirst.mid):.zero
         let newValue = left.value + mmValue + ccValue + right.value
         return Candidate(
             text: left.text + right.text,
@@ -32,7 +32,7 @@ extension Kana2Kanji {
         )
     }
 
-    func getPredictionCandidates(prepart: Candidate, N_best: Int) -> [PostCompositionPredictionCandidate] {
+    func getPredictionCandidates(prepart: Candidate, N_best: Int) async -> [PostCompositionPredictionCandidate] {
         var result: [PostCompositionPredictionCandidate] = []
         var count = 1
         var prefixCandidate = prepart
@@ -48,11 +48,11 @@ extension Kana2Kanji {
             // prefixCandidateを更新する
             do {
                 prefixCandidate.value -= element.value()
-                prefixCandidate.value -= self.dicdataStore.getCCValue(prefixCandidateData.last?.rcid ?? CIDData.BOS.cid, element.lcid)
+                prefixCandidate.value -= await self.dicdataStore.getCCValue(prefixCandidateData.last?.rcid ?? CIDData.BOS.cid, element.lcid)
                 if DicdataStore.includeMMValueCalculation(element) {
                     let previousMid = prefixCandidateData.last(where: DicdataStore.includeMMValueCalculation)?.mid ?? MIDData.BOS.mid
                     prefixCandidate.lastMid = previousMid
-                    prefixCandidate.value -= self.dicdataStore.getMMValue(previousMid, element.mid)
+                    prefixCandidate.value -= await self.dicdataStore.getMMValue(previousMid, element.mid)
                 }
                 prefixCandidate.data = prefixCandidateData
 
@@ -63,14 +63,14 @@ extension Kana2Kanji {
             totalWord.insert(contentsOf: element.word, at: totalWord.startIndex)
             totalRuby.insert(contentsOf: element.ruby, at: totalRuby.startIndex)
             totalData.insert(element, at: 0)
-            let dicdata = self.dicdataStore.getPredictionLOUDSDicdata(key: totalRuby).filter {
+            let dicdata = await self.dicdataStore.getPredictionLOUDSDicdata(key: totalRuby).filter {
                 DicdataStore.predictionUsable[$0.rcid] && $0.word.hasPrefix(totalWord)
             }
 
             for data in dicdata {
-                let ccValue = self.dicdataStore.getCCValue(prefixCandidateData.last?.rcid ?? CIDData.BOS.cid, data.lcid)
+                let ccValue = await self.dicdataStore.getCCValue(prefixCandidateData.last?.rcid ?? CIDData.BOS.cid, data.lcid)
                 let includeMMValueCalculation = DicdataStore.includeMMValueCalculation(data)
-                let mmValue = includeMMValueCalculation ? self.dicdataStore.getMMValue(prefixCandidate.lastMid, data.mid):.zero
+                let mmValue = includeMMValueCalculation ? await self.dicdataStore.getMMValue(prefixCandidate.lastMid, data.mid):.zero
                 let wValue = data.value()
                 let newValue = prefixCandidate.value + mmValue + ccValue + wValue
                 // 追加すべきindexを取得する
@@ -98,15 +98,15 @@ extension Kana2Kanji {
     ///   ゼロヒント予測変換の結果
     /// - note:
     ///   「食べちゃ-てる」「食べちゃ-いる」などの間抜けな候補を返すことが多いため、学習によるもの以外を無効化している。
-    func getZeroHintPredictionCandidates(preparts: some Collection<Candidate>, N_best: Int) -> [PostCompositionPredictionCandidate] {
+    func getZeroHintPredictionCandidates(preparts: some Collection<Candidate>, N_best: Int) async -> [PostCompositionPredictionCandidate] {
         var result: [PostCompositionPredictionCandidate] = []
         for candidate in preparts {
             if let last = candidate.data.last {
-                let dicdata = self.dicdataStore.getZeroHintPredictionDicdata(lastRcid: last.rcid)
+                let dicdata = await self.dicdataStore.getZeroHintPredictionDicdata(lastRcid: last.rcid)
                 for data in dicdata {
-                    let ccValue = self.dicdataStore.getCCValue(last.rcid, data.lcid)
+                    let ccValue = await self.dicdataStore.getCCValue(last.rcid, data.lcid)
                     let includeMMValueCalculation = DicdataStore.includeMMValueCalculation(data)
-                    let mmValue = includeMMValueCalculation ? self.dicdataStore.getMMValue(candidate.lastMid, data.mid):.zero
+                    let mmValue = includeMMValueCalculation ? await self.dicdataStore.getMMValue(candidate.lastMid, data.mid):.zero
                     let wValue = data.value()
                     let newValue = candidate.value + mmValue + ccValue + wValue
 

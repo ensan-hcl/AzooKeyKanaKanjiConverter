@@ -9,16 +9,20 @@
 import Foundation
 import SwiftUtils
 
-public final class DicdataStore {
+public final actor DicdataStore {
     public init(convertRequestOptions: ConvertRequestOptions) {
         self.requestOptions = convertRequestOptions
-        self.setup()
+        Task {
+            await self.setup()
+        }
     }
 
     init(requestOptions: ConvertRequestOptions = .default) {
         self.requestOptions = requestOptions
         debug("DicdataStoreが初期化されました")
-        self.setup()
+        Task {
+            await self.setup()
+        }
     }
 
     private var ccParsed: [Bool] = .init(repeating: false, count: 1319)
@@ -37,7 +41,7 @@ public final class DicdataStore {
     public let maxlength: Int = 20
     /// この値以下のスコアを持つエントリは積極的に無視する
     ///  - TODO: make this value as an option
-    public let threshold: PValue = -17
+    public static let threshold: PValue = -17
     private let midCount = 502
     private let cidCount = 1319
 
@@ -125,8 +129,8 @@ public final class DicdataStore {
     }
 
     /// 計算時に利用。無視すべきデータかどうか。
-    private func shouldBeRemoved(value: PValue, wordCount: Int) -> Bool {
-        let d = value - self.threshold
+    private static func shouldBeRemoved(value: PValue, wordCount: Int) -> Bool {
+        let d = value - Self.threshold
         if d < 0 {
             return true
         }
@@ -135,8 +139,8 @@ public final class DicdataStore {
     }
 
     /// 計算時に利用。無視すべきデータかどうか。
-    @inlinable func shouldBeRemoved(data: borrowing DicdataElement) -> Bool {
-        let d = data.value() - self.threshold
+    @inlinable static func shouldBeRemoved(data: borrowing DicdataElement) -> Bool {
+        let d = data.value() - Self.threshold
         if d < 0 {
             return true
         }
@@ -240,7 +244,7 @@ public final class DicdataStore {
                 let ratio = Self.penaltyRatio[data.lcid]
                 let pUnit: PValue = Self.getPenalty(data: data) / 2   // 負の値
                 let adjust = pUnit * penalty * ratio
-                if self.shouldBeRemoved(value: data.value() + adjust, wordCount: rubyArray.count) {
+                if Self.shouldBeRemoved(value: data.value() + adjust, wordCount: rubyArray.count) {
                     return nil
                 }
                 return data.adjustedData(adjust)
@@ -258,7 +262,7 @@ public final class DicdataStore {
                 let ratio = Self.penaltyRatio[data.lcid]
                 let pUnit: PValue = Self.getPenalty(data: data) / 2   // 負の値
                 let adjust = pUnit * penalty * ratio
-                if self.shouldBeRemoved(value: data.value() + adjust, wordCount: rubyArray.count) {
+                if Self.shouldBeRemoved(value: data.value() + adjust, wordCount: rubyArray.count) {
                     continue
                 }
                 dicdata.append(data.adjustedData(adjust))
@@ -352,7 +356,7 @@ public final class DicdataStore {
                 let ratio = Self.penaltyRatio[data.lcid]
                 let pUnit: PValue = Self.getPenalty(data: data) / 2   // 負の値
                 let adjust = pUnit * penalty * ratio
-                if self.shouldBeRemoved(value: data.value() + adjust, wordCount: rubyArray.count) {
+                if Self.shouldBeRemoved(value: data.value() + adjust, wordCount: rubyArray.count) {
                     return nil
                 }
                 return data.adjustedData(adjust)
@@ -370,7 +374,7 @@ public final class DicdataStore {
                 let ratio = Self.penaltyRatio[data.lcid]
                 let pUnit: PValue = Self.getPenalty(data: data) / 2   // 負の値
                 let adjust = pUnit * penalty * ratio
-                if self.shouldBeRemoved(value: data.value() + adjust, wordCount: characters.count) {
+                if Self.shouldBeRemoved(value: data.value() + adjust, wordCount: characters.count) {
                     continue
                 }
                 dicdata.append(data.adjustedData(adjust))
@@ -674,6 +678,10 @@ public final class DicdataStore {
         }
         let defaultValue = ccLines[former][-1, default: -25]
         return ccLines[former][latter, default: defaultValue]
+    }
+
+    public func getCCValues(queries: [(former: Int, latter: Int, offset: PValue)]) -> [PValue] {
+        queries.map {getCCValue($0.former, $0.latter) + $0.offset}
     }
 
     /// meaning idから意味連接尤度を得る関数

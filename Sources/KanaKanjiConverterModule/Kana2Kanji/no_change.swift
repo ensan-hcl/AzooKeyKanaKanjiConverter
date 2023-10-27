@@ -24,7 +24,7 @@ extension Kana2Kanji {
     ///
     /// (2)次に、返却用ノードを計算する。
 
-    func kana2lattice_no_change(N_best: Int, previousResult: (inputData: ComposingText, nodes: Nodes)) -> (result: LatticeNode, nodes: Nodes) {
+    func kana2lattice_no_change(N_best: Int, previousResult: (inputData: ComposingText, nodes: Nodes)) async throws -> (result: LatticeNode, nodes: Nodes) {
         debug("キャッシュから復元、元の文字は：", previousResult.inputData.convertTarget)
         let count = previousResult.inputData.input.count
         // (1)
@@ -35,7 +35,7 @@ extension Kana2Kanji {
                 if node.prevs.isEmpty {
                     continue
                 }
-                if self.dicdataStore.shouldBeRemoved(data: node.data) {
+                if DicdataStore.shouldBeRemoved(data: node.data) {
                     continue
                 }
                 let nextIndex = node.inputRange.endIndex

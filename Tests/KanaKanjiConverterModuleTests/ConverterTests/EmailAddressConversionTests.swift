@@ -18,11 +18,11 @@ import XCTest
         )
     }
 
-    func testtoEmailAddressCandidates() throws {
+    func testtoEmailAddressCandidates() async throws {
         do {
             let converter = KanaKanjiConverter()
             let input = makeDirectInput(direct: "azooKey@")
-            let result = converter.toEmailAddressCandidates(input)
+            let result = await converter.toEmailAddressCandidates(input)
             XCTAssertFalse(result.isEmpty)
             XCTAssertTrue(result.contains(where: {$0.text == "azooKey@gmail.com"}))
             XCTAssertTrue(result.contains(where: {$0.text == "azooKey@icloud.com"}))
@@ -33,7 +33,7 @@ import XCTest
         do {
             let converter = KanaKanjiConverter()
             let input = makeDirectInput(direct: "my.dev_az@")
-            let result = converter.toEmailAddressCandidates(input)
+            let result = await converter.toEmailAddressCandidates(input)
             XCTAssertFalse(result.isEmpty)
             XCTAssertTrue(result.contains(where: {$0.text == "my.dev_az@gmail.com"}))
             XCTAssertTrue(result.contains(where: {$0.text == "my.dev_az@icloud.com"}))
@@ -44,7 +44,7 @@ import XCTest
         do {
             let converter = KanaKanjiConverter()
             let input = makeDirectInput(direct: "@")
-            let result = converter.toEmailAddressCandidates(input)
+            let result = await converter.toEmailAddressCandidates(input)
             XCTAssertFalse(result.isEmpty)
             XCTAssertTrue(result.contains(where: {$0.text == "@gmail.com"}))
             XCTAssertTrue(result.contains(where: {$0.text == "@icloud.com"}))

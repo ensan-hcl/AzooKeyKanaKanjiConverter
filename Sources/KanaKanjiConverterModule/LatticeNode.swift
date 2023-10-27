@@ -9,7 +9,7 @@
 import Foundation
 
 /// ラティスのノード。これを用いて計算する。
-public final class LatticeNode {
+public final class LatticeNode: Sendable {
     /// このノードが保持する辞書データ
     public let data: DicdataElement
     /// このノードの前に来ているノード。`N_best`の分だけ保存する
@@ -30,6 +30,12 @@ public final class LatticeNode {
         self.inputRange = inputRange
     }
 
+    func copy() -> LatticeNode {
+        let node = LatticeNode(data: data, inputRange: inputRange)
+        node.values = self.values
+        node.prevs = self.prevs
+        return node
+    }
     /// `LatticeNode`の持っている情報を反映した`RegisteredNode`を作成する
     /// `LatticeNode`は複数の過去のノードを持つことができるが、`RegisteredNode`は1つしか持たない。
     func getRegisteredNode(_ index: Int, value: PValue) -> RegisteredNode {
