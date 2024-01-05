@@ -62,36 +62,30 @@ struct LOUDS {
 
         return self.bits.withUnsafeBufferPointer {(buffer: UnsafeBufferPointer<Unit>) -> Range<Int> in
             // 探索パート②
-            // 目標は`k`の発見
-            // 今のbyteの中を探索し、超過分(dif)の0を手に入れたところでkが確定する。
+            // 目標はparentNodeIndex番目の0の位置である`k`の発見
             let byte = buffer[i]
-            let dif = self.rankLarge[i &+ 1] &- parentNodeIndex   // 0の数の超過分
-            var count = Unit(Self.unit &- byte.nonzeroBitCount) // 0の数
-            var k = Self.unit
-
-            for c in 0 ..< Self.unit {
-                if count == dif {
-                    k = c
-                    break
-                }
-                // byteの上からc桁めが0なら == (byte << 0)が100………00より小さければ == 最初の1桁を一番下に持ってきた値そのもの
-                count &-= (byte << c) < Unit.prefixOne ? 1:0
+            var k = 0
+            for _ in  0 ..< parentNodeIndex - self.rankLarge[i] {
+                k = ((~(byte << k)).leadingZeroBitCount &+ k &+ 1) % Self.unit
             }
-
             let start = (i << Self.uExp) &+ k &- parentNodeIndex &+ 1
-            if dif == .zero {
+            // ちょうどparentNodeIndex個の0がi番目にあるかどうか
+            if self.rankLarge[i &+ 1] == parentNodeIndex {
                 var j = i &+ 1
                 while buffer[j] == Unit.max {
                     j &+= 1
                 }
-                let byte2 = buffer[j]
                 // 最初の0を探す作業
-                let a = (0 ..< Self.unit).first(where: {(byte2 << $0) < Unit.prefixOne})
-                return start ..< (j << Self.uExp) &+ (a ?? 0) &- parentNodeIndex &+ 1
+                // 反転して、先頭から0の数を数えると最初の0の位置が出てくる
+                // Ex. 1110_0000 => [000]1_1111 => 3
+                let a = (~buffer[j]).leadingZeroBitCount % Self.unit
+                return start ..< (j << Self.uExp) &+ a &- parentNodeIndex &+ 1
             } else {
-                // 次の0を探す作業
-                let a = (k ..< Self.unit).first(where: {(byte << $0) < Unit.prefixOne})
-                return start ..< (i << Self.uExp) &+ (a ?? 0) &- parentNodeIndex &+ 1
+                // difが0以上の場合、k番目以降の初めての0を発見したい
+                // 例えばk=1の場合
+                // Ex. 1011_1101 => 1111_0100 => [0000]_1011 => 4 => 6
+                let a = ((~(byte << (k &+ 1))).leadingZeroBitCount &+ (k &+ 1)) % Self.unit
+                return start ..< (i << Self.uExp) &+ a &- parentNodeIndex &+ 1
             }
         }
     }
