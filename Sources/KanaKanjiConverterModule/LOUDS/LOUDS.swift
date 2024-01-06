@@ -64,7 +64,7 @@ struct LOUDS: Sendable {
             let byte = buffer[i]
             var k = 0
             for _ in  0 ..< parentNodeIndex - Int(self.rankLarge[i]) {
-                k = ((~(byte << k)).leadingZeroBitCount &+ k &+ 1) % Self.unit
+                k = (~(byte << k)).leadingZeroBitCount &+ k &+ 1
             }
             let k2 = {
                 let dif = Int(self.rankLarge[i &+ 1]) &- parentNodeIndex   // 0の数の超過分
