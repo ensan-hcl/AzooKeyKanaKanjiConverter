@@ -52,7 +52,12 @@ struct LOUDS: Sendable {
                 break
             }
         }
-        guard let i = (Int(left) &+ 1 ..< self.bits.endIndex).first(where: {(index: Int) in self.rankLarge[index &+ 1] >= parentNodeIndex}) else {
+        var i: Int?
+        for index in left &+ 1 ..< self.bits.endIndex where self.rankLarge[index &+ 1] >= parentNodeIndex {
+            i = index
+            break
+        }
+        guard let i else {
             return 0 ..< 0
         }
 
