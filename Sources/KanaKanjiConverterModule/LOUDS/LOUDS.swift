@@ -60,18 +60,17 @@ struct LOUDS: Sendable {
         guard let i else {
             return 0 ..< 0
         }
-
-        return self.bits.withUnsafeBufferPointer {(buffer: UnsafeBufferPointer<Unit>) -> Range<Int> in
-            // 探索パート②
-            // 目標はparentNodeIndex番目の0の位置である`k`の発見
-            let byte = buffer[i]
-            var k = 0
-            for _ in  0 ..< parentNodeIndex - Int(self.rankLarge[i]) {
-                k = (~(byte << k)).leadingZeroBitCount &+ k &+ 1
-            }
-            let start = (i << Self.uExp) &+ k &- parentNodeIndex &+ 1
-            // ちょうどparentNodeIndex個の0がi番目にあるかどうか
-            if self.rankLarge[i &+ 1] == parentNodeIndex {
+        // 探索パート②
+        // 目標はparentNodeIndex番目の0の位置である`k`の発見
+        let byte = self.bits[i]
+        var k = 0
+        for _ in  0 ..< parentNodeIndex - Int(self.rankLarge[i]) {
+            k = (~(byte << k)).leadingZeroBitCount &+ k &+ 1
+        }
+        let start = (i << Self.uExp) &+ k &- parentNodeIndex &+ 1
+        // ちょうどparentNodeIndex個の0がi番目にあるかどうか
+        if self.rankLarge[i &+ 1] == parentNodeIndex {
+            return self.bits.withUnsafeBufferPointer {(buffer: UnsafeBufferPointer<Unit>) -> Range<Int> in
                 var j = i &+ 1
                 while buffer[j] == Unit.max {
                     j &+= 1
@@ -82,13 +81,13 @@ struct LOUDS: Sendable {
                 let byte2 = buffer[j]
                 let a = (~byte2).leadingZeroBitCount % Self.unit
                 return start ..< (j << Self.uExp) &+ a &- parentNodeIndex &+ 1
-            } else {
-                // difが0以上の場合、k番目以降の初めての0を発見したい
-                // 例えばk=1の場合
-                // Ex. 1011_1101 => 0111_1010 => 1000_0101 => 1 => 2
-                let a = ((~(byte << k)).leadingZeroBitCount &+ k) % Self.unit
-                return start ..< (i << Self.uExp) &+ a &- parentNodeIndex &+ 1
             }
+        } else {
+            // difが0以上の場合、k番目以降の初めての0を発見したい
+            // 例えばk=1の場合
+            // Ex. 1011_1101 => 0111_1010 => 1000_0101 => 1 => 2
+            let a = ((~(byte << k)).leadingZeroBitCount &+ k) % Self.unit
+            return start ..< (i << Self.uExp) &+ a &- parentNodeIndex &+ 1
         }
     }
 
