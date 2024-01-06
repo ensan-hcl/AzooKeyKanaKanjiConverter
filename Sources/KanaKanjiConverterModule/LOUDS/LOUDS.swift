@@ -10,8 +10,6 @@ import Foundation
 
 /// LOUDS
 struct LOUDS: Sendable {
-    private static let prefixOne: UInt64 = (1 << 63)
-
     private typealias Unit = UInt64
     private static let unit = 64
     private static let uExp = 6
@@ -66,22 +64,6 @@ struct LOUDS: Sendable {
             for _ in  0 ..< parentNodeIndex - Int(self.rankLarge[i]) {
                 k = (~(byte << k)).leadingZeroBitCount &+ k &+ 1
             }
-            let k2 = {
-                let dif = Int(self.rankLarge[i &+ 1]) &- parentNodeIndex   // 0の数の超過分
-                var count = Unit(Self.unit &- byte.nonzeroBitCount) // 0の数
-                var k = Self.unit
-
-                for c in 0 ..< Self.unit {
-                    if count == dif {
-                        k = c
-                        break
-                    }
-                    // byteの上からc桁めが0なら == (byte << 0)が100………00より小さければ == 最初の1桁を一番下に持ってきた値そのもの
-                    count &-= (byte << c) < Self.prefixOne ? 1:0
-                }
-                return k
-            }()
-            assert(k == k2)
             let start = (i << Self.uExp) &+ k &- parentNodeIndex &+ 1
             // ちょうどparentNodeIndex個の0がi番目にあるかどうか
             if self.rankLarge[i &+ 1] == parentNodeIndex {
@@ -94,16 +76,12 @@ struct LOUDS: Sendable {
                 // Ex. 1110_0000 => [000]1_1111 => 3
                 let byte2 = buffer[j]
                 let a = (~byte2).leadingZeroBitCount % Self.unit
-                let a2 = (0 ..< Self.unit).first(where: {(byte2 << $0) < Self.prefixOne}) ?? 0
-                assert(a == a2)
                 return start ..< (j << Self.uExp) &+ a &- parentNodeIndex &+ 1
             } else {
                 // difが0以上の場合、k番目以降の初めての0を発見したい
                 // 例えばk=1の場合
                 // Ex. 1011_1101 => 0111_1010 => 1000_0101 => 1 => 2
                 let a = ((~(byte << k)).leadingZeroBitCount &+ k) % Self.unit
-                let a2 = (k ..< Self.unit).first(where: {(byte << $0) < Self.prefixOne}) ?? 0
-                assert(a == a2)
                 return start ..< (i << Self.uExp) &+ a &- parentNodeIndex &+ 1
             }
         }
