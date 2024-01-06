@@ -8,30 +8,26 @@
 
 import Foundation
 
-private extension UInt64 {
-    static let prefixOne: UInt64 = 1 << 63
-}
-
 /// LOUDS
-struct LOUDS {
+struct LOUDS: Sendable {
     private typealias Unit = UInt64
     private static let unit = 64
     private static let uExp = 6
 
     private let bits: [Unit]
-    private let indices: Range<Int>
     private let char2nodeIndices: [[Int]]
     /// 0の数（1の数ではない）
-    private let rankLarge: [Int]
+    ///
+    /// LOUDSのサイズが4GBまでは`UInt32`で十分
+    private let rankLarge: [UInt32]
 
     @inlinable init(bytes: [UInt64], nodeIndex2ID: [UInt8]) {
         self.bits = bytes
         self.char2nodeIndices = nodeIndex2ID.enumerated().reduce(into: .init(repeating: [], count: 1 << 8)) { list, data in
             list[Int(data.element)].append(data.offset)
         }
-        self.indices = self.bits.indices
         self.rankLarge = bytes.reduce(into: [0]) {
-            $0.append(($0.last ?? 0) &+ (Self.unit &- $1.nonzeroBitCount))
+            $0.append($0.last! &+ UInt32(Self.unit &- $1.nonzeroBitCount))
         }
     }
 
@@ -49,14 +45,14 @@ struct LOUDS {
         // 探しているのは、startIndexが含まれるbitsのindex `i`
         var left = (parentNodeIndex >> Self.uExp) &- 1
         while true {
-            let dif = parentNodeIndex &- self.rankLarge[left &+ 1]
+            let dif = parentNodeIndex &- Int(self.rankLarge[Int(left) &+ 1])
             if dif >= Self.unit {
                 left &+= dif >> Self.uExp
             } else {
                 break
             }
         }
-        guard let i = (left &+ 1 ..< self.bits.count).first(where: {(index: Int) in self.rankLarge[index &+ 1] >= parentNodeIndex}) else {
+        guard let i = (Int(left) &+ 1 ..< self.bits.endIndex).first(where: {(index: Int) in self.rankLarge[index &+ 1] >= parentNodeIndex}) else {
             return 0 ..< 0
         }
 
@@ -65,7 +61,7 @@ struct LOUDS {
             // 目標はparentNodeIndex番目の0の位置である`k`の発見
             let byte = buffer[i]
             var k = 0
-            for _ in  0 ..< parentNodeIndex - self.rankLarge[i] {
+            for _ in  0 ..< parentNodeIndex - Int(self.rankLarge[i]) {
                 k = ((~(byte << k)).leadingZeroBitCount &+ k &+ 1) % Self.unit
             }
             let start = (i << Self.uExp) &+ k &- parentNodeIndex &+ 1
@@ -84,7 +80,7 @@ struct LOUDS {
                 // difが0以上の場合、k番目以降の初めての0を発見したい
                 // 例えばk=1の場合
                 // Ex. 1011_1101 => 1111_0100 => [0000]_1011 => 4 => 6
-                let a = ((~(byte << (k &+ 1))).leadingZeroBitCount &+ (k &+ 1)) % Self.unit
+                let a = ((~(byte << (k))).leadingZeroBitCount &+ k) % Self.unit
                 return start ..< (i << Self.uExp) &+ a &- parentNodeIndex &+ 1
             }
         }
