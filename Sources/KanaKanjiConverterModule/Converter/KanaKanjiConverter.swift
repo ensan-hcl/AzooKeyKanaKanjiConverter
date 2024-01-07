@@ -113,12 +113,14 @@ import SwiftUtils
     ///   `candidates`から重複を削除したもの。
     private func getUniqueCandidate(_ candidates: some Sequence<Candidate>, seenCandidates: Set<String> = []) -> [Candidate] {
         var result = [Candidate]()
+        var textIndex = [String: Int]()
         for candidate in candidates where !candidate.text.isEmpty && !seenCandidates.contains(candidate.text) {
-            if let index = result.firstIndex(where: {$0.text == candidate.text}) {
+            if let index = textIndex[candidate.text] {
                 if result[index].value < candidate.value || result[index].correspondingCount < candidate.correspondingCount {
                     result[index] = candidate
                 }
             } else {
+                textIndex[candidate.text] = result.endIndex
                 result.append(candidate)
             }
         }
