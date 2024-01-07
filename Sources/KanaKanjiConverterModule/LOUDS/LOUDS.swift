@@ -44,40 +44,22 @@ struct LOUDS: Sendable {
         // rankLargeは左側の0の数を示すので、difを取っている
         // まず最低限の絞り込みを行う。leftを探索する。
         // 探しているのは、startIndexが含まれるbitsのindex `i`
-        var left = (parentNodeIndex >> Self.uExp) &- 1
-        while true {
-            let dif = parentNodeIndex &- Int(self.rankLarge[Int(left) &+ 1])
-            if dif >= Self.unit {
-                left &+= dif >> Self.uExp
+        var left = parentNodeIndex >> Self.uExp
+        var right = self.rankLarge.endIndex - 1
+        var i = self.rankLarge.endIndex
+        while left <= right {
+            let mid = (left + right) / 2
+            if self.rankLarge[mid] >= parentNodeIndex {
+                i = mid
+                right = mid - 1
             } else {
-                break
+                left = mid + 1
             }
         }
-        var i: Int?
-        for index in left &+ 1 ..< self.bits.endIndex where self.rankLarge[index &+ 1] >= parentNodeIndex {
-            i = index
-            break
-        }
-        guard let i else {
+        guard i != self.rankLarge.endIndex else {
             return 0 ..< 0
         }
-        let i2 = {
-            var left = parentNodeIndex >> Self.uExp
-            var right = self.rankLarge.endIndex - 1
-            var i = self.rankLarge.endIndex
-            while left <= right {
-                let mid = (left + right) / 2
-                if self.rankLarge[mid] >= parentNodeIndex {
-                    i = mid
-                    right = mid - 1
-                } else {
-                    left = mid + 1
-                }
-            }
-            return i - 1
-        }()
-        assert(i == i2)
-
+        i -= 1
         return self.bits.withUnsafeBufferPointer {(buffer: UnsafeBufferPointer<Unit>) -> Range<Int> in
             // 探索パート②
             // 目標はparentNodeIndex番目の0の位置である`k`の発見
