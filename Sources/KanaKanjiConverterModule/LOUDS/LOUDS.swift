@@ -29,10 +29,11 @@ struct LOUDS: Sendable {
             char2nodeIndices[Int(value)].append(i)
         }
         self.char2nodeIndices = consume char2nodeIndices
-        var rankLarge: [UInt32] = [0]
-        rankLarge.reserveCapacity(bytes.count)
-        for byte in bytes {
-            rankLarge.append(rankLarge.last! &+ UInt32(Self.unit &- byte.nonzeroBitCount))
+        var rankLarge: [UInt32] = .init(repeating: 0, count: bytes.count + 1)
+        rankLarge.withUnsafeMutableBufferPointer { buffer in
+            for (i, byte) in zip(bytes.indices, bytes) {
+                buffer[i + 1] = buffer[i] &+ UInt32(Self.unit &- byte.nonzeroBitCount)
+            }
         }
         self.rankLarge = consume rankLarge
     }
