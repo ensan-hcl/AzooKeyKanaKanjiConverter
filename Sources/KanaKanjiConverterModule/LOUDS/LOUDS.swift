@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import simd
 
 /// LOUDS
 struct LOUDS: Sendable {
@@ -57,9 +58,21 @@ struct LOUDS: Sendable {
             i = index
             break
         }
+        var left2 = 0, right2 = self.rankLarge.endIndex - 1
+        var result = self.rankLarge.endIndex
+        while left2 <= right2 {
+            let mid = (left2 + right2) / 2
+            if self.rankLarge[mid] >= parentNodeIndex {
+                result = mid
+                right2 = mid - 1
+            } else {
+                left2 = mid + 1
+            }
+        }
         guard let i else {
             return 0 ..< 0
         }
+        assert(i == result - 1)
 
         return self.bits.withUnsafeBufferPointer {(buffer: UnsafeBufferPointer<Unit>) -> Range<Int> in
             // 探索パート②
