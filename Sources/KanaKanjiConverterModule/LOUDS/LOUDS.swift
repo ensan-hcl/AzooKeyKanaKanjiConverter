@@ -101,7 +101,6 @@ struct LOUDS: Sendable {
             for _ in  0 ..< parentNodeIndex - Int(self.rankLarge[i]) {
                 k = (~(byte << k)).leadingZeroBitCount &+ k &+ 1
             }
-            let start = (i << Self.uExp) &+ k &- parentNodeIndex &+ 1
             // ちょうどparentNodeIndex個の0がi番目にあるかどうか
             if self.rankLarge[i &+ 1] == parentNodeIndex {
                 var j = i &+ 1
@@ -111,15 +110,16 @@ struct LOUDS: Sendable {
                 // 最初の0を探す作業
                 // 反転して、先頭から0の数を数えると最初の0の位置が出てくる
                 // Ex. 1110_0000 => [000]1_1111 => 3
-                let byte2 = buffer[j]
-                let a = (~byte2).leadingZeroBitCount % Self.unit
-                return start ..< (j << Self.uExp) &+ a &- parentNodeIndex &+ 1
+                let a = (~buffer[j]).leadingZeroBitCount % Self.unit
+                let result = (SIMD2(i, j) &<< Self.uExp) &+ SIMD2(k, a) &- parentNodeIndex &+ 1
+                return result[0] ..< result[1]
             } else {
                 // difが0以上の場合、k番目以降の初めての0を発見したい
                 // 例えばk=1の場合
                 // Ex. 1011_1101 => 0111_1010 => 1000_0101 => 1 => 2
                 let a = ((~(byte << k)).leadingZeroBitCount &+ k) % Self.unit
-                return start ..< (i << Self.uExp) &+ a &- parentNodeIndex &+ 1
+                let result = (SIMD2(i, i) &<< Self.uExp) &+ SIMD2(k, a) &- parentNodeIndex &+ 1
+                return result[0] ..< result[1]
             }
         }
     }
