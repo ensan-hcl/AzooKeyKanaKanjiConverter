@@ -17,6 +17,9 @@ struct LOUDS: Sendable {
 
     private let bits: [Unit]
     private let char2nodeIndices: [[Int]]
+    private let flatChar2nodeIndices: [Int]
+    /// 256個の値を入れるArray。`flatChar2nodeIndices[flatChar2nodeIndicesIndex[char - 1] ..< flatChar2nodeIndicesIndex[char]]`が`nodeIndices`になる
+    private let flatChar2nodeIndicesIndex: [Int]
     /// 0の数（1の数ではない）
     ///
     /// LOUDSのサイズが4GBまでは`UInt32`で十分
@@ -29,6 +32,38 @@ struct LOUDS: Sendable {
             char2nodeIndices[Int(value)].append(i)
         }
         self.char2nodeIndices = consume char2nodeIndices
+
+        // flatChar2nodeIndicesIndexを構築する
+        // これは、どのcharがどれだけの長さのnodeIndicesを持つかを知るために行う
+        var flatChar2nodeIndicesIndex = [Int](repeating: 0, count: 256)
+        flatChar2nodeIndicesIndex.withUnsafeMutableBufferPointer { buffer in
+            for value in nodeIndex2ID {
+                buffer[Int(value)] += 1
+            }
+            // 累積和にする
+            for i in 1 ..< 256 {
+                buffer[i] = buffer[i - 1] + buffer[i]
+            }
+        }
+        // flatChar2nodeIndicesを構築する
+        // すでに開始位置はflatChar2nodeIndicesIndexで分かるので、もう一度countsを構築しながら適切な場所にindexを入れていく
+        var counts = [Int](repeating: 0, count: 256)
+        self.flatChar2nodeIndices = counts.withUnsafeMutableBufferPointer { countsBuffer in
+            var flatChar2nodeIndices = [Int](repeating: 0, count: nodeIndex2ID.count)
+            for (i, value) in zip(nodeIndex2ID.indices, nodeIndex2ID) {
+                if value == .zero {
+                    flatChar2nodeIndices[countsBuffer[Int(value)]] = i
+                } else {
+                    flatChar2nodeIndices[flatChar2nodeIndicesIndex[Int(value) - 1] + countsBuffer[Int(value)]] = i
+                }
+                countsBuffer[Int(value)] += 1
+            }
+            return flatChar2nodeIndices
+        }
+        self.flatChar2nodeIndicesIndex = consume flatChar2nodeIndicesIndex
+
+
+
         var rankLarge: [UInt32] = .init(repeating: 0, count: bytes.count + 1)
         rankLarge.withUnsafeMutableBufferPointer { buffer in
             for (i, byte) in zip(bytes.indices, bytes) {
@@ -102,7 +137,15 @@ struct LOUDS: Sendable {
     @inlinable func searchCharNodeIndex(from parentNodeIndex: Int, char: UInt8) -> Int? {
         // char2nodeIndicesには単調増加性があるので二分探索が成立する
         let childNodeIndices = self.childNodeIndices(from: parentNodeIndex)
-        let nodeIndices = self.char2nodeIndices[Int(char)]
+        let nodeIndices2 = self.char2nodeIndices[Int(char)]
+        let nodeIndices: ArraySlice<Int>
+        if char == .zero {
+            nodeIndices = self.flatChar2nodeIndices[0 ..< self.flatChar2nodeIndicesIndex[Int(char)]]
+        } else {
+            nodeIndices = self.flatChar2nodeIndices[self.flatChar2nodeIndicesIndex[Int(char - 1)] ..< self.flatChar2nodeIndicesIndex[Int(char)]]
+        }
+        assert(nodeIndices2 == Array(nodeIndices))
+
         var left = nodeIndices.startIndex
         var right = nodeIndices.endIndex
         while left < right {
