@@ -58,21 +58,25 @@ struct LOUDS: Sendable {
             i = index
             break
         }
-        var left2 = 0, right2 = self.rankLarge.endIndex - 1
-        var result = self.rankLarge.endIndex
-        while left2 <= right2 {
-            let mid = (left2 + right2) / 2
-            if self.rankLarge[mid] >= parentNodeIndex {
-                result = mid
-                right2 = mid - 1
-            } else {
-                left2 = mid + 1
-            }
-        }
         guard let i else {
             return 0 ..< 0
         }
-        assert(i == result - 1)
+        let i2 = {
+            var left = parentNodeIndex >> Self.uExp
+            var right = self.rankLarge.endIndex - 1
+            var i = self.rankLarge.endIndex
+            while left <= right {
+                let mid = (left + right) / 2
+                if self.rankLarge[mid] >= parentNodeIndex {
+                    i = mid
+                    right = mid - 1
+                } else {
+                    left = mid + 1
+                }
+            }
+            return i - 1
+        }()
+        assert(i == i2)
 
         return self.bits.withUnsafeBufferPointer {(buffer: UnsafeBufferPointer<Unit>) -> Range<Int> in
             // 探索パート②
