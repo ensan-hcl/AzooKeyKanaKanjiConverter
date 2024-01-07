@@ -16,7 +16,8 @@ struct LOUDS: Sendable {
     private static let uExp = 6
 
     private let bits: [Unit]
-    private let char2nodeIndices: [[Int]]
+    /// indexを並べてflattenしたArray。
+    ///  - seealso: flatChar2nodeIndicesIndex
     private let flatChar2nodeIndices: [Int]
     /// 256個の値を入れるArray。`flatChar2nodeIndices[flatChar2nodeIndicesIndex[char - 1] ..< flatChar2nodeIndicesIndex[char]]`が`nodeIndices`になる
     private let flatChar2nodeIndicesIndex: [Int]
@@ -27,12 +28,6 @@ struct LOUDS: Sendable {
 
     @inlinable init(bytes: [UInt64], nodeIndex2ID: [UInt8]) {
         self.bits = bytes
-        var char2nodeIndices: [[Int]] = .init(repeating: [], count: 1 << 8)
-        for (i, value) in zip(nodeIndex2ID.indices, nodeIndex2ID) {
-            char2nodeIndices[Int(value)].append(i)
-        }
-        self.char2nodeIndices = consume char2nodeIndices
-
         // flatChar2nodeIndicesIndexを構築する
         // これは、どのcharがどれだけの長さのnodeIndicesを持つかを知るために行う
         var flatChar2nodeIndicesIndex = [Int](repeating: 0, count: 256)
@@ -61,8 +56,6 @@ struct LOUDS: Sendable {
             return flatChar2nodeIndices
         }
         self.flatChar2nodeIndicesIndex = consume flatChar2nodeIndicesIndex
-
-
 
         var rankLarge: [UInt32] = .init(repeating: 0, count: bytes.count + 1)
         rankLarge.withUnsafeMutableBufferPointer { buffer in
@@ -137,14 +130,11 @@ struct LOUDS: Sendable {
     @inlinable func searchCharNodeIndex(from parentNodeIndex: Int, char: UInt8) -> Int? {
         // char2nodeIndicesには単調増加性があるので二分探索が成立する
         let childNodeIndices = self.childNodeIndices(from: parentNodeIndex)
-        let nodeIndices2 = self.char2nodeIndices[Int(char)]
-        let nodeIndices: ArraySlice<Int>
-        if char == .zero {
-            nodeIndices = self.flatChar2nodeIndices[0 ..< self.flatChar2nodeIndicesIndex[Int(char)]]
+        let nodeIndices: ArraySlice<Int> = if char == .zero {
+            self.flatChar2nodeIndices[0 ..< self.flatChar2nodeIndicesIndex[Int(char)]]
         } else {
-            nodeIndices = self.flatChar2nodeIndices[self.flatChar2nodeIndicesIndex[Int(char - 1)] ..< self.flatChar2nodeIndicesIndex[Int(char)]]
+            self.flatChar2nodeIndices[self.flatChar2nodeIndicesIndex[Int(char - 1)] ..< self.flatChar2nodeIndicesIndex[Int(char)]]
         }
-        assert(nodeIndices2 == Array(nodeIndices))
 
         var left = nodeIndices.startIndex
         var right = nodeIndices.endIndex
