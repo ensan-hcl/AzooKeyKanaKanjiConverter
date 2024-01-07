@@ -7,7 +7,6 @@
 //
 
 import Foundation
-import simd
 
 /// LOUDS
 struct LOUDS: Sendable {
