@@ -24,12 +24,17 @@ struct LOUDS: Sendable {
 
     @inlinable init(bytes: [UInt64], nodeIndex2ID: [UInt8]) {
         self.bits = bytes
-        self.char2nodeIndices = nodeIndex2ID.enumerated().reduce(into: .init(repeating: [], count: 1 << 8)) { list, data in
-            list[Int(data.element)].append(data.offset)
+        var char2nodeIndices: [[Int]] = .init(repeating: [], count: 1 << 8)
+        for (i, value) in zip(nodeIndex2ID.indices, nodeIndex2ID) {
+            char2nodeIndices[Int(value)].append(i)
         }
-        self.rankLarge = bytes.reduce(into: [0]) {
-            $0.append($0.last! &+ UInt32(Self.unit &- $1.nonzeroBitCount))
+        self.char2nodeIndices = consume char2nodeIndices
+        var rankLarge: [UInt32] = [0]
+        rankLarge.reserveCapacity(bytes.count)
+        for byte in bytes {
+            rankLarge.append(rankLarge.last! &+ UInt32(Self.unit &- byte.nonzeroBitCount))
         }
+        self.rankLarge = consume rankLarge
     }
 
     /// parentNodeIndex個の0を探索し、その次から1個増えるまでのIndexを返す。
