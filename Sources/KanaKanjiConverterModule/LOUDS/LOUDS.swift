@@ -89,6 +89,7 @@ struct LOUDS: Sendable {
                 left = mid + 1
             }
         }
+        assert(i == left)
         guard i != self.rankLarge.endIndex else {
             return 0 ..< 0
         }
