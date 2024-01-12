@@ -79,21 +79,18 @@ struct LOUDS: Sendable {
         // 探しているのは、startIndexが含まれるbitsのindex `i`
         var left = parentNodeIndex >> Self.uExp
         var right = self.rankLarge.endIndex - 1
-        var i = self.rankLarge.endIndex
         while left <= right {
             let mid = (left + right) / 2
             if self.rankLarge[mid] >= parentNodeIndex {
-                i = mid
                 right = mid - 1
             } else {
                 left = mid + 1
             }
         }
-        assert(i == left)
-        guard i != self.rankLarge.endIndex else {
+        guard left != self.rankLarge.endIndex else {
             return 0 ..< 0
         }
-        i -= 1
+        let i = left - 1
         return self.bits.withUnsafeBufferPointer {(buffer: UnsafeBufferPointer<Unit>) -> Range<Int> in
             // 探索パート②
             // 目標はparentNodeIndex番目の0の位置である`k`の発見
