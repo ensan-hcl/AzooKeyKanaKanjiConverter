@@ -13,7 +13,7 @@ import AppKit
 #endif
 
 @MainActor final class SpellChecker {
-    #if os(iOS) || os(tvOS)
+    #if os(iOS) || os(tvOS) || os(visionOS)
     private let checker = UITextChecker()
     #elseif os(macOS)
     private let checker = NSSpellChecker.shared
