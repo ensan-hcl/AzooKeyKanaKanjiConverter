@@ -20,7 +20,7 @@ import AppKit
     #endif
 
     func completions(forPartialWordRange range: NSRange, in string: String, language: String) -> [String]? {
-        #if os(iOS) || os(tvOS)
+        #if os(iOS) || os(tvOS) || os(visionOS)
         return checker.completions(forPartialWordRange: range, in: string, language: language)
         #elseif os(macOS)
         return checker.completions(forPartialWordRange: range, in: string, language: language, inSpellDocumentWithTag: 0)
