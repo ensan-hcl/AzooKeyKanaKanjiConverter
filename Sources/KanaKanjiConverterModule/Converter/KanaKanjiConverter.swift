@@ -651,7 +651,7 @@ import SwiftUtils
         // 予測変換に基づく候補を列挙
         let predictionResults = self.converter.getPredictionCandidates(prepart: leftSideCandidate, N_best: 15)
         // 絵文字を追加
-        let replacer = TextReplacer()
+        let replacer = options.textReplacer
         var emojiCandidates: [PostCompositionPredictionCandidate] = []
         for data in leftSideCandidate.data where DicdataStore.includeMMValueCalculation(data) {
             let result = replacer.getSearchResult(query: data.word, target: [.emoji], ignoreNonBaseEmoji: true)

@@ -13,26 +13,17 @@ import SwiftUtils
 /// 例えば、「tha|nk」と入力があるとき、「think」や「thanks」などを候補として表示することが考えられる。
 ///
 /// 現在の機能は「絵文字」のバリエーションを表示することに限定する。
-public struct TextReplacer {
+public struct TextReplacer: Sendable {
     // TODO: prefix trieなどの方が便利だと思う
     private var emojiSearchDict: [String: [String]] = [:]
     private var emojiGroups: [EmojiGroup] = []
     private var nonBaseEmojis: Set<String> = []
 
-    public init() {
-        let fileURL: URL
-        // 読み込むファイルはバージョンごとに変更する必要がある
-        if #available(iOS 16.4, *) {
-            fileURL = Bundle.main.bundleURL.appendingPathComponent("emoji_all_E15.0.txt.gen", isDirectory: false)
-        } else if #available(iOS 15.4, *) {
-            fileURL = Bundle.main.bundleURL.appendingPathComponent("emoji_all_E14.0.txt.gen", isDirectory: false)
-        } else {
-            fileURL = Bundle.main.bundleURL.appendingPathComponent("emoji_all_E13.1.txt.gen", isDirectory: false)
-        }
+    public init(emojiDataProvider: () -> URL) {
         var emojiSearchDict: [String: [String]] = [:]
         var emojiGroups: [EmojiGroup] = []
         do {
-            let string = try String(contentsOf: fileURL, encoding: .utf8)
+            let string = try String(contentsOf: emojiDataProvider(), encoding: .utf8)
             let lines = string.split(separator: "\n")
             for line in lines {
                 let splited = line.split(separator: "\t", omittingEmptySubsequences: false)
@@ -59,6 +50,19 @@ public struct TextReplacer {
             self.emojiSearchDict = emojiSearchDict
             self.emojiGroups = emojiGroups
             return
+        }
+    }
+
+    @available(*, deprecated, renamed: "init(emojiDataProvider:)", message: "init() is depreacted and will be removed in v1.0. Use init(emojiDataProvider:) instead")
+    public init() {
+        self.init {
+            if #available(iOS 16.4, *) {
+                Bundle.main.bundleURL.appendingPathComponent("emoji_all_E15.0.txt.gen", isDirectory: false)
+            } else if #available(iOS 15.4, *) {
+                Bundle.main.bundleURL.appendingPathComponent("emoji_all_E14.0.txt.gen", isDirectory: false)
+            } else {
+                Bundle.main.bundleURL.appendingPathComponent("emoji_all_E13.1.txt.gen", isDirectory: false)
+            }
         }
     }
 
@@ -110,7 +114,7 @@ public struct TextReplacer {
     }
 
     /// 「同一」の絵文字のグループ
-    private struct EmojiGroup {
+    private struct EmojiGroup: Sendable {
         var base: String
         var variations: [String]
         var all: [String] {
