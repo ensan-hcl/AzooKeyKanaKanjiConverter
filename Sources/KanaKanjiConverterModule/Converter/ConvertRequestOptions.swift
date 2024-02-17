@@ -27,8 +27,9 @@ public struct ConvertRequestOptions: Sendable {
     ///   - dictionaryResourceURL: 内蔵辞書データの読み出し先を指定します。
     ///   - memoryDirectoryURL: 学習データの保存先を指定します。書き込み可能なディレクトリを指定してください。
     ///   - sharedContainerURL: ユーザ辞書など、キーボード外で書き込んだ設定データの保存されているディレクトリを指定します。
+    ///   - textReplacer: 予測変換のための置換機を指定します。
     ///   - metadata: メタデータを指定します。詳しくは`ConvertRequestOptions.Metadata`を参照してください。
-    public init(N_best: Int = 10, requireJapanesePrediction: Bool, requireEnglishPrediction: Bool, keyboardLanguage: KeyboardLanguage, typographyLetterCandidate: Bool = false, unicodeCandidate: Bool = true, englishCandidateInRoman2KanaInput: Bool = false, fullWidthRomanCandidate: Bool = false, halfWidthKanaCandidate: Bool = false, learningType: LearningType, maxMemoryCount: Int = 65536, shouldResetMemory: Bool = false, dictionaryResourceURL: URL, memoryDirectoryURL: URL, sharedContainerURL: URL, metadata: ConvertRequestOptions.Metadata) {
+    public init(N_best: Int = 10, requireJapanesePrediction: Bool, requireEnglishPrediction: Bool, keyboardLanguage: KeyboardLanguage, typographyLetterCandidate: Bool = false, unicodeCandidate: Bool = true, englishCandidateInRoman2KanaInput: Bool = false, fullWidthRomanCandidate: Bool = false, halfWidthKanaCandidate: Bool = false, learningType: LearningType, maxMemoryCount: Int = 65536, shouldResetMemory: Bool = false, dictionaryResourceURL: URL, memoryDirectoryURL: URL, sharedContainerURL: URL, textReplacer: TextReplacer = TextReplacer(), metadata: ConvertRequestOptions.Metadata) {
         self.N_best = N_best
         self.requireJapanesePrediction = requireJapanesePrediction
         self.requireEnglishPrediction = requireEnglishPrediction
@@ -44,6 +45,7 @@ public struct ConvertRequestOptions: Sendable {
         self.memoryDirectoryURL = memoryDirectoryURL
         self.sharedContainerURL = sharedContainerURL
         self.metadata = metadata
+        self.textReplacer = textReplacer
         self.dictionaryResourceURL = dictionaryResourceURL
     }
 
@@ -60,6 +62,8 @@ public struct ConvertRequestOptions: Sendable {
     public var learningType: LearningType
     public var maxMemoryCount: Int
     public var shouldResetMemory: Bool
+    /// 変換用
+    public var textReplacer: TextReplacer
     // ディレクトリなど
     public var memoryDirectoryURL: URL
     public var sharedContainerURL: URL
