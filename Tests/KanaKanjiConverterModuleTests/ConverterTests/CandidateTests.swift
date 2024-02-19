@@ -8,7 +8,7 @@
 import XCTest
 @testable import KanaKanjiConverterModule
 
-@MainActor final class CandidateTests: XCTestCase {
+final class CandidateTests: XCTestCase {
     // テンプレートのパース
     func testParseTemplate() throws {
         do {
