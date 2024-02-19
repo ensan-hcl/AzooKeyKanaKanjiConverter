@@ -22,6 +22,12 @@ let package = Package(
             name: "SwiftUtils",
             targets: ["SwiftUtils"]
         ),
+        /// デフォルト辞書データを含むバージョンの辞書モジュール
+        .library(
+            name: "KanaKanjiConverterModuleWithDefaultDictionary",
+            targets: ["KanaKanjiConverterModuleWithDefaultDictionary"]
+        ),
+        /// 辞書データを含まないバージョンの辞書モジュール
         .library(
             name: "KanaKanjiConverterModule",
             targets: ["KanaKanjiConverterModule"]
@@ -51,6 +57,20 @@ let package = Package(
             resources: [],
             swiftSettings: swiftSettings
         ),
+        .target(
+            name: "KanaKanjiConverterModuleWithDefaultDictionary",
+            dependencies: [
+                "KanaKanjiConverterModule"
+            ],
+            exclude: [
+                "azooKey_dictionary_storage/README.md",
+                "azooKey_dictionary_storage/LICENSE",
+            ],
+            resources: [
+                .copy("azooKey_dictionary_storage/Dictionary"),
+            ],
+            swiftSettings: swiftSettings
+        ),
         .testTarget(
             name: "SwiftUtilsTests",
             dependencies: ["SwiftUtils"],
@@ -63,6 +83,11 @@ let package = Package(
             resources: [
                 .copy("DictionaryMock")
             ],
+            swiftSettings: swiftSettings
+        ),
+        .testTarget(
+            name: "KanaKanjiConverterModuleWithDefaultDictionaryTests",
+            dependencies: ["KanaKanjiConverterModuleWithDefaultDictionary"],
             swiftSettings: swiftSettings
         )
     ]
