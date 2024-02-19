@@ -631,6 +631,7 @@ import XCTest
         XCTAssertGreaterThan(accuracy, 0.7) // 0.7 < accuracy
     }
 
+    #if os(macOS) || os(iOS) || os(watchOS) || os(tvOS) || os(visionOS)
     func testMozcEvaluationData() async throws {
         // ダウンロードするURL
         let urlString = "https://raw.githubusercontent.com/google/mozc/master/src/data/dictionary_oss/evaluation.tsv"
@@ -711,6 +712,7 @@ import XCTest
             XCTAssertTrue(mozcScore < azooKeyScore)
         }
     }
+    #endif
 
     enum MozcCommand: Equatable {
         /// 変換に`arg`が現れる
