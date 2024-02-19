@@ -24,6 +24,8 @@ import AppKit
         return checker.completions(forPartialWordRange: range, in: string, language: language)
         #elseif os(macOS)
         return checker.completions(forPartialWordRange: range, in: string, language: language, inSpellDocumentWithTag: 0)
+        #else
+        return nil
         #endif
     }
 }
