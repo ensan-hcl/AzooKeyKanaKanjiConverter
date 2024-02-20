@@ -1,6 +1,9 @@
 # AzooKeyKanaKanjiConverter
 
-AzooKeyKanaKanjiConverterは[azooKey](https://github.com/ensan-hcl/azooKey)のために開発したかな漢字変換エンジンです。数行のコードでかな漢字変換をiOS / macOSのアプリケーションに組み込むことができます。
+AzooKeyKanaKanjiConverterは[azooKey](https://github.com/ensan-hcl/azooKey)のために開発したかな漢字変換エンジンです。数行のコードでかな漢字変換をiOS / macOS / visionOSのアプリケーションに組み込むことができます。
+
+## 動作環境
+iOS 14以降, macOS 11以降, visionOS 1以降, Ubuntu 22.04以降で動作を確認しています
 
 ## KanaKanjiConverterModule
 かな漢字変換を受け持つモジュールです。
