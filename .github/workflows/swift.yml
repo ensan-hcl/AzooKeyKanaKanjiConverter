@@ -13,14 +13,17 @@ on:
   pull_request:
     branches: [ "main", "develop" ]
 
-steps:
-- uses: swift-actions/setup-swift@v1
-  with:
-    swift-version: "5.9"
-- uses: actions/checkout@v4
-  with:
-    submodules: true
-- name: Build
-  run: swift build -Xswiftc -strict-concurrency=complete -v
-- name: Run tests
-  run: swift test -c release -Xswiftc -strict-concurrency=complete -v
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: swift-actions/setup-swift@v1
+      with:
+        swift-version: "5.9"
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+    - name: Build
+      run: swift build -Xswiftc -strict-concurrency=complete -v
+    - name: Run tests
+      run: swift test -c release -Xswiftc -strict-concurrency=complete -v
