@@ -1,7 +1,7 @@
 # This workflow will build a Swift project
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-swift
 
-name: Swift Build
+name: Swift Build and Test
 on:
   push:
     branches: [ "main", "develop" ]
@@ -19,5 +19,7 @@ jobs:
     - uses: swift-actions/setup-swift@v1
       with:
         swift-version: 5.9
-    - name: Get swift version
-      run: swift --version
+    - name: Build
+      run: swift build -Xswiftc -strict-concurrency=complete -v
+    - name: Run tests
+      run: swift test -c release -Xswiftc -strict-concurrency=complete -v
