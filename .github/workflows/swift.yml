@@ -13,8 +13,6 @@ on:
   pull_request:
     branches: [ "main", "develop" ]
 
-jobs:
-  build:
 steps:
 - uses: swift-actions/setup-swift@v1
   with:
