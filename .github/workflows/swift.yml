@@ -1,7 +1,11 @@
 # This workflow will build a Swift project
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-swift
 
-name: Swift
+name: Swift ${{ matrix.swift }} on ${{ matrix.os }}
+runs-on: ${{ matrix.os }}
+strategy:
+  matrix:
+    os: [ubuntu-latest, macos-latest]
 
 on:
   push:
@@ -11,17 +15,14 @@ on:
 
 jobs:
   build:
-
-    runs-on: macos-latest
-
-    steps: 
-    - uses: swift-actions/setup-swift@150267bf6ba01f9d942a4bd55aa2f35ba586767d
-      with:
-        swift-version: "5.9"
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-    - name: Build
-      run: swift build -Xswiftc -strict-concurrency=complete -v
-    - name: Run tests
-      run: swift test -c release -Xswiftc -strict-concurrency=complete -v
+steps:
+- uses: swift-actions/setup-swift@v1
+  with:
+    swift-version: "5.9"
+- uses: actions/checkout@v4
+  with:
+    submodules: true
+- name: Build
+  run: swift build -Xswiftc -strict-concurrency=complete -v
+- name: Run tests
+  run: swift test -c release -Xswiftc -strict-concurrency=complete -v
