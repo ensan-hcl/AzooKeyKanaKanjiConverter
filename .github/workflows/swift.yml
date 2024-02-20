@@ -19,6 +19,9 @@ jobs:
     - uses: swift-actions/setup-swift@v1
       with:
         swift-version: 5.9
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
     - name: Build
       run: swift build -Xswiftc -strict-concurrency=complete -v
     - name: Run tests
