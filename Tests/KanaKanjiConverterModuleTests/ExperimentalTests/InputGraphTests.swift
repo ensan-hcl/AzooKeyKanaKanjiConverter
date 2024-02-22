@@ -245,7 +245,7 @@ struct InputGraph {
         return indexSet.map{ self.nodes[$0] }
     }
 
-    mutating func insert(_ node: consuming Node) {
+    mutating func insert(_ node: Node) {
         let index = self.nodes.count
         if let startIndex = node.displayedTextRange.startIndex {
             if self.displayedTextStartIndexToNodeIndices.endIndex <= startIndex {
