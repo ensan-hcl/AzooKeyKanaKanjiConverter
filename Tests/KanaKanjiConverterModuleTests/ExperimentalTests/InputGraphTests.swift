@@ -409,7 +409,7 @@ struct InputGraph {
             // まず、すでに登録されているInputGraphのNodeから継続的に置換できるものがないかを確認する
             // たとえば「itta」を打つとき、ittまでの処理で[い][っ][t]が生成されている
             // そこでaを処理するタイミングで、前方の[t]に遡って[a]を追加し、これを[ta]にする処理を行う必要がある
-            // Backward Searchで生成したい情報
+            // TODO: まだtypoの処理が不十分
             typealias Match = (displayedTextStartIndex: Int?, inputElementsStartIndex: Int?, inputElementsEndIndex: Int, value: String, correction: Correction)
             typealias BackSearchMatch = (endNode: ReplacePrefixTree.Node, route: [Character], inputStyleId: InputStyle.ID, correction: Correction, longestMatch: Match)
             var backSearchMatch: [BackSearchMatch] = []
@@ -738,6 +738,40 @@ final class InputGraphTests: XCTestCase {
                 graph.nodes.first(where: {$0.character == "た"}),
                 .init(character: "た", displayedTextRange: .range(1, 2), inputElementsRange: .endIndex(3), correction: .none)
             )
+        }
+        do {
+            // nt→んt
+            let graph = InputGraph.build(input: [
+                .init(character: "n", inputStyle: .roman2kana),
+                .init(character: "t", inputStyle: .roman2kana),
+                .init(character: "a", inputStyle: .roman2kana),
+            ])
+            XCTAssertEqual(
+                graph.nodes.first(where: {$0.character == "ん"}),
+                .init(character: "ん", displayedTextRange: .range(0, 1), inputElementsRange: .startIndex(0), correction: .none)
+            )
+            XCTAssertEqual(
+                graph.nodes.first(where: {$0.character == "た"}),
+                .init(character: "た", displayedTextRange: .range(1, 2), inputElementsRange: .endIndex(3), correction: .none)
+            )
+        }
+        do {
+            // t
+            // tt→っt
+            // っts→った (
+            // FIXME: 興味深いテストケースだが実装が重いので保留
+            /*
+            let graph = InputGraph.build(input: [
+                .init(character: "t", inputStyle: .roman2kana),
+                .init(character: "t", inputStyle: .roman2kana),
+                .init(character: "s", inputStyle: .roman2kana),
+            ])
+            print(graph)
+            XCTAssertEqual(
+                graph.nodes.first(where: {$0.character == "た"}),
+                .init(character: "た", displayedTextRange: .range(2, 3), inputElementsRange: .endIndex(4), correction: .none)
+            )
+             */
         }
     }
 }
