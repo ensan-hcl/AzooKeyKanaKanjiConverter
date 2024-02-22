@@ -109,6 +109,70 @@ enum CorrectPrefixTree {
 }
 
 struct InputGraph {
+    struct InputStyle: Identifiable {
+        init(from deprecatedInputStyle: KanaKanjiConverterModule.InputStyle) {
+            switch deprecatedInputStyle {
+            case .direct:
+                self = .systemFlickDirect
+            case .roman2kana:
+                self = .systemRomanKana
+            }
+        }
+
+        init(id: InputGraph.InputStyle.ID, replacePrefixTree: ReplacePrefixTree.Node, correctPrefixTree: CorrectPrefixTree.Node) {
+            self.id = id
+            self.replacePrefixTree = replacePrefixTree
+            self.correctPrefixTree = correctPrefixTree
+        }
+        
+        struct ID: Equatable, Hashable, Sendable {
+            init(id: UInt8) {
+                self.id = id
+            }
+            init(from deprecatedInputStyle: KanaKanjiConverterModule.InputStyle) {
+                switch deprecatedInputStyle {
+                case .direct:
+                    self = .systemFlickDirect
+                case .roman2kana:
+                    self = .systemRomanKana
+                }
+            }
+            static let all = Self(id: 0x00)
+            static let systemFlickDirect = Self(id: 0x01)
+            static let systemRomanKana = Self(id: 0x02)
+            var id: UInt8
+
+            func isCompatible(with id: ID) -> Bool {
+                if self == .all {
+                    true
+                } else {
+                    self == id
+                }
+            }
+        }
+        static let all: Self = InputStyle(
+            id: .all,
+            replacePrefixTree: ReplacePrefixTree.Node(),
+            correctPrefixTree: CorrectPrefixTree.Node()
+        )
+        static let systemFlickDirect: Self = InputStyle(
+            id: .systemFlickDirect,
+            replacePrefixTree: ReplacePrefixTree.direct,
+            correctPrefixTree: CorrectPrefixTree.direct
+        )
+        static let systemRomanKana: Self = InputStyle(
+            id: .systemRomanKana,
+            replacePrefixTree: ReplacePrefixTree.roman2kana,
+            correctPrefixTree: CorrectPrefixTree.roman2kana
+        )
+
+        /// `id` for the input style.
+        ///  - warning: value `0x00-0x7F` is reserved for system space.
+        var id: ID
+        var replacePrefixTree: ReplacePrefixTree.Node
+        var correctPrefixTree: CorrectPrefixTree.Node
+    }
+
     enum Range: Equatable, Sendable {
         case unknown
         case startIndex(Int)
@@ -243,17 +307,25 @@ struct InputGraph {
             typealias SearchItem = (
                 node: CorrectPrefixTree.Node,
                 nextIndex: Int,
-                route: [Character]
+                route: [Character],
+                inputStyleId: InputStyle.ID
             )
             var stack: [SearchItem] = [
-                (correctPrefixTree, index, [])
+                (correctPrefixTree, index, [], .all),
             ]
             var matches: [Match] = []
-            while let (cNode, cIndex, cRoute) = stack.popLast() {
-                if cIndex < input.endIndex, let nNode = cNode.find(key: input[cIndex].character) {
+            while let (cNode, cIndex, cRoute, cInputStyleId) = stack.popLast() {
+                guard cIndex < input.endIndex else {
+                    continue
+                }
+                let inputStyleId = InputStyle(from: input[cIndex].inputStyle).id
+                guard cInputStyleId.isCompatible(with: inputStyleId) else {
+                    continue
+                }
+                if let nNode = cNode.find(key: input[cIndex].character) {
                     // valueがあるかないかで分岐
                     matches.append(contentsOf: nNode.value.map{($0, cIndex - index + 1)})
-                    stack.append((nNode, cIndex + 1, cRoute + [input[cIndex].character]))
+                    stack.append((nNode, cIndex + 1, cRoute + [input[cIndex].character], inputStyleId))
                 }
             }
             altItems[index] = matches
@@ -262,28 +334,32 @@ struct InputGraph {
         for (index, item) in zip(input.indices, input) {
             guard let beforeNodeIndex = inputGraph.inputElementsEndIndexToNodeIndices[index].first,
                   let displayedTextStartIndex = inputGraph.nodes[beforeNodeIndex].displayedTextRange.endIndex else { continue }
-            let replacePrefixTree = switch item.inputStyle {
-            case .roman2kana: ReplacePrefixTree.roman2kana
-            case .direct: ReplacePrefixTree.direct
-            }
+            let replacePrefixTree = InputStyle(from: item.inputStyle).replacePrefixTree
             typealias Match = (route: [Character], value: String, correction: Correction)
             typealias SearchItem = (
                 node: ReplacePrefixTree.Node,
                 nextIndex: Int,
                 route: [Character],
+                inputStyleId: InputStyle.ID,
                 longestMatch: Match
             )
             var stack: [SearchItem] = [
-                (replacePrefixTree, index, [], (route: [], value: "", correction: .none))
+                (replacePrefixTree, index, [], .all, (route: [], value: "", correction: .none))
             ]
             var matches: [Match] = []
-            while let (cNode, cIndex, cRoute, cLongestMatch) = stack.popLast() {
-                if cIndex < input.endIndex, let nNode = cNode.find(key: input[cIndex].character) {
-                    // valueがあるかないかで分岐
+            while let (cNode, cIndex, cRoute, cInputStyleId, cLongestMatch) = stack.popLast() {
+                let continuous = cIndex < input.endIndex && cInputStyleId.isCompatible(with: .init(from: input[cIndex].inputStyle))
+
+                if continuous, let nNode = cNode.find(key: input[cIndex].character) {
                     if let value = nNode.value {
-                        stack.append((nNode, cIndex + 1, cRoute + [input[cIndex].character], (cRoute + [input[cIndex].character], value, cLongestMatch.correction)))
+                        // valueがある場合longestMatchを更新
+                        stack.append((nNode, cIndex + 1, cRoute + [input[cIndex].character], .init(from: input[cIndex].inputStyle), (cRoute + [input[cIndex].character], value, cLongestMatch.correction)))
+                    } else if cRoute.isEmpty {
+                        // valueがなくても、1文字だけの場合はlongestMatchを更新
+                        stack.append((nNode, cIndex + 1, cRoute + [input[cIndex].character], .init(from: input[cIndex].inputStyle), ([input[cIndex].character], String(input[cIndex].character), .none)))
                     } else {
-                        stack.append((nNode, cIndex + 1, cRoute + [input[cIndex].character], cLongestMatch))
+                        // それ以外の場合は普通に先に進む
+                        stack.append((nNode, cIndex + 1, cRoute + [input[cIndex].character], .init(from: input[cIndex].inputStyle), cLongestMatch))
                     }
                 } else {
                     if !cLongestMatch.route.isEmpty {
@@ -295,7 +371,8 @@ struct InputGraph {
                         matches.append((route: [input[cIndex].character], value: String(input[cIndex].character), correction: .none))
                     }
                 }
-                // altItemsを舐める
+                // 誤字訂正を追加する
+                guard continuous else { continue }
                 perItem: for item in altItems[cIndex, default: []] {
                     // itemの対応するinputCountが1でない場合、少しややこしい
                     // altItemはひとまずreplace全体で一塊と考える
@@ -314,14 +391,14 @@ struct InputGraph {
                             }
                         }
                     } else {
-                        stack.append((.init(), cIndex + item.inputCount, cRoute + Array(item.replace), (cRoute + Array(item.replace), item.replace, .typo)))
+                        stack.append((.init(), cIndex + item.inputCount, cRoute + Array(item.replace), .init(from: input[cIndex].inputStyle), (cRoute + Array(item.replace), item.replace, .typo)))
                     }
                     if let node {
                         // valueがあるかないかで分岐
                         if let value = node.value {
-                            stack.append((node, cIndex + item.inputCount, cRoute + Array(item.replace), (cRoute + Array(item.replace), value, .typo)))
+                            stack.append((node, cIndex + item.inputCount, cRoute + Array(item.replace), .init(from: input[cIndex].inputStyle),(cRoute + Array(item.replace), value, .typo)))
                         } else {
-                            stack.append((node, cIndex + item.inputCount, cRoute + Array(item.replace), (cLongestMatch.route, cLongestMatch.value, .typo)))
+                            stack.append((node, cIndex + item.inputCount, cRoute + Array(item.replace), .init(from: input[cIndex].inputStyle),(cLongestMatch.route, cLongestMatch.value, .typo)))
                         }
                     }
                 }
@@ -393,14 +470,28 @@ final class InputGraphTests: XCTestCase {
             print(graph.nodes)
         }
         do {
-            // FIXME: 誤字訂正候補が優先され、t→t、s→sの候補が入らない
             let graph = InputGraph.build(input: [
                 .init(character: "i", inputStyle: .roman2kana),
                 .init(character: "t", inputStyle: .roman2kana),
                 .init(character: "s", inputStyle: .roman2kana),
             ])
-            XCTAssertEqual(graph.nodes.count, 3) // Root nodes
-            print(graph.nodes)
+            XCTAssertEqual(graph.nodes.count, 5) // Root nodes
+            XCTAssertEqual(
+                graph.nodes.first(where: {$0.character == "い"}),
+                .init(character: "い", displayedTextRange: .range(0, 1), inputElementsRange: .range(0, 1), correction: .none)
+            )
+            XCTAssertEqual(
+                graph.nodes.first(where: {$0.character == "t"}),
+                .init(character: "t", displayedTextRange: .range(1, 2), inputElementsRange: .range(1, 2), correction: .none)
+            )
+            XCTAssertEqual(
+                graph.nodes.first(where: {$0.character == "s"}),
+                .init(character: "s", displayedTextRange: .range(2, 3), inputElementsRange: .range(2, 3), correction: .none)
+            )
+            XCTAssertEqual(
+                graph.nodes.first(where: {$0.character == "た"}),
+                .init(character: "た", displayedTextRange: .range(1, 2), inputElementsRange: .range(1, 3), correction: .typo)
+            )
         }
         do {
             // ts->taの誤字訂正が存在
@@ -423,6 +514,18 @@ final class InputGraphTests: XCTestCase {
                 graph.nodes.first(where: {$0.character == "ぁ"}),
                 .init(character: "ぁ", displayedTextRange: .range(2, 3), inputElementsRange: .endIndex(4), correction: .none)
             )
+        }
+        do {
+            // ts->taの誤字訂正は入力方式を跨いだ場合は発火しない
+            let graph = InputGraph.build(input: [
+                .init(character: "t", inputStyle: .roman2kana),
+                .init(character: "s", inputStyle: .direct),
+            ])
+            XCTAssertEqual(
+                graph.nodes.first(where: {$0.character == "t"}),
+                .init(character: "t", displayedTextRange: .range(0, 1), inputElementsRange: .range(0, 1), correction: .none)
+            )
+            XCTAssertFalse(graph.nodes.contains(.init(character: "た", displayedTextRange: .range(0, 1), inputElementsRange: .range(0, 2), correction: .typo)))
         }
     }
 }
