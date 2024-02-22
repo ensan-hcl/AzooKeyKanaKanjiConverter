@@ -181,7 +181,7 @@ public final class DicdataStore {
         return louds.prefixNodeIndices(chars: charIDs, maxDepth: depth)
     }
 
-    private func getDicdataFromLoudstxt3(identifier: String, indices: Set<Int>) -> [DicdataElement] {
+    func getDicdataFromLoudstxt3(identifier: String, indices: some Sequence<Int>) -> [DicdataElement] {
         debug("getDicdataFromLoudstxt3", identifier, indices)
         // split = 2048
         let dict = [Int: [Int]].init(grouping: indices, by: {$0 >> 11})

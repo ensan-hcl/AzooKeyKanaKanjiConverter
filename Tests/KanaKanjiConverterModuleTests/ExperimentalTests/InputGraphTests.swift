@@ -230,17 +230,25 @@ struct InputGraph {
     var displayedTextEndIndexToNodeIndices: [IndexSet] = [IndexSet(integer: 0)] // rootノードのindexで初期化
     var inputElementsEndIndexToNodeIndices: [IndexSet] = [IndexSet(integer: 0)] // rootノードのindexで初期化
 
+    var root: Node {
+        nodes[0]
+    }
+
     func next(for node: Node) -> [Node] {
         var indexSet = IndexSet()
         switch node.displayedTextRange {
         case .unknown, .startIndex: break
         case .endIndex(let endIndex), .range(_, let endIndex):
-            indexSet.formUnion(self.displayedTextStartIndexToNodeIndices[endIndex])
+            if endIndex < self.displayedTextStartIndexToNodeIndices.endIndex {
+                indexSet.formUnion(self.displayedTextStartIndexToNodeIndices[endIndex])
+            }
         }
         switch node.inputElementsRange {
         case .unknown, .startIndex: break
         case .endIndex(let endIndex), .range(_, let endIndex):
-            indexSet.formUnion(self.inputElementsStartIndexToNodeIndices[endIndex])
+            if endIndex < self.inputElementsStartIndexToNodeIndices.endIndex {
+                indexSet.formUnion(self.inputElementsStartIndexToNodeIndices[endIndex])
+            }
         }
         return indexSet.map{ self.nodes[$0] }
     }
@@ -527,9 +535,5 @@ final class InputGraphTests: XCTestCase {
             )
             XCTAssertFalse(graph.nodes.contains(.init(character: "た", displayedTextRange: .range(0, 1), inputElementsRange: .range(0, 2), correction: .typo)))
         }
-    }
-
-    func testLOUDSLookup() throws {
-        
     }
 }
