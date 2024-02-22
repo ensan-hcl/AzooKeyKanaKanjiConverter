@@ -47,6 +47,14 @@ enum ReplacePrefixTree {
         for item in KanaKanjiConverterModule.Roman2Kana.hiraganaChanges {
             tree.insert(route: item.key, value: String(item.value))
         }
+        // additionals
+        for item in ["bb", "cc", "dd", "ff", "gg", "hh", "jj", "kk", "ll", "mm", "pp", "qq", "rr", "ss", "tt", "vv", "ww", "xx", "yy", "zz"] {
+            tree.insert(route: Array(item), value: "っ" + String(item.last!))
+        }
+        // additionals
+        for item in ["nb", "nc", "nd", "nf", "ng", "nh", "nj", "nk", "nl", "nm", "np", "nq", "nr", "ns", "nt", "nv", "nw", "nx", "nz"] {
+            tree.insert(route: Array(item), value: "ん" + String(item.last!))
+        }
         return tree
     }()
     static let direct: Node = Node()
@@ -534,6 +542,22 @@ final class InputGraphTests: XCTestCase {
                 .init(character: "t", displayedTextRange: .range(0, 1), inputElementsRange: .range(0, 1), correction: .none)
             )
             XCTAssertFalse(graph.nodes.contains(.init(character: "た", displayedTextRange: .range(0, 1), inputElementsRange: .range(0, 2), correction: .typo)))
+        }
+        do {
+            // tt→っt
+            let graph = InputGraph.build(input: [
+                .init(character: "t", inputStyle: .roman2kana),
+                .init(character: "t", inputStyle: .roman2kana),
+                .init(character: "a", inputStyle: .roman2kana),
+            ])
+            XCTAssertEqual(
+                graph.nodes.first(where: {$0.character == "っ"}),
+                .init(character: "っ", displayedTextRange: .range(0, 1), inputElementsRange: .startIndex(0), correction: .none)
+            )
+            XCTAssertEqual(
+                graph.nodes.first(where: {$0.character == "た"}),
+                .init(character: "た", displayedTextRange: .range(1, 2), inputElementsRange: .endIndex(3), correction: .none)
+            )
         }
     }
 }
