@@ -230,7 +230,7 @@ struct InputGraph {
     var displayedTextEndIndexToNodeIndices: [IndexSet] = [IndexSet(integer: 0)] // rootノードのindexで初期化
     var inputElementsEndIndexToNodeIndices: [IndexSet] = [IndexSet(integer: 0)] // rootノードのindexで初期化
 
-    func next(for node: borrowing Node) -> [Node] {
+    func next(for node: Node) -> [Node] {
         var indexSet = IndexSet()
         switch node.displayedTextRange {
         case .unknown, .startIndex: break
@@ -527,5 +527,9 @@ final class InputGraphTests: XCTestCase {
             )
             XCTAssertFalse(graph.nodes.contains(.init(character: "た", displayedTextRange: .range(0, 1), inputElementsRange: .range(0, 2), correction: .typo)))
         }
+    }
+
+    func testLOUDSLookup() throws {
+        
     }
 }
