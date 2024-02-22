@@ -90,6 +90,13 @@ enum CorrectPrefixTree {
                 "s": .terminal(["ta"]),
                 "z": .terminal(["ta"]),
                 "q": .terminal(["ta"]),
+                "p": .terminal(["to"]),
+            ]),
+            "g": Node([
+                "s": .terminal(["ga"]),
+                "z": .terminal(["ga"]),
+                "q": .terminal(["ga"]),
+                "p": .terminal(["go"]),
             ])
         ])
     }()
