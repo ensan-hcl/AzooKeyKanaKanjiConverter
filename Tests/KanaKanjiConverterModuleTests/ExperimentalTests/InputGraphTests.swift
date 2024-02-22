@@ -12,29 +12,31 @@ import XCTest
 
 // 置換のためのprefix tree
 enum ReplacePrefixTree {
+    static var characterNodes: [InputGraph.InputStyle.ID: [Character: [Node]]] = [:]
+
     final class Node {
-        init(_ children: [Character: Node] = [:], value: String? = nil) {
+        init(_ children: [Character: Node] = [:], character: Character = "\0", value: String? = nil, parent: Node? = nil) {
             self.children = children
             self.value = value
+            self.character = character
+            self.parent = parent
         }
-
-        static func terminal(_ value: String) -> Node {
-            Node(value: value)
-        }
-
+        var parent: Node?
         var children: [Character: Node] = [:]
+        var character: Character
         var value: String?
         func find(key: Character) -> Node? {
             return children[key]
         }
-        func insert(route: some Collection<Character>, value: consuming String) {
+        func insert(route: some Collection<Character>, value: consuming String, inputStyle: InputGraph.InputStyle.ID) {
             if let first = route.first {
                 if let tree = self.children[first] {
-                    tree.insert(route: route.dropFirst(), value: consume value)
+                    tree.insert(route: route.dropFirst(), value: consume value, inputStyle: inputStyle)
                 } else {
-                    let tree = Node()
-                    tree.insert(route: route.dropFirst(), value: consume value)
+                    let tree = Node(character: first, parent: self)
+                    tree.insert(route: route.dropFirst(), value: consume value, inputStyle: inputStyle)
                     self.children[first] = tree
+                    ReplacePrefixTree.characterNodes[inputStyle, default: [:]][first, default: []].append(tree)
                 }
             } else {
                 self.value = consume value
@@ -45,7 +47,15 @@ enum ReplacePrefixTree {
     static let roman2kana: Node = {
         var tree = Node()
         for item in KanaKanjiConverterModule.Roman2Kana.hiraganaChanges {
-            tree.insert(route: item.key, value: String(item.value))
+            tree.insert(route: item.key, value: String(item.value), inputStyle: .systemRomanKana)
+        }
+        // additionals
+        for item in ["bb", "cc", "dd", "ff", "gg", "hh", "jj", "kk", "ll", "mm", "pp", "qq", "rr", "ss", "tt", "vv", "ww", "xx", "yy", "zz"] {
+            tree.insert(route: Array(item), value: "っ" + String(item.last!), inputStyle: .systemRomanKana)
+        }
+        // additionals
+        for item in ["nb", "nc", "nd", "nf", "ng", "nh", "nj", "nk", "nl", "nm", "np", "nq", "nr", "ns", "nt", "nv", "nw", "nx", "nz"] {
+            tree.insert(route: Array(item), value: "ん" + String(item.last!), inputStyle: .systemRomanKana)
         }
         return tree
     }()
@@ -125,7 +135,7 @@ struct InputGraph {
             self.correctPrefixTree = correctPrefixTree
         }
         
-        struct ID: Equatable, Hashable, Sendable {
+        struct ID: Equatable, Hashable, Sendable, CustomStringConvertible {
             init(id: UInt8) {
                 self.id = id
             }
@@ -148,6 +158,9 @@ struct InputGraph {
                 } else {
                     self == id
                 }
+            }
+            var description: String {
+                "ID(\(id))"
             }
         }
         static let all: Self = InputStyle(
@@ -194,7 +207,7 @@ struct InputGraph {
         }
     }
 
-    enum Correction {
+    enum Correction: CustomStringConvertible {
         /// 訂正ではない
         case none
         /// 訂正である
@@ -202,6 +215,13 @@ struct InputGraph {
 
         var isTypo: Bool {
             self == .typo
+        }
+
+        var description: String {
+            switch self {
+            case .none: "none"
+            case .typo: "typo"
+            }
         }
     }
 
@@ -229,24 +249,78 @@ struct InputGraph {
     var inputElementsStartIndexToNodeIndices: [IndexSet] = []
     var displayedTextEndIndexToNodeIndices: [IndexSet] = [IndexSet(integer: 0)] // rootノードのindexで初期化
     var inputElementsEndIndexToNodeIndices: [IndexSet] = [IndexSet(integer: 0)] // rootノードのindexで初期化
+    // 使用されなくなったインデックスの集合
+    var deadNodeIndices: [Int] = []
+
+    var root: Node {
+        nodes[0]
+    }
 
     func next(for node: Node) -> [Node] {
         var indexSet = IndexSet()
-        switch node.displayedTextRange {
-        case .unknown, .startIndex: break
-        case .endIndex(let endIndex), .range(_, let endIndex):
-            indexSet.formUnion(self.displayedTextStartIndexToNodeIndices[endIndex])
+        if let endIndex = node.displayedTextRange.endIndex {
+            if endIndex < self.displayedTextStartIndexToNodeIndices.endIndex {
+                indexSet.formUnion(self.displayedTextStartIndexToNodeIndices[endIndex])
+            }
         }
-        switch node.inputElementsRange {
-        case .unknown, .startIndex: break
-        case .endIndex(let endIndex), .range(_, let endIndex):
-            indexSet.formUnion(self.inputElementsStartIndexToNodeIndices[endIndex])
+        if let endIndex = node.inputElementsRange.endIndex {
+            if endIndex < self.inputElementsStartIndexToNodeIndices.endIndex {
+                indexSet.formUnion(self.inputElementsStartIndexToNodeIndices[endIndex])
+            }
         }
         return indexSet.map{ self.nodes[$0] }
     }
 
+    func prevIndices(for node: Node) -> IndexSet {
+        var indexSet = IndexSet()
+        if let startIndex = node.displayedTextRange.startIndex {
+            if startIndex < self.displayedTextEndIndexToNodeIndices.endIndex {
+                indexSet.formUnion(self.displayedTextEndIndexToNodeIndices[startIndex])
+            }
+        }
+        if let startIndex = node.inputElementsRange.startIndex {
+            if startIndex < self.inputElementsEndIndexToNodeIndices.endIndex {
+                indexSet.formUnion(self.inputElementsEndIndexToNodeIndices[startIndex])
+            }
+        }
+        return indexSet
+    }
+
+    func prev(for node: Node) -> [Node] {
+        prevIndices(for: node).map{ self.nodes[$0] }
+    }
+
+    private mutating func _insert(_ node: Node) -> Int {
+        // 可能ならdeadNodeIndicesを再利用する
+        if let deadIndex = self.deadNodeIndices.popLast() {
+            self.nodes[deadIndex] = node
+            return deadIndex
+        } else {
+            self.nodes.append(node)
+            return self.nodes.count - 1
+        }
+    }
+
+    mutating func remove(at index: Int) {
+        assert(index != 0, "Node at index 0 is root and must not be removed.")
+        self.deadNodeIndices.append(index)
+        // FIXME: 多分nodeの情報を使えばもっと効率的にremoveできる
+        self.displayedTextStartIndexToNodeIndices.mutatingForeach {
+            $0.remove(index)
+        }
+        self.displayedTextEndIndexToNodeIndices.mutatingForeach {
+            $0.remove(index)
+        }
+        self.inputElementsStartIndexToNodeIndices.mutatingForeach {
+            $0.remove(index)
+        }
+        self.inputElementsEndIndexToNodeIndices.mutatingForeach {
+            $0.remove(index)
+        }
+    }
+
     mutating func insert(_ node: Node) {
-        let index = self.nodes.count
+        let index = self._insert(node)
         if let startIndex = node.displayedTextRange.startIndex {
             if self.displayedTextStartIndexToNodeIndices.endIndex <= startIndex {
                 self.displayedTextStartIndexToNodeIndices.append(contentsOf: Array(repeating: IndexSet(), count: startIndex - self.displayedTextStartIndexToNodeIndices.endIndex + 1))
@@ -271,7 +345,6 @@ struct InputGraph {
             }
             self.inputElementsEndIndexToNodeIndices[endIndex].insert(index)
         }
-        self.nodes.append(node)
     }
 
     // EOSノードを追加する
@@ -332,10 +405,75 @@ struct InputGraph {
         }
         // replaceRuleの適用によって構築する
         for (index, item) in zip(input.indices, input) {
-            guard let beforeNodeIndex = inputGraph.inputElementsEndIndexToNodeIndices[index].first,
-                  let displayedTextStartIndex = inputGraph.nodes[beforeNodeIndex].displayedTextRange.endIndex else { continue }
+            // backward search
+            // まず、すでに登録されているInputGraphのNodeから継続的に置換できるものがないかを確認する
+            // たとえば「itta」を打つとき、ittまでの処理で[い][っ][t]が生成されている
+            // そこでaを処理するタイミングで、前方の[t]に遡って[a]を追加し、これを[ta]にする処理を行う必要がある
+            // TODO: まだtypoの処理が不十分
+            typealias Match = (displayedTextStartIndex: Int?, inputElementsStartIndex: Int?, inputElementsEndIndex: Int, value: String, correction: Correction)
+            typealias BackSearchMatch = (endNode: ReplacePrefixTree.Node, route: [Character], inputStyleId: InputStyle.ID, correction: Correction, longestMatch: Match)
+            var backSearchMatch: [BackSearchMatch] = []
+            do {
+                if let characterNodes = ReplacePrefixTree.characterNodes[.init(from: item.inputStyle)],
+                   let nodes = characterNodes[item.character] {
+                    // nodesをそれぞれ遡っていく必要がある
+                    typealias SearchItem = (
+                        endNode: ReplacePrefixTree.Node,
+                        endValue: String?,
+                        node: ReplacePrefixTree.Node,
+                        route: [Int],
+                        inputStyleId: InputStyle.ID,
+                        correction: Correction
+                    )
+                    var stack: [SearchItem] = nodes.map {
+                        ($0, $0.value, $0, [], .init(from: item.inputStyle), .none)
+                    }
+                    while let (endNode, endValue, cNode, cRoute, cInputStyleId, cCorrection) = stack.popLast() {
+                        // pNodeがrootでない場合
+                        if let pNode = cNode.parent, pNode.parent != nil {
+                            // parentNodeがある場合、そのnodeに合ったbeforeGraphNodeが存在するかを確認する
+                            let indices = if let first = cRoute.first {
+                                inputGraph.prevIndices(for: inputGraph.nodes[first])
+                            } else {
+                                index < inputGraph.inputElementsEndIndexToNodeIndices.endIndex ? inputGraph.inputElementsEndIndexToNodeIndices[index] : .init()
+                            }
+                            for prevGraphNodeIndex in indices {
+                                guard inputGraph.nodes[prevGraphNodeIndex].character == pNode.character else {
+                                    continue
+                                }
+                                // TODO: InputGraph.NodeにもInputStyle.IDを持たせてここで比較する
+                                stack.append(
+                                    (
+                                        endNode,
+                                        endValue,
+                                        pNode,
+                                        [prevGraphNodeIndex] + cRoute,
+                                        cInputStyleId,
+                                        cCorrection.isTypo ? .typo : inputGraph.nodes[prevGraphNodeIndex].correction
+                                    )
+                                )
+                            }
+                        } else {
+                            // parentNodeがない場合、先頭にたどり着いたことになるので、これをmatchesに追加する
+                            // matchesはindexの1つ前までを登録する
+                            guard let pNode = endNode.parent else { continue }
+                            let inputElementsStartIndex = if cRoute.isEmpty { index } else { inputGraph.nodes[cRoute.first!].inputElementsRange.startIndex }
+                            let displayedTextStartIndex = cRoute.first.flatMap { inputGraph.nodes[$0].displayedTextRange.startIndex }
+                            let characterRoute = cRoute.map{inputGraph.nodes[$0].character}
+                            backSearchMatch.append(
+                                (
+                                    pNode,
+                                    characterRoute,
+                                    cInputStyleId,
+                                    cCorrection,
+                                    (displayedTextStartIndex, inputElementsStartIndex, index, "", cCorrection)
+                                )
+                            )
+                        }
+                    }
+                }
+            }
             let replacePrefixTree = InputStyle(from: item.inputStyle).replacePrefixTree
-            typealias Match = (route: [Character], value: String, correction: Correction)
             typealias SearchItem = (
                 node: ReplacePrefixTree.Node,
                 nextIndex: Int,
@@ -343,32 +481,35 @@ struct InputGraph {
                 inputStyleId: InputStyle.ID,
                 longestMatch: Match
             )
-            var stack: [SearchItem] = [
-                (replacePrefixTree, index, [], .all, (route: [], value: "", correction: .none))
-            ]
+            var stack: [SearchItem] = []
+            for match in backSearchMatch {
+                stack.append((match.endNode, index, match.route, match.inputStyleId, match.longestMatch))
+            }
+            if stack.isEmpty {
+                stack.append((replacePrefixTree, index, [], .all, (nil, index, index, value: "", correction: .none)))
+            }
             var matches: [Match] = []
             while let (cNode, cIndex, cRoute, cInputStyleId, cLongestMatch) = stack.popLast() {
                 let continuous = cIndex < input.endIndex && cInputStyleId.isCompatible(with: .init(from: input[cIndex].inputStyle))
-
                 if continuous, let nNode = cNode.find(key: input[cIndex].character) {
                     if let value = nNode.value {
                         // valueがある場合longestMatchを更新
-                        stack.append((nNode, cIndex + 1, cRoute + [input[cIndex].character], .init(from: input[cIndex].inputStyle), (cRoute + [input[cIndex].character], value, cLongestMatch.correction)))
+                        stack.append((nNode, cIndex + 1, cRoute + [input[cIndex].character], .init(from: input[cIndex].inputStyle), (cLongestMatch.displayedTextStartIndex, cLongestMatch.inputElementsStartIndex, cIndex + 1, value, cLongestMatch.correction)))
                     } else if cRoute.isEmpty {
                         // valueがなくても、1文字だけの場合はlongestMatchを更新
-                        stack.append((nNode, cIndex + 1, cRoute + [input[cIndex].character], .init(from: input[cIndex].inputStyle), ([input[cIndex].character], String(input[cIndex].character), .none)))
+                        stack.append((nNode, cIndex + 1, cRoute + [input[cIndex].character], .init(from: input[cIndex].inputStyle), (cLongestMatch.displayedTextStartIndex, cIndex, cIndex + 1, String(input[cIndex].character), .none)))
                     } else {
                         // それ以外の場合は普通に先に進む
                         stack.append((nNode, cIndex + 1, cRoute + [input[cIndex].character], .init(from: input[cIndex].inputStyle), cLongestMatch))
                     }
                 } else {
-                    if !cLongestMatch.route.isEmpty {
+                    if cLongestMatch.inputElementsStartIndex != cLongestMatch.inputElementsEndIndex {
                         // longestMatch候補があれば、現在地点で打ち切ってmatchを確定する
                         matches.append(cLongestMatch)
                     } else if cRoute.isEmpty {
                         // 1文字目がrootに存在しない場合、character自体をmatchに登録する
                         // これは置換ルールとして正規表現で.->\1が存在していると考えれば良い
-                        matches.append((route: [input[cIndex].character], value: String(input[cIndex].character), correction: .none))
+                        matches.append((nil, index, index + 1, value: String(input[cIndex].character), correction: .none))
                     }
                 }
                 // 誤字訂正を追加する
@@ -391,28 +532,70 @@ struct InputGraph {
                             }
                         }
                     } else {
-                        stack.append((.init(), cIndex + item.inputCount, cRoute + Array(item.replace), .init(from: input[cIndex].inputStyle), (cRoute + Array(item.replace), item.replace, .typo)))
+                        stack.append(
+                            (
+                                .init(),
+                                cIndex + item.inputCount,
+                                cRoute + Array(item.replace),
+                                .init(from: input[cIndex].inputStyle),
+                                (cLongestMatch.displayedTextStartIndex, cLongestMatch.inputElementsStartIndex, cIndex + item.inputCount, item.replace, .typo)
+                            )
+                        )
                     }
                     if let node {
                         // valueがあるかないかで分岐
                         if let value = node.value {
-                            stack.append((node, cIndex + item.inputCount, cRoute + Array(item.replace), .init(from: input[cIndex].inputStyle),(cRoute + Array(item.replace), value, .typo)))
+                            stack.append(
+                                (
+                                    node,
+                                    cIndex + item.inputCount,
+                                    cRoute + Array(item.replace),
+                                    .init(from: input[cIndex].inputStyle),
+                                    (cLongestMatch.displayedTextStartIndex, cLongestMatch.inputElementsStartIndex, cIndex + item.inputCount, value, .typo)
+                                )
+                            )
                         } else {
-                            stack.append((node, cIndex + item.inputCount, cRoute + Array(item.replace), .init(from: input[cIndex].inputStyle),(cLongestMatch.route, cLongestMatch.value, .typo)))
+                            stack.append(
+                                (
+                                    node,
+                                    cIndex + item.inputCount,
+                                    cRoute + Array(item.replace),
+                                    .init(from: input[cIndex].inputStyle),
+                                    (cLongestMatch.displayedTextStartIndex, cLongestMatch.inputElementsStartIndex, cIndex + item.inputCount, cLongestMatch.value, .typo)
+                                )
+                            )
                         }
                     }
                 }
             }
             // matchをinsertする
             for match in matches {
+                let displayedTextStartIndex = if let d = match.displayedTextStartIndex {
+                    d
+                } else if let beforeNodeIndex = inputGraph.inputElementsEndIndexToNodeIndices[index].first,
+                    let d = inputGraph.nodes[beforeNodeIndex].displayedTextRange.endIndex {
+                        d
+                } else {
+                    Int?.none
+                }
+                guard let displayedTextStartIndex else { continue }
+
                 let characters = Array(match.value)
                 for (i, c) in zip(characters.indices, characters) {
                     let inputElementRange: InputGraph.Range = if i == characters.startIndex && i+1 == characters.endIndex {
-                        .range(index, index + match.route.count)
+                        if let startIndex = match.inputElementsStartIndex {
+                            .range(startIndex, match.inputElementsEndIndex)
+                        } else {
+                            .endIndex(match.inputElementsEndIndex)
+                        }
                     } else if i == characters.startIndex {
-                        .startIndex(index)
+                        if let startIndex = match.inputElementsStartIndex {
+                            .startIndex(startIndex)
+                        } else {
+                            .unknown
+                        }
                     } else if i+1 == characters.endIndex {
-                        .endIndex(i + match.route.count)
+                        .endIndex(match.inputElementsEndIndex)
                     } else {
                         .unknown
                     }
@@ -439,6 +622,7 @@ final class InputGraphTests: XCTestCase {
         graph.insert(node1)
         graph.insert(node2)
         XCTAssertEqual(graph.next(for: node1), [node2])
+        XCTAssertEqual(graph.prev(for: node2), [node1])
     }
 
     func testBuild() throws {
@@ -449,7 +633,6 @@ final class InputGraphTests: XCTestCase {
                 .init(character: "う", inputStyle: .direct)
             ])
             XCTAssertEqual(graph.nodes.count, 4) // Root nodes
-            print(graph.nodes)
         }
         do {
             let graph = InputGraph.build(input: [
@@ -458,7 +641,6 @@ final class InputGraphTests: XCTestCase {
                 .init(character: "う", inputStyle: .direct)
             ])
             XCTAssertEqual(graph.nodes.count, 5) // Root nodes
-            print(graph.nodes)
         }
         do {
             let graph = InputGraph.build(input: [
@@ -467,7 +649,6 @@ final class InputGraphTests: XCTestCase {
                 .init(character: "a", inputStyle: .roman2kana),
             ])
             XCTAssertEqual(graph.nodes.count, 3) // Root nodes
-            print(graph.nodes)
         }
         do {
             let graph = InputGraph.build(input: [
@@ -527,9 +708,70 @@ final class InputGraphTests: XCTestCase {
             )
             XCTAssertFalse(graph.nodes.contains(.init(character: "た", displayedTextRange: .range(0, 1), inputElementsRange: .range(0, 2), correction: .typo)))
         }
-    }
-
-    func testLOUDSLookup() throws {
-        
+        do {
+            // tt→っt
+            let graph = InputGraph.build(input: [
+                .init(character: "t", inputStyle: .roman2kana),
+                .init(character: "t", inputStyle: .roman2kana),
+            ])
+            XCTAssertEqual(
+                graph.nodes.first(where: {$0.character == "っ"}),
+                .init(character: "っ", displayedTextRange: .range(0, 1), inputElementsRange: .startIndex(0), correction: .none)
+            )
+            XCTAssertEqual(
+                graph.nodes.first(where: {$0.character == "t"}),
+                .init(character: "t", displayedTextRange: .range(1, 2), inputElementsRange: .endIndex(2), correction: .none)
+            )
+        }
+        do {
+            // tt→っt
+            let graph = InputGraph.build(input: [
+                .init(character: "t", inputStyle: .roman2kana),
+                .init(character: "t", inputStyle: .roman2kana),
+                .init(character: "a", inputStyle: .roman2kana),
+            ])
+            XCTAssertEqual(
+                graph.nodes.first(where: {$0.character == "っ"}),
+                .init(character: "っ", displayedTextRange: .range(0, 1), inputElementsRange: .startIndex(0), correction: .none)
+            )
+            XCTAssertEqual(
+                graph.nodes.first(where: {$0.character == "た"}),
+                .init(character: "た", displayedTextRange: .range(1, 2), inputElementsRange: .endIndex(3), correction: .none)
+            )
+        }
+        do {
+            // nt→んt
+            let graph = InputGraph.build(input: [
+                .init(character: "n", inputStyle: .roman2kana),
+                .init(character: "t", inputStyle: .roman2kana),
+                .init(character: "a", inputStyle: .roman2kana),
+            ])
+            XCTAssertEqual(
+                graph.nodes.first(where: {$0.character == "ん"}),
+                .init(character: "ん", displayedTextRange: .range(0, 1), inputElementsRange: .startIndex(0), correction: .none)
+            )
+            XCTAssertEqual(
+                graph.nodes.first(where: {$0.character == "た"}),
+                .init(character: "た", displayedTextRange: .range(1, 2), inputElementsRange: .endIndex(3), correction: .none)
+            )
+        }
+        do {
+            // t
+            // tt→っt
+            // っts→った (
+            // FIXME: 興味深いテストケースだが実装が重いので保留
+            /*
+            let graph = InputGraph.build(input: [
+                .init(character: "t", inputStyle: .roman2kana),
+                .init(character: "t", inputStyle: .roman2kana),
+                .init(character: "s", inputStyle: .roman2kana),
+            ])
+            print(graph)
+            XCTAssertEqual(
+                graph.nodes.first(where: {$0.character == "た"}),
+                .init(character: "た", displayedTextRange: .range(2, 3), inputElementsRange: .endIndex(4), correction: .none)
+            )
+             */
+        }
     }
 }
