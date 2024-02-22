@@ -129,17 +129,30 @@ struct InputGraph {
             }
         }
     }
+
+    enum Correction {
+        /// 訂正ではない
+        case none
+        /// 訂正である
+        case typo
+
+        var isTypo: Bool {
+            self == .typo
+        }
+    }
+
     struct Node: Equatable, CustomStringConvertible {
         var character: Character
         var displayedTextRange: Range
         var inputElementsRange: Range
+        var correction: Correction = .none
 
         var description: String {
             let ds = displayedTextRange.startIndex?.description ?? "?"
             let de = displayedTextRange.endIndex?.description ?? "?"
             let `is` = inputElementsRange.startIndex?.description ?? "?"
             let ie = inputElementsRange.endIndex?.description ?? "?"
-            return "Node(\"\(character)\", d(\(ds)..<\(de)), i(\(`is`)..<\(ie)))"
+            return "Node(\"\(character)\", d(\(ds)..<\(de)), i(\(`is`)..<\(ie)), isTypo: \(correction.isTypo)"
         }
     }
 
@@ -253,7 +266,7 @@ struct InputGraph {
             case .roman2kana: ReplacePrefixTree.roman2kana
             case .direct: ReplacePrefixTree.direct
             }
-            typealias Match = (route: [Character], value: String)
+            typealias Match = (route: [Character], value: String, correction: Correction)
             typealias SearchItem = (
                 node: ReplacePrefixTree.Node,
                 nextIndex: Int,
@@ -261,14 +274,14 @@ struct InputGraph {
                 longestMatch: Match
             )
             var stack: [SearchItem] = [
-                (replacePrefixTree, index, [], (route: [], value: ""))
+                (replacePrefixTree, index, [], (route: [], value: "", correction: .none))
             ]
             var matches: [Match] = []
             while let (cNode, cIndex, cRoute, cLongestMatch) = stack.popLast() {
                 if cIndex < input.endIndex, let nNode = cNode.find(key: input[cIndex].character) {
                     // valueがあるかないかで分岐
                     if let value = nNode.value {
-                        stack.append((nNode, cIndex + 1, cRoute + [input[cIndex].character], (cRoute + [input[cIndex].character], value)))
+                        stack.append((nNode, cIndex + 1, cRoute + [input[cIndex].character], (cRoute + [input[cIndex].character], value, cLongestMatch.correction)))
                     } else {
                         stack.append((nNode, cIndex + 1, cRoute + [input[cIndex].character], cLongestMatch))
                     }
@@ -279,7 +292,7 @@ struct InputGraph {
                     } else if cRoute.isEmpty {
                         // 1文字目がrootに存在しない場合、character自体をmatchに登録する
                         // これは置換ルールとして正規表現で.->\1が存在していると考えれば良い
-                        matches.append((route: [input[cIndex].character], value: String(input[cIndex].character)))
+                        matches.append((route: [input[cIndex].character], value: String(input[cIndex].character), correction: .none))
                     }
                 }
                 // altItemsを舐める
@@ -301,24 +314,18 @@ struct InputGraph {
                             }
                         }
                     } else {
-                        stack.append((.init(), cIndex + item.inputCount, cRoute + Array(item.replace), (cRoute + Array(item.replace), item.replace)))
+                        stack.append((.init(), cIndex + item.inputCount, cRoute + Array(item.replace), (cRoute + Array(item.replace), item.replace, .typo)))
                     }
                     if let node {
                         // valueがあるかないかで分岐
                         if let value = node.value {
-                            stack.append((node, cIndex + item.inputCount, cRoute + Array(item.replace), (cRoute + Array(item.replace), value)))
+                            stack.append((node, cIndex + item.inputCount, cRoute + Array(item.replace), (cRoute + Array(item.replace), value, .typo)))
                         } else {
-                            stack.append((node, cIndex + item.inputCount, cRoute + Array(item.replace), cLongestMatch))
+                            stack.append((node, cIndex + item.inputCount, cRoute + Array(item.replace), (cLongestMatch.route, cLongestMatch.value, .typo)))
                         }
                     }
                 }
             }
-            // 最終的にmatchesがemptyだったら
-            // TODO: ここの条件は「誤字訂正ではない候補が存在しなかったら」とするべき
-            if matches.isEmpty {
-                matches.append(([item.character], String(item.character)) as Match)
-            }
-            print(matches)
             // matchをinsertする
             for match in matches {
                 let characters = Array(match.value)
@@ -335,7 +342,8 @@ struct InputGraph {
                     let node = Node(
                         character: c,
                         displayedTextRange: .range(displayedTextStartIndex + i, displayedTextStartIndex + i + 1),
-                        inputElementsRange: inputElementRange
+                        inputElementsRange: inputElementRange,
+                        correction: match.correction
                     )
                     inputGraph.insert(node)
                 }
@@ -403,7 +411,18 @@ final class InputGraphTests: XCTestCase {
                 .init(character: "a", inputStyle: .roman2kana),
             ])
             XCTAssertEqual(graph.nodes.count, 6) // Root nodes
-            print(graph.nodes)
+            XCTAssertEqual(
+                graph.nodes.first(where: {$0.character == "い"}),
+                .init(character: "い", displayedTextRange: .range(0, 1), inputElementsRange: .range(0, 1), correction: .none)
+            )
+            XCTAssertEqual(
+                graph.nodes.first(where: {$0.character == "た"}),
+                .init(character: "た", displayedTextRange: .range(1, 2), inputElementsRange: .range(1, 3), correction: .typo)
+            )
+            XCTAssertEqual(
+                graph.nodes.first(where: {$0.character == "ぁ"}),
+                .init(character: "ぁ", displayedTextRange: .range(2, 3), inputElementsRange: .endIndex(4), correction: .none)
+            )
         }
     }
 }
