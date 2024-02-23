@@ -33,7 +33,7 @@ struct ConvertGraph: InputGraphProtocol {
 }
 extension ConvertGraph {
     /// ラティスのノード。これを用いて計算する。
-    final class LatticeNode {
+    final class LatticeNode: CustomStringConvertible {
         /// このノードが保持する辞書データ
         public let data: DicdataElement
         /// このノードの前に来ているノード。`N_best`の分だけ保存する
@@ -49,11 +49,12 @@ extension ConvertGraph {
             LatticeNode(data: DicdataElement.EOSData, displayedTextRange: .unknown, inputElementsRange: .unknown)
         }
 
-        init(data: DicdataElement, displayedTextRange: InputGraphStructure.Range, inputElementsRange: InputGraphStructure.Range) {
+        init(data: DicdataElement, displayedTextRange: InputGraphStructure.Range, inputElementsRange: InputGraphStructure.Range, prevs: [RegisteredNode] = []) {
             self.data = data
             self.values = [data.value()]
             self.displayedTextRange = displayedTextRange
             self.inputElementsRange = inputElementsRange
+            self.prevs = prevs
         }
 
         /// `LatticeNode`の持っている情報を反映した`RegisteredNode`を作成する
@@ -67,6 +68,10 @@ extension ConvertGraph {
                 displayedTextRange: self.displayedTextRange,
                 inputElementsRange: self.inputElementsRange
             )
+        }
+
+        var description: String {
+            "LatticeNode(data: \(data), ...)"
         }
     }
     struct RegisteredNode: RegisteredNodeProtocol {
@@ -109,26 +114,28 @@ protocol RegisteredNodeProtocol {
 }
 
 extension ConvertGraph {
-    func convertAll(N_best: Int, dicdataStore: DicdataStore) -> LatticeNode {
+    func convertAll(option: borrowing ConvertRequestOptions, dicdataStore: DicdataStore) -> LatticeNode {
         let result: LatticeNode = LatticeNode.EOSNode
         result.displayedTextRange = .startIndex(self.structure.displayedTextEndIndexToNodeIndices.endIndex)
         result.inputElementsRange = .startIndex(self.structure.inputElementsEndIndexToNodeIndices.endIndex)
-        var processStack = Array(self.nodes.enumerated())
-        var processedIndices: IndexSet = []
+        var processStack = Array(self.nodes.enumerated().reversed())
+        var processedIndices: IndexSet = [0] // root
+        var invalidIndices: IndexSet = []
         // 「i文字目から始まるnodes」に対して
         while let (i, graphNode) = processStack.popLast() {
             // 処理済みなら無視する
-            guard !processedIndices.contains(i) else {
+            guard !processedIndices.contains(i), !invalidIndices.contains(i) else {
                 continue
             }
             // 全てのprevNodeが処理済みか確かめる
-            let prevIndices = self.structure.prevIndices(displayedTextStartIndex: graphNode.displayedTextRange.startIndex, inputElementsStartIndex: graphNode.displayedTextRange.endIndex)
+            let prevIndices = self.structure.prevIndices(displayedTextStartIndex: graphNode.displayedTextRange.startIndex, inputElementsStartIndex: graphNode.inputElementsRange.startIndex)
             guard !prevIndices.isEmpty else {
+                invalidIndices.insert(i)
                 continue
             }
             var unprocessedPrevs: [(Int, Node)] = []
             for prevIndex in prevIndices {
-                if !processedIndices.contains(prevIndex) {
+                if !processedIndices.contains(prevIndex) && !invalidIndices.contains(prevIndex) {
                     unprocessedPrevs.append((prevIndex, self.nodes[prevIndex]))
                 }
             }
@@ -138,6 +145,7 @@ extension ConvertGraph {
                 processStack.append(contentsOf: unprocessedPrevs)
                 continue
             }
+            print(i, graphNode.displayedTextRange, graphNode.inputElementsRange)
             processedIndices.insert(i)
             // 処理を実施する
             for node in graphNode.latticeNodes {
@@ -161,6 +169,7 @@ extension ConvertGraph {
                     displayedTextEndIndex: node.displayedTextRange.endIndex,
                     inputElementsEndIndex: node.inputElementsRange.endIndex
                 )
+                print(nextIndices)
                 // 文字数がcountと等しい場合登録する
                 if nextIndices.isEmpty {
                     for index in node.prevs.indices {
@@ -182,12 +191,12 @@ extension ConvertGraph {
                                 let newValue: PValue = ccValue + value
                                 // 追加すべきindexを取得する
                                 let lastindex: Int = (nextnode.prevs.lastIndex(where: {$0.totalValue >= newValue}) ?? -1) + 1
-                                if lastindex == N_best {
+                                if lastindex == option.N_best {
                                     continue
                                 }
                                 let newnode: RegisteredNode = node.getRegisteredNode(index, value: newValue)
                                 // カウントがオーバーしている場合は除去する
-                                if nextnode.prevs.count >= N_best {
+                                if nextnode.prevs.count >= option.N_best {
                                     nextnode.prevs.removeLast()
                                 }
                                 // removeしてからinsertした方が速い (insertはO(N)なので)

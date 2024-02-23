@@ -42,16 +42,15 @@ extension LOUDS {
         var loudsNodeIndex2GraphNodeEndIndices: [Int: [(displayedTextEndIndex: Int?, inputElementsEndIndex: Int?)]] = [:]
         typealias SearchItem = (
             node: LookupGraph.Node,
-            nodeIndex: Int,
             lastLoudsNodeIndex: Int
         )
-        var stack: [SearchItem] = lookupGraph.nextIndices(for: lookupGraph.nodes[startGraphNodeIndex]).map { (lookupGraph.nodes[$0], $0, 1) }
-        while let (cNode, cNodeIndex, cLastLoudsNodeIndex) = stack.popLast() {
+        var stack: [SearchItem] = [(lookupGraph.nodes[startGraphNodeIndex], 1)]
+        while let (cNode, cLastLoudsNodeIndex) = stack.popLast() {
             // nextNodesを探索
             if let loudsNodeIndex = self.searchCharNodeIndex(from: cLastLoudsNodeIndex, char: cNode.charId) {
                 loudsNodeIndex2GraphNodeEndIndices[loudsNodeIndex, default: []].append((cNode.displayedTextRange.endIndex, cNode.inputElementsRange.endIndex))
                 indexSet.insert(loudsNodeIndex)
-                stack.append(contentsOf: lookupGraph.nextIndices(for: cNode).map { (lookupGraph.nodes[$0], $0, loudsNodeIndex) })
+                stack.append(contentsOf: lookupGraph.nextIndices(for: cNode).map { (lookupGraph.nodes[$0], loudsNodeIndex) })
             } else {
                 continue
             }
@@ -62,17 +61,16 @@ extension LOUDS {
 
 extension DicdataStore {
     func buildConvertGraph(inputGraph: consuming InputGraph, option: ConvertRequestOptions) -> ConvertGraph {
-        // FIXME: character2CharIdを書き直す
-        let lookupGraph = LookupGraph.build(input: consume inputGraph, character2CharId: {_ in 0})
+        let lookupGraph = LookupGraph.build(input: consume inputGraph, character2CharId: { self.character2charId($0.toKatakana()) } )
         var stack: [Int] = Array(lookupGraph.nextIndices(for: lookupGraph.root))
         var graphNodeIndex2LatticeNodes: [Int: [ConvertGraph.LatticeNode]] = [:]
         while let graphNodeIndex = stack.popLast() {
             let graphNode = lookupGraph.nodes[graphNodeIndex]
-            guard let louds = self.loadLOUDS(identifier: String(graphNode.character)) else {
+            guard let louds = self.loadLOUDS(identifier: String(graphNode.character.toKatakana())) else {
                 continue
             }
             let (loudsNodeIndices, loudsNodeIndex2GraphEndIndices) = louds.byfixNodeIndices(lookupGraph, startGraphNodeIndex: graphNodeIndex)
-            let dicdataWithIndex: [(loudsNodeIndex: Int, dicdata: [DicdataElement])] = self.getDicdataFromLoudstxt3(identifier: String(graphNode.character), indices: loudsNodeIndices, option: option)
+            let dicdataWithIndex: [(loudsNodeIndex: Int, dicdata: [DicdataElement])] = self.getDicdataFromLoudstxt3(identifier: String(graphNode.character.toKatakana()), indices: loudsNodeIndices, option: option)
             var latticeNodes: [ConvertGraph.LatticeNode] = []
             for (loudsNodeIndex, dicdata) in dicdataWithIndex {
                 for endIndex in loudsNodeIndex2GraphEndIndices[loudsNodeIndex, default: []] {
@@ -88,13 +86,19 @@ extension DicdataStore {
                     case (nil, let e?): .endIndex(e)
                     case (nil, nil): .unknown
                     }
-                    latticeNodes.append(contentsOf: dicdata.map {
-                        .init(data: $0, displayedTextRange: displayedTextRange, inputElementsRange: inputElementsRange)
-                    })
+                    if graphNode.displayedTextRange.startIndex == 0 || graphNode.inputElementsRange.startIndex == 0 {
+                        latticeNodes.append(contentsOf: dicdata.map {
+                            .init(data: $0, displayedTextRange: displayedTextRange, inputElementsRange: inputElementsRange, prevs: [.BOSNode()])
+                        })
+                    } else {
+                        latticeNodes.append(contentsOf: dicdata.map {
+                            .init(data: $0, displayedTextRange: displayedTextRange, inputElementsRange: inputElementsRange)
+                        })
+                    }
                 }
             }
-            // FIXME: ここを埋める
             graphNodeIndex2LatticeNodes[graphNodeIndex] = latticeNodes
+            stack.append(contentsOf: lookupGraph.nextIndices(for: graphNode))
         }
         return ConvertGraph.build(input: consume lookupGraph, nodeIndex2LatticeNode: graphNodeIndex2LatticeNodes)
     }
@@ -112,26 +116,13 @@ extension DicdataStore {
 }
 
 final class LookupGraphTests: XCTestCase {
-    static var resourceURL = Bundle.module.resourceURL!.standardizedFileURL.appendingPathComponent("DictionaryMock", isDirectory: true)
     func requestOptions() -> ConvertRequestOptions {
-        var options: ConvertRequestOptions = .default
-        options.dictionaryResourceURL = Self.resourceURL
-        return options
-    }
-
-    func loadCharIDs() -> [Character: UInt8] {
-        do {
-            let string = try String(contentsOf: Self.resourceURL.appendingPathComponent("louds/charID.chid", isDirectory: false), encoding: String.Encoding.utf8)
-            return [Character: UInt8](uniqueKeysWithValues: string.enumerated().map {($0.element, UInt8($0.offset))})
-        } catch {
-            print("ファイルが見つかりませんでした")
-            return [:]
-        }
+        .withDefaultDictionary(requireJapanesePrediction: false, requireEnglishPrediction: false, keyboardLanguage: .ja_JP, learningType: .nothing, memoryDirectoryURL: .applicationDirectory, sharedContainerURL: .applicationDirectory, metadata: .init(appVersionString: "Test"))
     }
 
     func testByfixNodeIndices() throws {
-        let dicdataStore = DicdataStore(requestOptions: requestOptions())
-        let charIDs = loadCharIDs()
+        let dicdataStore = DicdataStore(convertRequestOptions: requestOptions())
+        let character2CharId: (Character) -> UInt8 = { dicdataStore.character2charId($0.toKatakana()) }
         let louds = LOUDS.load("シ", option: requestOptions())
         XCTAssertNotNil(louds)
         guard let louds else { return }
@@ -141,8 +132,10 @@ final class LookupGraphTests: XCTestCase {
                 .init(character: "か", inputStyle: .direct),
                 .init(character: "い", inputStyle: .direct),
             ])
-            let lookupGraph = LookupGraph.build(input: inputGraph, character2CharId: {charIDs[$0.toKatakana()] ?? 0x00})
-            let (loudsNodeIndices, loudsNodeIndex2GraphNodeEndIndices) = louds.byfixNodeIndices(lookupGraph)
+            let lookupGraph = LookupGraph.build(input: inputGraph, character2CharId: character2CharId)
+            let startNodeIndex = lookupGraph.nextIndices(for: lookupGraph.root).first(where: { lookupGraph.nodes[$0].character == "し" })
+            XCTAssertNotNil(startNodeIndex)
+            let (loudsNodeIndices, _) = louds.byfixNodeIndices(lookupGraph, startGraphNodeIndex: startNodeIndex ?? 0)
             let dicdataWithIndex = dicdataStore.getDicdataFromLoudstxt3(identifier: "シ", indices: loudsNodeIndices, option: requestOptions())
             let dicdata = dicdataWithIndex.flatMapSet { $0.dicdata }
             // シ
@@ -170,8 +163,10 @@ final class LookupGraphTests: XCTestCase {
                 .init(character: "s", inputStyle: .roman2kana),
                 .init(character: "i", inputStyle: .roman2kana),
             ])
-            let lookupGraph = LookupGraph.build(input: inputGraph, character2CharId: {charIDs[$0.toKatakana()] ?? 0x00})
-            let (loudsNodeIndices, loudsNodeIndex2GraphNodeEndIndices) = louds.byfixNodeIndices(lookupGraph)
+            let lookupGraph = LookupGraph.build(input: inputGraph, character2CharId: character2CharId)
+            let startNodeIndex = lookupGraph.nextIndices(for: lookupGraph.root).first(where: { lookupGraph.nodes[$0].character == "し" })
+            XCTAssertNotNil(startNodeIndex)
+            let (loudsNodeIndices, _) = louds.byfixNodeIndices(lookupGraph, startGraphNodeIndex: startNodeIndex ?? 0)
             let dicdataWithIndex = dicdataStore.getDicdataFromLoudstxt3(identifier: "シ", indices: loudsNodeIndices, option: requestOptions())
             let dicdata = dicdataWithIndex.flatMapSet { $0.dicdata }
             // シ
@@ -196,8 +191,10 @@ final class LookupGraphTests: XCTestCase {
                 .init(character: "a", inputStyle: .roman2kana),
                 .init(character: "i", inputStyle: .roman2kana),
             ])
-            let lookupGraph = LookupGraph.build(input: inputGraph, character2CharId: {charIDs[$0.toKatakana()] ?? 0x00})
-            let (loudsNodeIndices, loudsNodeIndex2GraphNodeEndIndices) = louds.byfixNodeIndices(lookupGraph)
+            let lookupGraph = LookupGraph.build(input: inputGraph, character2CharId: character2CharId)
+            let startNodeIndex = lookupGraph.nextIndices(for: lookupGraph.root).first(where: { lookupGraph.nodes[$0].character == "し" })
+            XCTAssertNotNil(startNodeIndex)
+            let (loudsNodeIndices, _) = louds.byfixNodeIndices(lookupGraph, startGraphNodeIndex: startNodeIndex ?? 0)
             let dicdataWithIndex = dicdataStore.getDicdataFromLoudstxt3(identifier: "シ", indices: loudsNodeIndices, option: requestOptions())
             let dicdata = dicdataWithIndex.flatMapSet { $0.dicdata }
             // シ
