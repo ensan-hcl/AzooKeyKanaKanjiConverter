@@ -10,6 +10,121 @@ import Foundation
 @testable import KanaKanjiConverterModule
 import XCTest
 
+struct InputGraphStructure {
+    enum Range: Equatable, Sendable {
+        case unknown
+        case startIndex(Int)
+        case endIndex(Int)
+        case range(Int, Int)
+
+        var startIndex: Int? {
+            switch self {
+            case .unknown, .endIndex: nil
+            case .startIndex(let index), .range(let index, _): index
+            }
+        }
+
+        var endIndex: Int? {
+            switch self {
+            case .unknown, .startIndex: nil
+            case .endIndex(let index), .range(_, let index): index
+            }
+        }
+    }
+
+    /// `displayedTextStartIndexToNodeIndices[0]`は`displayedTextRange==.startIndex(0)`または`displayedTextRange==.range(0, k)`であるようなノードのindexのセットを返す
+    var displayedTextStartIndexToNodeIndices: [IndexSet] = []
+    var inputElementsStartIndexToNodeIndices: [IndexSet] = []
+    var displayedTextEndIndexToNodeIndices: [IndexSet] = [IndexSet(integer: 0)] // rootノードのindexで初期化
+    var inputElementsEndIndexToNodeIndices: [IndexSet] = [IndexSet(integer: 0)] // rootノードのindexで初期化
+                                                                                // 使用されなくなったインデックスの集合
+    var deadNodeIndices: [Int] = []
+
+    func nextIndices(displayedTextEndIndex: Int?, inputElementsEndIndex: Int?) -> IndexSet {
+        var indexSet = IndexSet()
+        if let displayedTextEndIndex {
+            if displayedTextEndIndex < self.displayedTextStartIndexToNodeIndices.endIndex {
+                indexSet.formUnion(self.displayedTextStartIndexToNodeIndices[displayedTextEndIndex])
+            }
+        }
+        if let inputElementsEndIndex {
+            if inputElementsEndIndex < self.inputElementsStartIndexToNodeIndices.endIndex {
+                indexSet.formUnion(self.inputElementsStartIndexToNodeIndices[inputElementsEndIndex])
+            }
+        }
+        return indexSet
+    }
+
+    func prevIndices(displayedTextStartIndex: Int?, inputElementsStartIndex: Int?) -> IndexSet {
+        var indexSet = IndexSet()
+        if let displayedTextStartIndex {
+            if displayedTextStartIndex < self.displayedTextEndIndexToNodeIndices.endIndex {
+                indexSet.formUnion(self.displayedTextEndIndexToNodeIndices[displayedTextStartIndex])
+            }
+        }
+        if let inputElementsStartIndex {
+            if inputElementsStartIndex < self.inputElementsEndIndexToNodeIndices.endIndex {
+                indexSet.formUnion(self.inputElementsEndIndexToNodeIndices[inputElementsStartIndex])
+            }
+        }
+        return indexSet
+    }
+
+    mutating func insert<T>(_ node: T, nodes: inout [T], displayedTextRange: Range, inputElementsRange: Range) {
+        // 可能ならdeadNodeIndicesを再利用する
+        let index: Int
+        if let deadIndex = self.deadNodeIndices.popLast() {
+            nodes[deadIndex] = node
+            index = deadIndex
+        } else {
+            nodes.append(node)
+            index = nodes.count - 1
+        }
+        if let startIndex = displayedTextRange.startIndex {
+            if self.displayedTextStartIndexToNodeIndices.endIndex <= startIndex {
+                self.displayedTextStartIndexToNodeIndices.append(contentsOf: Array(repeating: IndexSet(), count: startIndex - self.displayedTextStartIndexToNodeIndices.endIndex + 1))
+            }
+            self.displayedTextStartIndexToNodeIndices[startIndex].insert(index)
+        }
+        if let endIndex = displayedTextRange.endIndex {
+            if self.displayedTextEndIndexToNodeIndices.endIndex <= endIndex {
+                self.displayedTextEndIndexToNodeIndices.append(contentsOf: Array(repeating: IndexSet(), count: endIndex - self.displayedTextEndIndexToNodeIndices.endIndex + 1))
+            }
+            self.displayedTextEndIndexToNodeIndices[endIndex].insert(index)
+        }
+        if let startIndex = inputElementsRange.startIndex {
+            if self.inputElementsStartIndexToNodeIndices.endIndex <= startIndex {
+                self.inputElementsStartIndexToNodeIndices.append(contentsOf: Array(repeating: IndexSet(), count: startIndex - self.inputElementsStartIndexToNodeIndices.endIndex + 1))
+            }
+            self.inputElementsStartIndexToNodeIndices[startIndex].insert(index)
+        }
+        if let endIndex = inputElementsRange.endIndex {
+            if self.inputElementsEndIndexToNodeIndices.endIndex <= endIndex {
+                self.inputElementsEndIndexToNodeIndices.append(contentsOf: Array(repeating: IndexSet(), count: endIndex - self.inputElementsEndIndexToNodeIndices.endIndex + 1))
+            }
+            self.inputElementsEndIndexToNodeIndices[endIndex].insert(index)
+        }
+    }
+
+    mutating func remove(at index: Int) {
+        assert(index != 0, "Node at index 0 is root and must not be removed.")
+        self.deadNodeIndices.append(index)
+        // FIXME: 多分nodeの情報を使えばもっと効率的にremoveできる
+        self.displayedTextStartIndexToNodeIndices.mutatingForeach {
+            $0.remove(index)
+        }
+        self.displayedTextEndIndexToNodeIndices.mutatingForeach {
+            $0.remove(index)
+        }
+        self.inputElementsStartIndexToNodeIndices.mutatingForeach {
+            $0.remove(index)
+        }
+        self.inputElementsEndIndexToNodeIndices.mutatingForeach {
+            $0.remove(index)
+        }
+    }
+}
+
 struct InputGraph {
     struct InputStyle: Identifiable {
         init(from deprecatedInputStyle: KanaKanjiConverterModule.InputStyle) {
@@ -78,27 +193,6 @@ struct InputGraph {
         var correctPrefixTree: CorrectPrefixTree.Node
     }
 
-    enum Range: Equatable, Sendable {
-        case unknown
-        case startIndex(Int)
-        case endIndex(Int)
-        case range(Int, Int)
-
-        var startIndex: Int? {
-            switch self {
-            case .unknown, .endIndex: nil
-            case .startIndex(let index), .range(let index, _): index
-            }
-        }
-
-        var endIndex: Int? {
-            switch self {
-            case .unknown, .startIndex: nil
-            case .endIndex(let index), .range(_, let index): index
-            }
-        }
-    }
-
     enum Correction: CustomStringConvertible {
         /// 訂正ではない
         case none
@@ -119,8 +213,8 @@ struct InputGraph {
 
     struct Node: Equatable, CustomStringConvertible {
         var character: Character
-        var displayedTextRange: Range
-        var inputElementsRange: Range
+        var displayedTextRange: InputGraphStructure.Range
+        var inputElementsRange: InputGraphStructure.Range
         var correction: Correction = .none
 
         var description: String {
@@ -136,111 +230,43 @@ struct InputGraph {
         // root node
         Node(character: "\0", displayedTextRange: .endIndex(0), inputElementsRange: .endIndex(0))
     ]
-    /// `displayedTextStartIndexToNodeIndices[0]`は`displayedTextRange==.startIndex(0)`または`displayedTextRange==.range(0, k)`であるようなノードのindexのセットを返す
-    var displayedTextStartIndexToNodeIndices: [IndexSet] = []
-    var inputElementsStartIndexToNodeIndices: [IndexSet] = []
-    var displayedTextEndIndexToNodeIndices: [IndexSet] = [IndexSet(integer: 0)] // rootノードのindexで初期化
-    var inputElementsEndIndexToNodeIndices: [IndexSet] = [IndexSet(integer: 0)] // rootノードのindexで初期化
-                                                                                // 使用されなくなったインデックスの集合
-    var deadNodeIndices: [Int] = []
+
+    var structure: InputGraphStructure = InputGraphStructure()
 
     var root: Node {
         nodes[0]
     }
 
+    func nextIndices(for node: Node) -> IndexSet {
+        self.structure.nextIndices(
+            displayedTextEndIndex: node.displayedTextRange.endIndex,
+            inputElementsEndIndex: node.inputElementsRange.endIndex
+        )
+    }
+
     func next(for node: Node) -> [Node] {
-        var indexSet = IndexSet()
-        if let endIndex = node.displayedTextRange.endIndex {
-            if endIndex < self.displayedTextStartIndexToNodeIndices.endIndex {
-                indexSet.formUnion(self.displayedTextStartIndexToNodeIndices[endIndex])
-            }
-        }
-        if let endIndex = node.inputElementsRange.endIndex {
-            if endIndex < self.inputElementsStartIndexToNodeIndices.endIndex {
-                indexSet.formUnion(self.inputElementsStartIndexToNodeIndices[endIndex])
-            }
-        }
-        return indexSet.map{ self.nodes[$0] }
+        nextIndices(for: node).map{ self.nodes[$0] }
     }
 
     func prevIndices(for node: Node) -> IndexSet {
-        var indexSet = IndexSet()
-        if let startIndex = node.displayedTextRange.startIndex {
-            if startIndex < self.displayedTextEndIndexToNodeIndices.endIndex {
-                indexSet.formUnion(self.displayedTextEndIndexToNodeIndices[startIndex])
-            }
-        }
-        if let startIndex = node.inputElementsRange.startIndex {
-            if startIndex < self.inputElementsEndIndexToNodeIndices.endIndex {
-                indexSet.formUnion(self.inputElementsEndIndexToNodeIndices[startIndex])
-            }
-        }
-        return indexSet
+        self.structure.prevIndices(
+            displayedTextStartIndex: node.displayedTextRange.startIndex,
+            inputElementsStartIndex: node.inputElementsRange.startIndex
+        )
     }
 
     func prev(for node: Node) -> [Node] {
         prevIndices(for: node).map{ self.nodes[$0] }
     }
 
-    private mutating func _insert(_ node: Node) -> Int {
-        // 可能ならdeadNodeIndicesを再利用する
-        if let deadIndex = self.deadNodeIndices.popLast() {
-            self.nodes[deadIndex] = node
-            return deadIndex
-        } else {
-            self.nodes.append(node)
-            return self.nodes.count - 1
-        }
-    }
-
     mutating func remove(at index: Int) {
         assert(index != 0, "Node at index 0 is root and must not be removed.")
-        self.deadNodeIndices.append(index)
-        // FIXME: 多分nodeの情報を使えばもっと効率的にremoveできる
-        self.displayedTextStartIndexToNodeIndices.mutatingForeach {
-            $0.remove(index)
-        }
-        self.displayedTextEndIndexToNodeIndices.mutatingForeach {
-            $0.remove(index)
-        }
-        self.inputElementsStartIndexToNodeIndices.mutatingForeach {
-            $0.remove(index)
-        }
-        self.inputElementsEndIndexToNodeIndices.mutatingForeach {
-            $0.remove(index)
-        }
+        self.structure.remove(at: index)
     }
 
     mutating func insert(_ node: Node) {
-        let index = self._insert(node)
-        if let startIndex = node.displayedTextRange.startIndex {
-            if self.displayedTextStartIndexToNodeIndices.endIndex <= startIndex {
-                self.displayedTextStartIndexToNodeIndices.append(contentsOf: Array(repeating: IndexSet(), count: startIndex - self.displayedTextStartIndexToNodeIndices.endIndex + 1))
-            }
-            self.displayedTextStartIndexToNodeIndices[startIndex].insert(index)
-        }
-        if let endIndex = node.displayedTextRange.endIndex {
-            if self.displayedTextEndIndexToNodeIndices.endIndex <= endIndex {
-                self.displayedTextEndIndexToNodeIndices.append(contentsOf: Array(repeating: IndexSet(), count: endIndex - self.displayedTextEndIndexToNodeIndices.endIndex + 1))
-            }
-            self.displayedTextEndIndexToNodeIndices[endIndex].insert(index)
-        }
-        if let startIndex = node.inputElementsRange.startIndex {
-            if self.inputElementsStartIndexToNodeIndices.endIndex <= startIndex {
-                self.inputElementsStartIndexToNodeIndices.append(contentsOf: Array(repeating: IndexSet(), count: startIndex - self.inputElementsStartIndexToNodeIndices.endIndex + 1))
-            }
-            self.inputElementsStartIndexToNodeIndices[startIndex].insert(index)
-        }
-        if let endIndex = node.inputElementsRange.endIndex {
-            if self.inputElementsEndIndexToNodeIndices.endIndex <= endIndex {
-                self.inputElementsEndIndexToNodeIndices.append(contentsOf: Array(repeating: IndexSet(), count: endIndex - self.inputElementsEndIndexToNodeIndices.endIndex + 1))
-            }
-            self.inputElementsEndIndexToNodeIndices[endIndex].insert(index)
-        }
+        self.structure.insert(node, nodes: &self.nodes, displayedTextRange: node.displayedTextRange, inputElementsRange: node.inputElementsRange)
     }
-
-    // EOSノードを追加する
-    mutating func finalize() {}
 
     static func build(input: [ComposingText.InputElement]) -> Self {
         var inputGraph = Self()
@@ -327,7 +353,7 @@ struct InputGraph {
                             let indices = if let first = cRoute.first {
                                 inputGraph.prevIndices(for: inputGraph.nodes[first])
                             } else {
-                                index < inputGraph.inputElementsEndIndexToNodeIndices.endIndex ? inputGraph.inputElementsEndIndexToNodeIndices[index] : .init()
+                                index < inputGraph.structure.inputElementsEndIndexToNodeIndices.endIndex ? inputGraph.structure.prevIndices(displayedTextStartIndex: nil, inputElementsStartIndex: index) : .init()
                             }
                             for prevGraphNodeIndex in indices {
                                 guard inputGraph.nodes[prevGraphNodeIndex].character == pNode.character else {
@@ -464,7 +490,7 @@ struct InputGraph {
             for match in matches {
                 let displayedTextStartIndex = if let d = match.displayedTextStartIndex {
                     d
-                } else if let beforeNodeIndex = inputGraph.inputElementsEndIndexToNodeIndices[index].first,
+                } else if let beforeNodeIndex = inputGraph.structure.inputElementsEndIndexToNodeIndices[index].first,
                     let d = inputGraph.nodes[beforeNodeIndex].displayedTextRange.endIndex {
                         d
                     } else {
@@ -474,7 +500,7 @@ struct InputGraph {
 
                 let characters = Array(match.value)
                 for (i, c) in zip(characters.indices, characters) {
-                    let inputElementRange: InputGraph.Range = if i == characters.startIndex && i+1 == characters.endIndex {
+                    let inputElementRange: InputGraphStructure.Range = if i == characters.startIndex && i+1 == characters.endIndex {
                         if let startIndex = match.inputElementsStartIndex {
                             .range(startIndex, match.inputElementsEndIndex)
                         } else {
