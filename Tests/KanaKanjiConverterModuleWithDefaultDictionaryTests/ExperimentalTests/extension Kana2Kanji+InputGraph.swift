@@ -24,6 +24,21 @@ extension Kana2Kanji {
     }
 }
 
+private extension ConvertGraph.LatticeNode {
+    func joinedPrevs() -> [String] {
+        var result: [String] = []
+        for prev in self.prevs {
+            var words = [self.data.word, prev.data.word]
+            var curPrev: (any RegisteredNodeProtocol) = prev
+            while let newPrev = curPrev.prev {
+                words.append(newPrev.data.word)
+                curPrev = newPrev
+            }
+            result.append(words.reversed().joined())
+        }
+        return result
+    }
+}
 
 final class ExperimentalConversionTests: XCTestCase {
     func requestOptions() -> ConvertRequestOptions {
@@ -33,8 +48,25 @@ final class ExperimentalConversionTests: XCTestCase {
     func testConversion() throws {
         let dicdataStore = DicdataStore(requestOptions: requestOptions())
         let kana2kanji = Kana2Kanji(dicdataStore: dicdataStore)
-        var c = ComposingText()
-        c.insertAtCursorPosition("あいうえお", inputStyle: .direct) // あいうえお|
-        let result = kana2kanji._experimental_all(c, option: requestOptions())
+        do {
+            var c = ComposingText()
+            c.insertAtCursorPosition("みらいえいが", inputStyle: .direct)
+            let result = kana2kanji._experimental_all(c, option: requestOptions())
+            XCTAssertTrue(result.joinedPrevs().contains("未来映画"))
+        }
+        do {
+            var c = ComposingText()
+            c.insertAtCursorPosition("miraieiga", inputStyle: .roman2kana)
+            let result = kana2kanji._experimental_all(c, option: requestOptions())
+            XCTAssertTrue(result.joinedPrevs().contains("未来映画"))
+        }
+        do {
+            var c = ComposingText()
+            c.insertAtCursorPosition("sitta", inputStyle: .roman2kana)
+            let result = kana2kanji._experimental_all(c, option: requestOptions())
+            print(result.joinedPrevs())
+            // FIXME: 動かない
+            // XCTAssertTrue(result.joinedPrevs().contains("知った"))
+        }
     }
 }
