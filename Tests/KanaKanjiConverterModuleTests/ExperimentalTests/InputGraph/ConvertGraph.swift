@@ -109,7 +109,7 @@ protocol RegisteredNodeProtocol {
 }
 
 extension ConvertGraph {
-    func convertAll(N_best: Int, dicdataStore: DicdataStore) {
+    func convertAll(N_best: Int, dicdataStore: DicdataStore) -> LatticeNode {
         let result: LatticeNode = LatticeNode.EOSNode
         result.displayedTextRange = .startIndex(self.structure.displayedTextEndIndexToNodeIndices.endIndex)
         result.inputElementsRange = .startIndex(self.structure.inputElementsEndIndexToNodeIndices.endIndex)
@@ -138,6 +138,7 @@ extension ConvertGraph {
                 processStack.append(contentsOf: unprocessedPrevs)
                 continue
             }
+            processedIndices.insert(i)
             // 処理を実施する
             for node in graphNode.latticeNodes {
                 if node.prevs.isEmpty {
@@ -197,5 +198,6 @@ extension ConvertGraph {
                 }
             }
         }
+        return result
     }
 }

@@ -10,11 +10,13 @@ import Foundation
 
 
 extension Kana2Kanji {
-    func kana2lattice_all(_ inputData: InputGraph, N_best: Int) {
-        // 辞書ルックアップ
-
-        // 変換
-
+    func _experimental_all(_ inputData: ComposingText, N_best: Int) -> ConvertGraph.LatticeNode {
+        // グラフ構築
+        let inputGraph = InputGraph.build(input: inputData.input)
+        // 辞書ルックアップによりconvertGraphを構築
+        let convertGraph = self.dicdataStore.buildConvertGraph(inputGraph: consume inputGraph, option: .default)
+        let result = convertGraph.convertAll(N_best: N_best, dicdataStore: self.dicdataStore)
+        return result
     }
 }
 

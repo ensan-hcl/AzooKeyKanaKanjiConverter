@@ -143,7 +143,7 @@ public final class DicdataStore {
         return Self.getPenalty(data: data) < -d
     }
 
-    private func loadLOUDS(identifier: String) -> LOUDS? {
+    func loadLOUDS(identifier: String) -> LOUDS? {
         if importedLoudses.contains(identifier) {
             return self.loudses[identifier]
         }

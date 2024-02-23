@@ -127,24 +127,24 @@ extension LOUDS {
     }
 
     /// indexとの対応を維持したバージョン
-    static func getDataForLoudstxt3(_ identifier: String, indices: [Int], option: ConvertRequestOptions) -> [Int: [DicdataElement]] {
+    static func getDataForLoudstxt3(_ identifier: String, indices: [Int], option: ConvertRequestOptions) -> [(loudsNodeIndex: Int, dicdata: [DicdataElement])] {
         let binary: Data
         do {
             let url = getLoudstxt3URL(identifier, option: option)
             binary = try Data(contentsOf: url)
         } catch {
             debug("getDataForLoudstxt3: \(error)")
-            return [:]
+            return []
         }
 
         let lc = binary[0..<2].toArray(of: UInt16.self)[0]
         let header_endIndex: UInt32 = 2 + UInt32(lc) * UInt32(MemoryLayout<UInt32>.size)
         let ui32array = binary[2..<header_endIndex].toArray(of: UInt32.self)
-        var result: [Int: [DicdataElement]] = [:]
+        var result: [(loudsNodeIndex: Int, dicdata: [DicdataElement])] = []
         for index in indices {
             let startIndex = Int(ui32array[index])
             let endIndex = index == (lc - 1) ? binary.endIndex : Int(ui32array[index + 1])
-            result[index] = parseBinary(binary: binary[startIndex ..< endIndex])
+            result.append((index, parseBinary(binary: binary[startIndex ..< endIndex])))
         }
         return result
     }
