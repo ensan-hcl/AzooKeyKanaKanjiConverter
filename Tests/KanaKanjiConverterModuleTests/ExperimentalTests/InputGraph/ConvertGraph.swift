@@ -31,43 +31,70 @@ struct ConvertGraph: InputGraphProtocol {
         return Self(nodes: nodes, structure: input.structure)
     }
 }
+extension ConvertGraph {
+    /// ラティスのノード。これを用いて計算する。
+    final class LatticeNode {
+        /// このノードが保持する辞書データ
+        public let data: DicdataElement
+        /// このノードの前に来ているノード。`N_best`の分だけ保存する
+        var prevs: [RegisteredNode] = []
+        /// `prevs`の各要素に対応するスコアのデータ
+        var values: [PValue] = []
+        /// inputData.input内のrange
+        var displayedTextRange: InputGraphStructure.Range
+        var inputElementsRange: InputGraphStructure.Range
 
-/// ラティスのノード。これを用いて計算する。
-final class LatticeNode {
-    /// このノードが保持する辞書データ
-    public let data: DicdataElement
-    /// このノードの前に来ているノード。`N_best`の分だけ保存する
-    var prevs: [RegisteredNode] = []
-    /// `prevs`の各要素に対応するスコアのデータ
-    var values: [PValue] = []
-    /// inputData.input内のrange
-    var displayedTextRange: InputGraphStructure.Range
-    var inputElementsRange: InputGraphStructure.Range
+        /// `EOS`に対応するノード。
+        static var EOSNode: LatticeNode {
+            LatticeNode(data: DicdataElement.EOSData, displayedTextRange: .unknown, inputElementsRange: .unknown)
+        }
 
-    /// `EOS`に対応するノード。
-    static var EOSNode: LatticeNode {
-        LatticeNode(data: DicdataElement.EOSData, displayedTextRange: .unknown, inputElementsRange: .unknown)
+        init(data: DicdataElement, displayedTextRange: InputGraphStructure.Range, inputElementsRange: InputGraphStructure.Range) {
+            self.data = data
+            self.values = [data.value()]
+            self.displayedTextRange = displayedTextRange
+            self.inputElementsRange = inputElementsRange
+        }
+
+        /// `LatticeNode`の持っている情報を反映した`RegisteredNode`を作成する
+        /// `LatticeNode`は複数の過去のノードを持つことができるが、`RegisteredNode`は1つしか持たない。
+        func getRegisteredNode(_ index: Int, value: PValue) -> RegisteredNode {
+            // FIXME: 適当に実装した
+            RegisteredNode(
+                data: self.data,
+                registered: self.prevs[index],
+                totalValue: value,
+                displayedTextRange: self.displayedTextRange,
+                inputElementsRange: self.inputElementsRange
+            )
+        }
+    }
+    struct RegisteredNode: RegisteredNodeProtocol {
+        /// このノードが保持する辞書データ
+        let data: DicdataElement
+        /// 1つ前のノードのデータ
+        let prev: (any RegisteredNodeProtocol)?
+        /// 始点からこのノードまでのコスト
+        let totalValue: PValue
+        /// inputData.input内のrange
+        var displayedTextRange: InputGraphStructure.Range
+        var inputElementsRange: InputGraphStructure.Range
+
+        init(data: DicdataElement, registered: RegisteredNode?, totalValue: PValue, displayedTextRange: InputGraphStructure.Range, inputElementsRange: InputGraphStructure.Range) {
+            self.data = data
+            self.prev = registered
+            self.totalValue = totalValue
+            self.displayedTextRange = displayedTextRange
+            self.inputElementsRange = inputElementsRange
+        }
+
+        /// 始点ノードを生成する関数
+        /// - Returns: 始点ノードのデータ
+        static func BOSNode() -> RegisteredNode {
+            RegisteredNode(data: DicdataElement.BOSData, registered: nil, totalValue: 0, displayedTextRange: .endIndex(0), inputElementsRange: .endIndex(0))
+        }
     }
 
-    init(data: DicdataElement, displayedTextRange: InputGraphStructure.Range, inputElementsRange: InputGraphStructure.Range) {
-        self.data = data
-        self.values = [data.value()]
-        self.displayedTextRange = displayedTextRange
-        self.inputElementsRange = inputElementsRange
-    }
-
-    /// `LatticeNode`の持っている情報を反映した`RegisteredNode`を作成する
-    /// `LatticeNode`は複数の過去のノードを持つことができるが、`RegisteredNode`は1つしか持たない。
-    func getRegisteredNode(_ index: Int, value: PValue) -> RegisteredNode {
-        // FIXME: 適当に実装した
-        RegisteredNode(
-            data: self.data,
-            registered: self.prevs[index],
-            totalValue: value,
-            displayedTextRange: self.displayedTextRange,
-            inputElementsRange: self.inputElementsRange
-        )
-    }
 }
 
 /// `struct`の`RegisteredNode`を再帰的に所持できるようにするため、Existential Typeで抽象化する。
@@ -79,32 +106,6 @@ protocol RegisteredNodeProtocol {
     /// inputData.input内のrange
     var displayedTextRange: InputGraphStructure.Range {get}
     var inputElementsRange: InputGraphStructure.Range {get}
-}
-
-struct RegisteredNode: RegisteredNodeProtocol {
-    /// このノードが保持する辞書データ
-    let data: DicdataElement
-    /// 1つ前のノードのデータ
-    let prev: (any RegisteredNodeProtocol)?
-    /// 始点からこのノードまでのコスト
-    let totalValue: PValue
-    /// inputData.input内のrange
-    var displayedTextRange: InputGraphStructure.Range
-    var inputElementsRange: InputGraphStructure.Range
-
-    init(data: DicdataElement, registered: RegisteredNode?, totalValue: PValue, displayedTextRange: InputGraphStructure.Range, inputElementsRange: InputGraphStructure.Range) {
-        self.data = data
-        self.prev = registered
-        self.totalValue = totalValue
-        self.displayedTextRange = displayedTextRange
-        self.inputElementsRange = inputElementsRange
-    }
-
-    /// 始点ノードを生成する関数
-    /// - Returns: 始点ノードのデータ
-    static func BOSNode() -> RegisteredNode {
-        RegisteredNode(data: DicdataElement.BOSData, registered: nil, totalValue: 0, displayedTextRange: .endIndex(0), inputElementsRange: .endIndex(0))
-    }
 }
 
 extension ConvertGraph {
