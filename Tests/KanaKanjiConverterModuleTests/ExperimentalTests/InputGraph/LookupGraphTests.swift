@@ -9,9 +9,8 @@ import XCTest
 import Foundation
 @testable import KanaKanjiConverterModule
 
-
-struct LookupGraph {
-    struct Node: Equatable {
+struct LookupGraph: InputGraphProtocol {
+    struct Node: Equatable, InputGraphNodeProtocol {
         var charId: UInt8
         var loudsNodeIndices: Set<Int> = []
         var displayedTextRange: InputGraphStructure.Range
@@ -25,41 +24,6 @@ struct LookupGraph {
     ]
 
     var structure: InputGraphStructure = InputGraphStructure()
-
-    var root: Node {
-        nodes[0]
-    }
-
-    func nextIndices(for node: Node) -> IndexSet {
-        self.structure.nextIndices(
-            displayedTextEndIndex: node.displayedTextRange.endIndex,
-            inputElementsEndIndex: node.inputElementsRange.endIndex
-        )
-    }
-
-    func next(for node: Node) -> [Node] {
-        nextIndices(for: node).map{ self.nodes[$0] }
-    }
-
-    func prevIndices(for node: Node) -> IndexSet {
-        self.structure.prevIndices(
-            displayedTextStartIndex: node.displayedTextRange.startIndex,
-            inputElementsStartIndex: node.inputElementsRange.startIndex
-        )
-    }
-
-    func prev(for node: Node) -> [Node] {
-        prevIndices(for: node).map{ self.nodes[$0] }
-    }
-
-    mutating func remove(at index: Int) {
-        assert(index != 0, "Node at index 0 is root and must not be removed.")
-        self.structure.remove(at: index)
-    }
-
-    mutating func insert(_ node: Node) {
-        self.structure.insert(node, nodes: &self.nodes, displayedTextRange: node.displayedTextRange, inputElementsRange: node.inputElementsRange)
-    }
 
     static func build(input: InputGraph, character2CharId: (Character) -> UInt8) -> Self {
         let nodes = input.nodes.map {

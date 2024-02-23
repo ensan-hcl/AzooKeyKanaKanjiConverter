@@ -125,7 +125,7 @@ struct InputGraphStructure {
     }
 }
 
-struct InputGraph {
+struct InputGraph: InputGraphProtocol {
     struct InputStyle: Identifiable {
         init(from deprecatedInputStyle: KanaKanjiConverterModule.InputStyle) {
             switch deprecatedInputStyle {
@@ -211,7 +211,7 @@ struct InputGraph {
         }
     }
 
-    struct Node: Equatable, CustomStringConvertible {
+    struct Node: InputGraphNodeProtocol, Equatable, CustomStringConvertible {
         var character: Character
         var displayedTextRange: InputGraphStructure.Range
         var inputElementsRange: InputGraphStructure.Range
@@ -232,41 +232,6 @@ struct InputGraph {
     ]
 
     var structure: InputGraphStructure = InputGraphStructure()
-
-    var root: Node {
-        nodes[0]
-    }
-
-    func nextIndices(for node: Node) -> IndexSet {
-        self.structure.nextIndices(
-            displayedTextEndIndex: node.displayedTextRange.endIndex,
-            inputElementsEndIndex: node.inputElementsRange.endIndex
-        )
-    }
-
-    func next(for node: Node) -> [Node] {
-        nextIndices(for: node).map{ self.nodes[$0] }
-    }
-
-    func prevIndices(for node: Node) -> IndexSet {
-        self.structure.prevIndices(
-            displayedTextStartIndex: node.displayedTextRange.startIndex,
-            inputElementsStartIndex: node.inputElementsRange.startIndex
-        )
-    }
-
-    func prev(for node: Node) -> [Node] {
-        prevIndices(for: node).map{ self.nodes[$0] }
-    }
-
-    mutating func remove(at index: Int) {
-        assert(index != 0, "Node at index 0 is root and must not be removed.")
-        self.structure.remove(at: index)
-    }
-
-    mutating func insert(_ node: Node) {
-        self.structure.insert(node, nodes: &self.nodes, displayedTextRange: node.displayedTextRange, inputElementsRange: node.inputElementsRange)
-    }
 
     static func build(input: [ComposingText.InputElement]) -> Self {
         var inputGraph = Self()
