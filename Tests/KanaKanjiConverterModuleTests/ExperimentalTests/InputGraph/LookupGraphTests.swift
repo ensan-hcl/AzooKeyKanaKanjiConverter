@@ -13,6 +13,7 @@ import Foundation
 struct LookupGraph {
     struct Node: Equatable {
         var charId: UInt8
+        var loudsNodeIndices: Set<Int> = []
         var displayedTextRange: InputGraphStructure.Range
         var inputElementsRange: InputGraphStructure.Range
         var correction: InputGraph.Correction = .none
@@ -70,23 +71,42 @@ struct LookupGraph {
 
 
 extension LOUDS {
-    func byfixNodeIndices(_ inputGraph: LookupGraph) -> IndexSet {
+    func byfixNodeIndices(_ inputGraph: LookupGraph) -> (IndexSet, [Int: Set<Int>]) {
         var indexSet = IndexSet(integer: 1)
+        // loudsのノードとLookupGraphのノードの対応を取るための辞書
+        var loudsNodeIndex2GraphNodeIndices: [Int: Set<Int>] = [:]
         typealias SearchItem = (
             node: LookupGraph.Node,
-            lastNodeIndex: Int
+            nodeIndex: Int,
+            lastLoudsNodeIndex: Int
         )
-        var stack: [SearchItem] = inputGraph.next(for: inputGraph.root).map { ($0, 1) }
-        while let (cNode, cNodeIndex) = stack.popLast() {
+        var stack: [SearchItem] = inputGraph.nextIndices(for: inputGraph.root).map { (inputGraph.nodes[$0], $0, 1) }
+        while let (cNode, cNodeIndex, cLastLoudsNodeIndex) = stack.popLast() {
             // nextNodesを探索
-            if let nodeIndex = self.searchCharNodeIndex(from: cNodeIndex, char: cNode.charId) {
-                indexSet.insert(nodeIndex)
-                stack.append(contentsOf: inputGraph.next(for: cNode).map { ($0, nodeIndex) })
+            if let loudsNodeIndex = self.searchCharNodeIndex(from: cLastLoudsNodeIndex, char: cNode.charId) {
+                loudsNodeIndex2GraphNodeIndices[loudsNodeIndex, default: []].insert(cNodeIndex)
+                indexSet.insert(loudsNodeIndex)
+                stack.append(contentsOf: inputGraph.nextIndices(for: cNode).map { (inputGraph.nodes[$0], $0, loudsNodeIndex) })
             } else {
                 continue
             }
         }
-        return indexSet
+        return (indexSet, loudsNodeIndex2GraphNodeIndices)
+    }
+}
+
+extension DicdataStore {
+    func getDicdataFromLoudstxt3(identifier: String, indices: some Sequence<Int>, option: ConvertRequestOptions) -> [Int: [DicdataElement]] {
+        // split = 2048
+        let dict = [Int: [Int]].init(grouping: indices, by: {$0 >> 11})
+        var data: [Int: [DicdataElement]] = [:]
+        for (key, value) in dict {
+            // FIXME: use local value
+            data.merge(LOUDS.getDataForLoudstxt3(identifier + "\(key)", indices: value.map {$0 & 2047}, option: option)) {
+                $0 + $1
+            }
+        }
+        return data
     }
 }
 
@@ -121,8 +141,9 @@ final class LookupGraphTests: XCTestCase {
                 .init(character: "い", inputStyle: .direct),
             ])
             let lookupGraph = LookupGraph.build(input: inputGraph, character2CharId: {charIDs[$0.toKatakana()] ?? 0x00})
-            let nodeIndices = louds.byfixNodeIndices(lookupGraph)
-            let dicdata: [DicdataElement] = dicdataStore.getDicdataFromLoudstxt3(identifier: "シ", indices: nodeIndices)
+            let (loudsNodeIndices, loudsNodeIndex2GraphNodeIndices) = louds.byfixNodeIndices(lookupGraph)
+            let dicdataWithIndex: [Int: [DicdataElement]] = dicdataStore.getDicdataFromLoudstxt3(identifier: "シ", indices: loudsNodeIndices, option: requestOptions())
+            let dicdata = dicdataWithIndex.values.flatMapSet { $0 }
             // シ
             XCTAssertTrue(dicdata.contains {$0.word == "死"})
             // シカ
@@ -149,8 +170,9 @@ final class LookupGraphTests: XCTestCase {
                 .init(character: "i", inputStyle: .roman2kana),
             ])
             let lookupGraph = LookupGraph.build(input: inputGraph, character2CharId: {charIDs[$0.toKatakana()] ?? 0x00})
-            let nodeIndices = louds.byfixNodeIndices(lookupGraph)
-            let dicdata: [DicdataElement] = dicdataStore.getDicdataFromLoudstxt3(identifier: "シ", indices: nodeIndices)
+            let (loudsNodeIndices, loudsNodeIndex2GraphNodeIndices) = louds.byfixNodeIndices(lookupGraph)
+            let dicdataWithIndex: [Int: [DicdataElement]] = dicdataStore.getDicdataFromLoudstxt3(identifier: "シ", indices: loudsNodeIndices, option: requestOptions())
+            let dicdata = dicdataWithIndex.values.flatMapSet { $0 }
             // シ
             XCTAssertTrue(dicdata.contains {$0.word == "死"})
             // [シツ]ィ
@@ -174,8 +196,9 @@ final class LookupGraphTests: XCTestCase {
                 .init(character: "i", inputStyle: .roman2kana),
             ])
             let lookupGraph = LookupGraph.build(input: inputGraph, character2CharId: {charIDs[$0.toKatakana()] ?? 0x00})
-            let nodeIndices = louds.byfixNodeIndices(lookupGraph)
-            let dicdata: [DicdataElement] = dicdataStore.getDicdataFromLoudstxt3(identifier: "シ", indices: nodeIndices)
+            let (loudsNodeIndices, loudsNodeIndex2GraphNodeIndices) = louds.byfixNodeIndices(lookupGraph)
+            let dicdataWithIndex: [Int: [DicdataElement]] = dicdataStore.getDicdataFromLoudstxt3(identifier: "シ", indices: loudsNodeIndices, option: requestOptions())
+            let dicdata = dicdataWithIndex.values.flatMapSet { $0 }
             // シ
             XCTAssertTrue(dicdata.contains {$0.word == "死"})
             // シッ
