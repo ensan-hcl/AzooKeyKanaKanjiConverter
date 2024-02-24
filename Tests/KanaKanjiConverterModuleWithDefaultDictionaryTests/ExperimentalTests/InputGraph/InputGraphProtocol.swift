@@ -53,7 +53,7 @@ extension InputGraphProtocol {
 
     mutating func insert(_ node: Node) {
         var nodes = self.nodes
-        self.structure.insert(node, nodes: &nodes, displayedTextRange: node.displayedTextRange, inputElementsRange: node.inputElementsRange)
+        let _ = self.structure.insert(node, nodes: &nodes, displayedTextRange: node.displayedTextRange, inputElementsRange: node.inputElementsRange)
         self.nodes = consume nodes
     }
 }

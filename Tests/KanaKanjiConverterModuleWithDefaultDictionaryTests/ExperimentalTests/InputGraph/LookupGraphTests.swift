@@ -117,7 +117,7 @@ extension DicdataStore {
 
 final class LookupGraphTests: XCTestCase {
     func requestOptions() -> ConvertRequestOptions {
-        .withDefaultDictionary(requireJapanesePrediction: false, requireEnglishPrediction: false, keyboardLanguage: .ja_JP, learningType: .nothing, memoryDirectoryURL: .applicationDirectory, sharedContainerURL: .applicationDirectory, metadata: .init(appVersionString: "Test"))
+        .withDefaultDictionary(requireJapanesePrediction: false, requireEnglishPrediction: false, keyboardLanguage: .ja_JP, learningType: .nothing, memoryDirectoryURL: URL(fileURLWithPath: ""), sharedContainerURL: URL(fileURLWithPath: ""), metadata: .init(appVersionString: "Test"))
     }
 
     func testByfixNodeIndices() throws {

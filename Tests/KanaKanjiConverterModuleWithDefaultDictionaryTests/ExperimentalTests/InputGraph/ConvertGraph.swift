@@ -169,7 +169,6 @@ extension ConvertGraph {
                     displayedTextEndIndex: node.displayedTextRange.endIndex,
                     inputElementsEndIndex: node.inputElementsRange.endIndex
                 )
-                print(nextIndices)
                 // 文字数がcountと等しい場合登録する
                 if nextIndices.isEmpty {
                     for index in node.prevs.indices {
