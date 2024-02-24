@@ -224,7 +224,7 @@ struct InputGraph: InputGraphProtocol {
             let de = displayedTextRange.endIndex?.description ?? "?"
             let `is` = inputElementsRange.startIndex?.description ?? "?"
             let ie = inputElementsRange.endIndex?.description ?? "?"
-            return "Node(\"\(character)\", d(\(ds)..<\(de)), i(\(`is`)..<\(ie)), isTypo: \(correction.isTypo)"
+            return "Node(\"\(character)\", d(\(ds)..<\(de)), i(\(`is`)..<\(ie)), isTypo: \(correction.isTypo))"
         }
     }
 
@@ -395,7 +395,7 @@ struct InputGraph: InputGraphProtocol {
                         stack.append((nNode, cIndex + 1, cRoute, .init(from: input[cIndex].inputStyle), cLongestMatch))
                     }
                 } else {
-                    if cLongestMatch.inputElementsStartIndex != cLongestMatch.inputElementsEndIndex {
+                    if cLongestMatch.inputElementsStartIndex != cLongestMatch.inputElementsEndIndex && !cLongestMatch.value.isEmpty {
                         // longestMatch候補があれば、現在地点で打ち切ってmatchを確定する
                         matches.append(cLongestMatch)
                     } else if (cIndex == index && cRoute.isEmpty) {
@@ -463,7 +463,7 @@ struct InputGraph: InputGraphProtocol {
             // matchをinsertする
             print(matches)
             var removedNodeIndices: Set<Int> = []
-            for match in matches {
+            for match in matches.sorted(by: { $0.backwardRoute.count > $1.backwardRoute.count }) {
                 let displayedTextStartIndex = if let d = match.displayedTextStartIndex {
                     d
                 } else if let beforeNodeIndex = inputGraph.structure.inputElementsEndIndexToNodeIndices[index].first {

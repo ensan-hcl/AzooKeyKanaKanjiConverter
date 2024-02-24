@@ -64,9 +64,32 @@ final class ExperimentalConversionTests: XCTestCase {
             var c = ComposingText()
             c.insertAtCursorPosition("sitta", inputStyle: .roman2kana)
             let result = kana2kanji._experimental_all(c, option: requestOptions())
+            XCTAssertTrue(result.joinedPrevs().contains("知った"))
+        }
+        do {
+            var c = ComposingText()
+            c.insertAtCursorPosition("unda", inputStyle: .roman2kana)
+            let result = kana2kanji._experimental_all(c, option: requestOptions())
+            XCTAssertTrue(result.joinedPrevs().contains("産んだ"))
+        }
+        do {
+            var c = ComposingText()
+            c.insertAtCursorPosition("ixtsuta", inputStyle: .roman2kana)
+            let result = kana2kanji._experimental_all(c, option: requestOptions())
+            XCTAssertTrue(result.joinedPrevs().contains("言った"))
+        }
+        do {
+            var c = ComposingText()
+            c.insertAtCursorPosition("its", inputStyle: .roman2kana)
+            let result = kana2kanji._experimental_all(c, option: requestOptions())
+            XCTAssertTrue(result.joinedPrevs().contains("いた"))
+        }
+        do {
+            var c = ComposingText()
+            c.insertAtCursorPosition("itsi", inputStyle: .roman2kana)
+            let result = kana2kanji._experimental_all(c, option: requestOptions())
             print(result.joinedPrevs())
-            // FIXME: 動かない
-            // XCTAssertTrue(result.joinedPrevs().contains("知った"))
+            XCTAssertTrue(result.joinedPrevs().contains("痛い"))
         }
     }
 }

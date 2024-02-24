@@ -50,7 +50,24 @@ extension LOUDS {
             if let loudsNodeIndex = self.searchCharNodeIndex(from: cLastLoudsNodeIndex, char: cNode.charId) {
                 loudsNodeIndex2GraphNodeEndIndices[loudsNodeIndex, default: []].append((cNode.displayedTextRange.endIndex, cNode.inputElementsRange.endIndex))
                 indexSet.insert(loudsNodeIndex)
-                stack.append(contentsOf: lookupGraph.nextIndices(for: cNode).map { (lookupGraph.nodes[$0], loudsNodeIndex) })
+                stack.append(contentsOf: lookupGraph.nextIndices(for: cNode).compactMap { index in
+                    let node = lookupGraph.nodes[index]
+                    // endIndexをチェックする
+                    // endIndexは単調増加である必要がある
+                    if let cDisplayedTextEndIndex = cNode.displayedTextRange.endIndex,
+                       let nDisplayedTextEndIndex = node.displayedTextRange.endIndex {
+                        guard cDisplayedTextEndIndex < nDisplayedTextEndIndex else {
+                            return nil
+                        }
+                    }
+                    if let cInputElementsEndIndex = cNode.inputElementsRange.endIndex,
+                       let nInputElementsEndIndex = node.inputElementsRange.endIndex {
+                        guard cInputElementsEndIndex < nInputElementsEndIndex else {
+                            return nil
+                        }
+                    }
+                    return (node, loudsNodeIndex)
+                })
             } else {
                 continue
             }

@@ -170,7 +170,7 @@ extension ConvertGraph {
                     inputElementsEndIndex: node.inputElementsRange.endIndex
                 )
                 // 文字数がcountと等しい場合登録する
-                if nextIndices.isEmpty {
+                if nextIndices.isEmpty || self.structure.inputElementsStartIndexToNodeIndices.endIndex == node.inputElementsRange.endIndex {
                     for index in node.prevs.indices {
                         let newnode: RegisteredNode = node.getRegisteredNode(index, value: node.values[index])
                         result.prevs.append(newnode)

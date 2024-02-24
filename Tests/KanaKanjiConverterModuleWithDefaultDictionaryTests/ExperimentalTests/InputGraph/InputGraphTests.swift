@@ -124,11 +124,31 @@ final class InputGraphTests: XCTestCase {
         do {
             // tt→っt
             let graph = InputGraph.build(input: [
+                .init(character: "i", inputStyle: .roman2kana),
                 .init(character: "t", inputStyle: .roman2kana),
                 .init(character: "t", inputStyle: .roman2kana),
                 .init(character: "a", inputStyle: .roman2kana),
             ])
             XCTAssertNil(graph.nodes.first(where: {$0.character == "t"}))
+            XCTAssertNil(graph.nodes.first(where: {$0.character == "あ"}))
+            XCTAssertEqual(
+                graph.nodes.first(where: {$0.character == "っ"}),
+                .init(character: "っ", displayedTextRange: .range(1, 2), inputElementsRange: .startIndex(1), correction: .none)
+            )
+            XCTAssertEqual(
+                graph.nodes.first(where: {$0.character == "た"}),
+                .init(character: "た", displayedTextRange: .range(2, 3), inputElementsRange: .endIndex(4), correction: .none)
+            )
+        }
+        do {
+            // tt→っt
+            let graph = InputGraph.build(input: [
+                .init(character: "t", inputStyle: .roman2kana),
+                .init(character: "t", inputStyle: .roman2kana),
+                .init(character: "a", inputStyle: .roman2kana),
+            ])
+            XCTAssertNil(graph.nodes.first(where: {$0.character == "t"}))
+            XCTAssertNil(graph.nodes.first(where: {$0.character == "あ"}))
             XCTAssertEqual(
                 graph.nodes.first(where: {$0.character == "っ"}),
                 .init(character: "っ", displayedTextRange: .range(0, 1), inputElementsRange: .startIndex(0), correction: .none)
@@ -145,6 +165,8 @@ final class InputGraphTests: XCTestCase {
                 .init(character: "t", inputStyle: .roman2kana),
                 .init(character: "a", inputStyle: .roman2kana),
             ])
+            XCTAssertNil(graph.nodes.first(where: {$0.character == "t"}))
+            XCTAssertNil(graph.nodes.first(where: {$0.character == "あ"}))
             XCTAssertEqual(
                 graph.nodes.first(where: {$0.character == "ん"}),
                 .init(character: "ん", displayedTextRange: .range(0, 1), inputElementsRange: .startIndex(0), correction: .none)
