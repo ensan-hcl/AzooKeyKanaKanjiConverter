@@ -368,40 +368,38 @@ struct InputGraph: InputGraphProtocol {
             typealias SearchItem = (
                 node: ReplacePrefixTree.Node,
                 nextIndex: Int,
-                /// Backward searchで発見されたNodeのindex
-                backwardRoute: [Int],
                 inputStyleId: InputStyle.ID,
                 longestMatch: Match
             )
             var stack: [SearchItem] = []
             for match in backSearchMatch {
-                stack.append((match.endNode, index, match.route, match.inputStyleId, match.longestMatch))
+                stack.append((match.endNode, index, match.inputStyleId, match.longestMatch))
             }
             if stack.isEmpty {
-                stack.append((replacePrefixTree, index, [], .all, (nil, index, index, backwardRoute: [], value: "", correction: .none)))
+                stack.append((replacePrefixTree, index, .all, (nil, index, index, backwardRoute: [], value: "", correction: .none)))
             }
             var matches: [Match] = []
-            while let (cNode, cIndex, cRoute, cInputStyleId, cLongestMatch) = stack.popLast() {
+            while let (cNode, cIndex, cInputStyleId, cLongestMatch) = stack.popLast() {
                 let continuous = cIndex < input.endIndex && cInputStyleId.isCompatible(with: .init(from: input[cIndex].inputStyle))
                 if continuous, let nNode = cNode.find(key: input[cIndex].character) {
                     if let value = nNode.value {
                         // valueがある場合longestMatchを更新
-                        stack.append((nNode, cIndex + 1, cRoute, .init(from: input[cIndex].inputStyle), (cLongestMatch.displayedTextStartIndex, cLongestMatch.inputElementsStartIndex, cIndex + 1, cRoute, value, cLongestMatch.correction)))
-                    } else if (cIndex == index && cRoute.isEmpty) {
+                        stack.append((nNode, cIndex + 1, .init(from: input[cIndex].inputStyle), (cLongestMatch.displayedTextStartIndex, cLongestMatch.inputElementsStartIndex, cIndex + 1, cLongestMatch.backwardRoute, value, cLongestMatch.correction)))
+                    } else if (cIndex == index && cLongestMatch.backwardRoute.isEmpty) {
                         // valueがなくても、1文字だけの場合はlongestMatchを更新
-                        stack.append((nNode, cIndex + 1, cRoute, .init(from: input[cIndex].inputStyle), (cLongestMatch.displayedTextStartIndex, cIndex, cIndex + 1, cRoute, String(input[cIndex].character), .none)))
+                        stack.append((nNode, cIndex + 1, .init(from: input[cIndex].inputStyle), (cLongestMatch.displayedTextStartIndex, cIndex, cIndex + 1, cLongestMatch.backwardRoute, String(input[cIndex].character), .none)))
                     } else {
                         // それ以外の場合は普通に先に進む
-                        stack.append((nNode, cIndex + 1, cRoute, .init(from: input[cIndex].inputStyle), cLongestMatch))
+                        stack.append((nNode, cIndex + 1, .init(from: input[cIndex].inputStyle), cLongestMatch))
                     }
                 } else {
                     if cLongestMatch.inputElementsStartIndex != cLongestMatch.inputElementsEndIndex && !cLongestMatch.value.isEmpty {
                         // longestMatch候補があれば、現在地点で打ち切ってmatchを確定する
                         matches.append(cLongestMatch)
-                    } else if (cIndex == index && cRoute.isEmpty) {
+                    } else if (cIndex == index && cLongestMatch.backwardRoute.isEmpty) {
                         // 1文字目がrootに存在しない場合、character自体をmatchに登録する
                         // これは置換ルールとして正規表現で.->\1が存在していると考えれば良い
-                        matches.append((nil, index, index + 1, cRoute, value: String(input[cIndex].character), correction: .none))
+                        matches.append((nil, index, index + 1, [], value: String(input[cIndex].character), correction: .none))
                     }
                 }
                 // 誤字訂正を追加する
@@ -428,9 +426,8 @@ struct InputGraph: InputGraphProtocol {
                         (
                             .init(),
                             cIndex + item.inputCount,
-                            cRoute,
                             .init(from: input[cIndex].inputStyle),
-                            (cLongestMatch.displayedTextStartIndex, cLongestMatch.inputElementsStartIndex, cIndex + item.inputCount, cRoute, item.replace, .typo)
+                            (cLongestMatch.displayedTextStartIndex, cLongestMatch.inputElementsStartIndex, cIndex + item.inputCount, cLongestMatch.backwardRoute, item.replace, .typo)
                         )
                     )
                 }
@@ -441,9 +438,8 @@ struct InputGraph: InputGraphProtocol {
                             (
                                 node,
                                 cIndex + item.inputCount,
-                                cRoute,
                                 .init(from: input[cIndex].inputStyle),
-                                (cLongestMatch.displayedTextStartIndex, cLongestMatch.inputElementsStartIndex, cIndex + item.inputCount, cRoute, value, .typo)
+                                (cLongestMatch.displayedTextStartIndex, cLongestMatch.inputElementsStartIndex, cIndex + item.inputCount, cLongestMatch.backwardRoute, value, .typo)
                             )
                         )
                     } else {
@@ -451,9 +447,8 @@ struct InputGraph: InputGraphProtocol {
                             (
                                 node,
                                 cIndex + item.inputCount,
-                                cRoute,
                                 .init(from: input[cIndex].inputStyle),
-                                (cLongestMatch.displayedTextStartIndex, cLongestMatch.inputElementsStartIndex, cIndex + item.inputCount, cRoute, cLongestMatch.value, .typo)
+                                (cLongestMatch.displayedTextStartIndex, cLongestMatch.inputElementsStartIndex, cIndex + item.inputCount, cLongestMatch.backwardRoute, cLongestMatch.value, .typo)
                             )
                         )
                     }
@@ -461,7 +456,6 @@ struct InputGraph: InputGraphProtocol {
             }
             }
             // matchをinsertする
-            print(matches)
             var removedNodeIndices: Set<Int> = []
             for match in matches.sorted(by: { $0.backwardRoute.count > $1.backwardRoute.count }) {
                 let displayedTextStartIndex = if let d = match.displayedTextStartIndex {
