@@ -44,18 +44,39 @@ enum CorrectPrefixTree {
 
     static let roman2kana: Node = {
         Node([
-            "t": Node([
-                "s": .terminal(["ta"]),
-                "z": .terminal(["ta"]),
-                "q": .terminal(["ta"]),
-                "p": .terminal(["to"]),
-            ]),
             "g": Node([
                 "s": .terminal(["ga"]),
-                "z": .terminal(["ga"]),
                 "q": .terminal(["ga"]),
+                "d": .terminal(["ge"]),
+                "r": .terminal(["ge"]),
+                "w": .terminal(["ge"]),
+                "k": .terminal(["gi"]),
+                "l": .terminal(["go"]),
                 "p": .terminal(["go"]),
-            ])
+                "j": .terminal(["gu"]),
+            ]),
+            "m": Node([
+                "s": .terminal(["ma"]),
+                "q": .terminal(["ma"]),
+                "d": .terminal(["me"]),
+                "r": .terminal(["me"]),
+                "w": .terminal(["me"]),
+                "k": .terminal(["mi"]),
+                "l": .terminal(["mo"]),
+                "p": .terminal(["mo"]),
+                "j": .terminal(["mu"]),
+            ]),
+            "t": Node([
+                "s": .terminal(["ta"]),
+                "q": .terminal(["ta"]),
+                "d": .terminal(["te"]),
+                "r": .terminal(["te"]),
+                "w": .terminal(["te"]),
+                "k": .terminal(["ti"]),
+                "l": .terminal(["to"]),
+                "p": .terminal(["to"]),
+                "j": .terminal(["tu"]),
+            ]),
         ])
     }()
     static let direct: Node = {

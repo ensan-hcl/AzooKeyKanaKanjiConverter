@@ -102,6 +102,10 @@ public final class DicdataStore {
         }
     }
 
+    func character2charId(_ character: Character) -> UInt8 {
+        self.charsID[character, default: .max]
+    }
+
     private func reloadMemory() {
         self.loudses.removeValue(forKey: "memory")
         self.importedLoudses.remove("memory")
@@ -143,7 +147,7 @@ public final class DicdataStore {
         return Self.getPenalty(data: data) < -d
     }
 
-    private func loadLOUDS(identifier: String) -> LOUDS? {
+    func loadLOUDS(identifier: String) -> LOUDS? {
         if importedLoudses.contains(identifier) {
             return self.loudses[identifier]
         }
@@ -213,7 +217,7 @@ public final class DicdataStore {
         var stringToInfo = inputData.getRangesWithTypos(fromIndex, rightIndexRange: toIndexLeft ..< toIndexRight)
 
         // MARK: 検索対象を列挙していく。
-        let stringSet = stringToInfo.keys.map {($0, $0.map {self.charsID[$0, default: .max]})}
+        let stringSet = stringToInfo.keys.map {($0, $0.map(self.character2charId))}
         let (minCharIDsCount, maxCharIDsCount) = stringSet.lazy.map {$0.1.count}.minAndMax() ?? (0, -1)
         // 先頭の文字: そこで検索したい文字列の集合
         let group = [Character: [([Character], [UInt8])]].init(grouping: stringSet, by: {$0.0.first!})
@@ -318,7 +322,7 @@ public final class DicdataStore {
         // MARK: 検索によって得たindicesから辞書データを実際に取り出していく
         // 先頭の文字: そこで検索したい文字列の集合
         let strings = string2penalty.keys.map {
-            (key: $0, charIDs: $0.map {self.charsID[$0, default: .max]})
+            (key: $0, charIDs: $0.map(self.character2charId))
         }
         let group = [Character: [(key: [Character], charIDs: [UInt8])]].init(grouping: strings, by: {$0.key.first!})
 
@@ -433,7 +437,7 @@ public final class DicdataStore {
         } else if count == 2 {
             var result: [DicdataElement] = []
             let first = String(key.first!)
-            let charIDs = key.map {self.charsID[$0, default: .max]}
+            let charIDs = key.map(self.character2charId)
             // 最大700件に絞ることによって低速化を回避する。
             let prefixIndices = self.prefixMatchLOUDS(identifier: first, charIDs: charIDs, depth: 5).prefix(700)
             result.append(
@@ -451,7 +455,7 @@ public final class DicdataStore {
         } else {
             var result: [DicdataElement] = []
             let first = String(key.first!)
-            let charIDs = key.map {self.charsID[$0, default: .max]}
+            let charIDs = key.map(self.character2charId)
             // 最大700件に絞ることによって低速化を回避する。
             let prefixIndices = self.prefixMatchLOUDS(identifier: first, charIDs: charIDs).prefix(700)
             result.append(
