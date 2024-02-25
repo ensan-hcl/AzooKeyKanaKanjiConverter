@@ -16,7 +16,7 @@ struct LookupGraph: InputGraphProtocol {
         var loudsNodeIndices: Set<Int> = []
         var displayedTextRange: InputGraphStructure.Range
         var inputElementsRange: InputGraphStructure.Range
-        var correction: InputGraph.Correction = .none
+        var correction: CorrectGraph.Correction = .none
     }
 
     var nodes: [Node] = [
@@ -91,18 +91,8 @@ extension DicdataStore {
             var latticeNodes: [ConvertGraph.LatticeNode] = []
             for (loudsNodeIndex, dicdata) in dicdataWithIndex {
                 for endIndex in loudsNodeIndex2GraphEndIndices[loudsNodeIndex, default: []] {
-                    let displayedTextRange: InputGraphStructure.Range = switch (graphNode.displayedTextRange.startIndex, endIndex.displayedTextEndIndex) {
-                    case let (s?, e?): .range(s, e)
-                    case (let s?, nil): .startIndex(s)
-                    case (nil, let e?): .endIndex(e)
-                    case (nil, nil): .unknown
-                    }
-                    let inputElementsRange: InputGraphStructure.Range = switch (graphNode.inputElementsRange.startIndex, endIndex.inputElementsEndIndex) {
-                    case let (s?, e?): .range(s, e)
-                    case (let s?, nil): .startIndex(s)
-                    case (nil, let e?): .endIndex(e)
-                    case (nil, nil): .unknown
-                    }
+                    let displayedTextRange = InputGraphStructure.Range(startIndex: graphNode.displayedTextRange.startIndex, endIndex: endIndex.displayedTextEndIndex)
+                    let inputElementsRange = InputGraphStructure.Range(startIndex: graphNode.inputElementsRange.startIndex, endIndex: endIndex.inputElementsEndIndex)
                     if graphNode.displayedTextRange.startIndex == 0 || graphNode.inputElementsRange.startIndex == 0 {
                         latticeNodes.append(contentsOf: dicdata.map {
                             .init(data: $0, displayedTextRange: displayedTextRange, inputElementsRange: inputElementsRange, prevs: [.BOSNode()])
@@ -144,11 +134,12 @@ final class LookupGraphTests: XCTestCase {
         XCTAssertNotNil(louds)
         guard let louds else { return }
         do {
-            let inputGraph = InputGraph.build(input: [
+            let correctGraph = CorrectGraph.build(input: [
                 .init(character: "し", inputStyle: .direct),
                 .init(character: "か", inputStyle: .direct),
                 .init(character: "い", inputStyle: .direct),
             ])
+            let inputGraph = InputGraph.build(input: correctGraph)
             let lookupGraph = LookupGraph.build(input: inputGraph, character2CharId: character2CharId)
             let startNodeIndex = lookupGraph.nextIndices(for: lookupGraph.root).first(where: { lookupGraph.nodes[$0].character == "し" })
             XCTAssertNotNil(startNodeIndex)
@@ -173,13 +164,14 @@ final class LookupGraphTests: XCTestCase {
         }
         do {
             // ts -> ta
-            let inputGraph = InputGraph.build(input: [
+            let correctGraph = CorrectGraph.build(input: [
                 .init(character: "s", inputStyle: .roman2kana),
                 .init(character: "i", inputStyle: .roman2kana),
                 .init(character: "t", inputStyle: .roman2kana),
                 .init(character: "s", inputStyle: .roman2kana),
                 .init(character: "i", inputStyle: .roman2kana),
             ])
+            let inputGraph = InputGraph.build(input: correctGraph)
             let lookupGraph = LookupGraph.build(input: inputGraph, character2CharId: character2CharId)
             let startNodeIndex = lookupGraph.nextIndices(for: lookupGraph.root).first(where: { lookupGraph.nodes[$0].character == "し" })
             XCTAssertNotNil(startNodeIndex)
@@ -200,7 +192,7 @@ final class LookupGraphTests: XCTestCase {
         }
         do {
             // 「しっ」の候補が存在するかどうかを確認
-            let inputGraph = InputGraph.build(input: [
+            let correctGraph = CorrectGraph.build(input: [
                 .init(character: "s", inputStyle: .roman2kana),
                 .init(character: "i", inputStyle: .roman2kana),
                 .init(character: "t", inputStyle: .roman2kana),
@@ -208,6 +200,7 @@ final class LookupGraphTests: XCTestCase {
                 .init(character: "a", inputStyle: .roman2kana),
                 .init(character: "i", inputStyle: .roman2kana),
             ])
+            let inputGraph = InputGraph.build(input: correctGraph)
             let lookupGraph = LookupGraph.build(input: inputGraph, character2CharId: character2CharId)
             let startNodeIndex = lookupGraph.nextIndices(for: lookupGraph.root).first(where: { lookupGraph.nodes[$0].character == "し" })
             XCTAssertNotNil(startNodeIndex)

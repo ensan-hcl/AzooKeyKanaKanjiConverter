@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import DequeModule
 
 @testable import KanaKanjiConverterModule
 import XCTest
@@ -16,6 +17,15 @@ struct InputGraphStructure {
         case startIndex(Int)
         case endIndex(Int)
         case range(Int, Int)
+
+        init(startIndex: Int?, endIndex: Int?) {
+            self = switch (startIndex, endIndex) {
+            case let (s?, e?): .range(s, e)
+            case (let s?, nil): .startIndex(s)
+            case (nil, let e?): .endIndex(e)
+            case (nil, nil): .unknown
+            }
+        }
 
         var startIndex: Int? {
             switch self {
@@ -35,10 +45,16 @@ struct InputGraphStructure {
     /// `displayedTextStartIndexToNodeIndices[0]`は`displayedTextRange==.startIndex(0)`または`displayedTextRange==.range(0, k)`であるようなノードのindexのセットを返す
     var displayedTextStartIndexToNodeIndices: [IndexSet] = []
     var inputElementsStartIndexToNodeIndices: [IndexSet] = []
-    var displayedTextEndIndexToNodeIndices: [IndexSet] = [IndexSet(integer: 0)] // rootノードのindexで初期化
-    var inputElementsEndIndexToNodeIndices: [IndexSet] = [IndexSet(integer: 0)] // rootノードのindexで初期化
-                                                                                // 使用されなくなったインデックスの集合
+    var displayedTextEndIndexToNodeIndices: [IndexSet] = [IndexSet(integer: 0)]  // rootノードのindexで初期化
+    var inputElementsEndIndexToNodeIndices: [IndexSet] = [IndexSet(integer: 0)]  // rootノードのindexで初期化
+    /// 使用されなくなったインデックスの集合
     var deadNodeIndices: [Int] = []
+    /// 許可されたNextIndex
+    var allowedNextIndex: [Int: [Int]] = [:]
+    /// 許可されたprevIndex
+    var allowedPrevIndex: [Int: [Int]] = [:]
+    /// id生成用
+    var groupIdIota: Iota = Iota()
 
     func nextIndices(displayedTextEndIndex: Int?, inputElementsEndIndex: Int?) -> IndexSet {
         var indexSet = IndexSet()
@@ -71,7 +87,7 @@ struct InputGraphStructure {
     }
 
     /// 戻り値は`index`
-    mutating func insert<T>(_ node: T, nodes: inout [T], displayedTextRange: Range, inputElementsRange: Range) -> Int {
+    mutating func insert<T>(_ node: T, nodes: inout [T], displayedTextRange: Range, inputElementsRange: Range, allowedPrevNodeIndex: Int? = nil) -> Int {
         // 可能ならdeadNodeIndicesを再利用する
         let index: Int
         if let deadIndex = self.deadNodeIndices.popLast() {
@@ -81,6 +97,13 @@ struct InputGraphStructure {
             nodes.append(node)
             index = nodes.count - 1
         }
+        // このケースではここにだけ追加する
+        if let allowedPrevNodeIndex {
+            self.allowedPrevIndex[index, default: []].append(allowedPrevNodeIndex)
+            self.allowedNextIndex[allowedPrevNodeIndex, default: []].append(index)
+            return index
+        }
+        // それ以外の場合は通常の通り追加する
         if let startIndex = displayedTextRange.startIndex {
             if self.displayedTextStartIndexToNodeIndices.endIndex <= startIndex {
                 self.displayedTextStartIndexToNodeIndices.append(contentsOf: Array(repeating: IndexSet(), count: startIndex - self.displayedTextStartIndexToNodeIndices.endIndex + 1))
@@ -112,6 +135,14 @@ struct InputGraphStructure {
         assert(index != 0, "Node at index 0 is root and must not be removed.")
         self.deadNodeIndices.append(index)
         // FIXME: 多分nodeの情報を使えばもっと効率的にremoveできる
+        self.allowedPrevIndex.values.mutatingForeach {
+            $0.removeAll(where: {$0 == index})
+        }
+        self.allowedPrevIndex.removeValue(forKey: index)
+        self.allowedNextIndex.values.mutatingForeach {
+            $0.removeAll(where: {$0 == index})
+        }
+        self.allowedNextIndex.removeValue(forKey: index)
         self.displayedTextStartIndexToNodeIndices.mutatingForeach {
             $0.remove(index)
         }
@@ -195,36 +226,19 @@ struct InputGraph: InputGraphProtocol {
         var correctPrefixTree: CorrectPrefixTree.Node
     }
 
-    enum Correction: CustomStringConvertible {
-        /// 訂正ではない
-        case none
-        /// 訂正である
-        case typo
-
-        var isTypo: Bool {
-            self == .typo
-        }
-
-        var description: String {
-            switch self {
-            case .none: "none"
-            case .typo: "typo"
-            }
-        }
-    }
-
     struct Node: InputGraphNodeProtocol, Equatable, CustomStringConvertible {
         var character: Character
         var displayedTextRange: InputGraphStructure.Range
         var inputElementsRange: InputGraphStructure.Range
-        var correction: Correction = .none
+        var groupId: Int? = nil
+        var correction: CorrectGraph.Correction = .none
 
         var description: String {
             let ds = displayedTextRange.startIndex?.description ?? "?"
             let de = displayedTextRange.endIndex?.description ?? "?"
             let `is` = inputElementsRange.startIndex?.description ?? "?"
             let ie = inputElementsRange.endIndex?.description ?? "?"
-            return "Node(\"\(character)\", d(\(ds)..<\(de)), i(\(`is`)..<\(ie)), isTypo: \(correction.isTypo))"
+            return "Node(\"\(character)\", d(\(ds)..<\(de)), i(\(`is`)..<\(ie)), isTypo: \(correction.isTypo), id: \(groupId))"
         }
     }
 
@@ -235,273 +249,236 @@ struct InputGraph: InputGraphProtocol {
 
     var structure: InputGraphStructure = InputGraphStructure()
 
-    static func build(input: [ComposingText.InputElement]) -> Self {
-        var inputGraph = Self()
-        // アルゴリズム
-        // 1. 今のindexから始めて、longest_matchになるように置換ルールを適用
-        //    例えば、|tsar...だとしたら、tsaがlongest_matchになるので、[tsa]を[つぁ]として作成し、[つ][ぁ]をinsertする
-        // 1. このとき、さらに誤字訂正候補も同時に探索する。
-        //    例えば、[ts]->[ta]という訂正候補があるとする。このとき、
-        //    | -> t -> s -> a -< r
-        //    | ->   ta   -< a
-        //    なので、[tsa]と[ta]が実際にはinsertされることになる。この誤字訂正由来の候補には適切にメタデータを付与し、ペナルティを課す
-        // 2. 具体的にどのように探索するか。
-        //    まず、inputsに対して訂正ルールの適用を行い、altItemsを1回のループで構築する。
-        //    altItemsは[index: [(item: String, length: Int)]]である
-        //    例えばitsaにおいてts→taのルールを持つ場合、altItemsは[1: [(item: ta, length: 2)]]となる。これは「index1から始まるtaという長さ2の訂正候補」になる。
-        //    次のループでは置換ルールの適用を行う。
-        //    それぞれのindexにおいて、そのindexから始まる置換ルールを列挙する。
-        //    これは、replaceRulePrefixTreeを順に辿ることで行う。具体的には、
-        //    0. クエリスタックSを[(root: Node, index: Int, []: [Character])]で初期化する
-        //    1. クエリスタックから(node, i, chars)を取り出し、nodeに対してinputs[i].characterの検索をかける。存在していれば(childNode, i+1. chars + [inputs[i].character])をスタックに追加。また、altItems[i]のそれぞれに対して順に検索をかけ、スタックに追加。
-        var altItems: [Int: [(replace: String, inputCount: Int)]] = [:]
-        // correctRuleの適用によってaltItemsを構築する
-        for (index, item) in zip(input.indices, input) {
-            let correctPrefixTree = switch item.inputStyle {
-            case .roman2kana: CorrectPrefixTree.roman2kana
-            case .direct: CorrectPrefixTree.direct
-            }
-            typealias Match = (replace: String, inputCount: Int)
-            typealias SearchItem = (
-                node: CorrectPrefixTree.Node,
-                nextIndex: Int,
-                route: [Character],
-                inputStyleId: InputStyle.ID
-            )
-            var stack: [SearchItem] = [
-                (correctPrefixTree, index, [], .all),
-            ]
-            var matches: [Match] = []
-            while let (cNode, cIndex, cRoute, cInputStyleId) = stack.popLast() {
-                guard cIndex < input.endIndex else {
-                    continue
-                }
-                let inputStyleId = InputStyle(from: input[cIndex].inputStyle).id
-                guard cInputStyleId.isCompatible(with: inputStyleId) else {
-                    continue
-                }
-                if let nNode = cNode.find(key: input[cIndex].character) {
-                    // valueがあるかないかで分岐
-                    matches.append(contentsOf: nNode.value.map{($0, cIndex - index + 1)})
-                    stack.append((nNode, cIndex + 1, cRoute + [input[cIndex].character], inputStyleId))
-                }
-            }
-            altItems[index] = matches
+    mutating func backwardMatches(_ correctGraph: CorrectGraph, nodeIndex: Int) {
+        let correctGraphNode = correctGraph.nodes[nodeIndex]
+
+        let startNode = switch correctGraphNode.inputStyle {
+        case .systemFlickDirect:
+            ReplaceSuffixTree.direct
+        case .systemRomanKana:
+            ReplaceSuffixTree.roman2kana
+        default: fatalError("implement it")
         }
-        // replaceRuleの適用によって構築する
-        for (index, item) in zip(input.indices, input) {
-            // backward search
-            // まず、すでに登録されているInputGraphのNodeから継続的に置換できるものがないかを確認する
-            // たとえば「itta」を打つとき、ittまでの処理で[い][っ][t]が生成されている
-            // そこでaを処理するタイミングで、前方の[t]に遡って[a]を追加し、これを[ta]にする処理を行う必要がある
-            // TODO: まだtypoの処理が不十分
-            typealias Match = (
-                displayedTextStartIndex: Int?,
-                inputElementsStartIndex: Int?,
-                inputElementsEndIndex: Int,
-                backwardRoute: [Int],
-                value: String,
-                correction: Correction
-            )
-            typealias BackSearchMatch = (endNode: ReplacePrefixTree.Node, route: [Int], inputStyleId: InputStyle.ID, correction: Correction, longestMatch: Match)
-            var backSearchMatch: [BackSearchMatch] = []
-            do {
-                if let characterNodes = ReplacePrefixTree.characterNodes[.init(from: item.inputStyle)],
-                   let nodes = characterNodes[item.character] {
-                    // nodesをそれぞれ遡っていく必要がある
-                    typealias SearchItem = (
-                        endNode: ReplacePrefixTree.Node,
-                        endValue: String?,
-                        node: ReplacePrefixTree.Node,
-                        route: [Int],
-                        inputStyleId: InputStyle.ID,
-                        correction: Correction
-                    )
-                    var stack: [SearchItem] = nodes.map {
-                        ($0, $0.value, $0, [], .init(from: item.inputStyle), .none)
-                    }
-                    while let (endNode, endValue, cNode, cRoute, cInputStyleId, cCorrection) = stack.popLast() {
-                        // pNodeがrootでない場合
-                        if let pNode = cNode.parent, pNode.parent != nil {
-                            // parentNodeがある場合、そのnodeに合ったbeforeGraphNodeが存在するかを確認する
-                            let indices = if let first = cRoute.first {
-                                inputGraph.prevIndices(for: inputGraph.nodes[first])
-                            } else {
-                                index < inputGraph.structure.inputElementsEndIndexToNodeIndices.endIndex ? inputGraph.structure.prevIndices(displayedTextStartIndex: nil, inputElementsStartIndex: index) : .init()
-                            }
-                            for prevGraphNodeIndex in indices {
-                                guard inputGraph.nodes[prevGraphNodeIndex].character == pNode.character else {
-                                    continue
-                                }
-                                // TODO: InputGraph.NodeにもInputStyle.IDを持たせてここで比較する
-                                stack.append(
-                                    (
-                                        endNode,
-                                        endValue,
-                                        pNode,
-                                        [prevGraphNodeIndex] + cRoute,
-                                        cInputStyleId,
-                                        cCorrection.isTypo ? .typo : inputGraph.nodes[prevGraphNodeIndex].correction
-                                    )
-                                )
-                            }
-                        } else {
-                            // parentNodeがない場合、先頭にたどり着いたことになるので、これをmatchesに追加する
-                            // matchesはindexの1つ前までを登録する
-                            guard let pNode = endNode.parent else { continue }
-                            let inputElementsStartIndex = if cRoute.isEmpty { index } else { inputGraph.nodes[cRoute.first!].inputElementsRange.startIndex }
-                            let displayedTextStartIndex = cRoute.first.flatMap { inputGraph.nodes[$0].displayedTextRange.startIndex }
-                            backSearchMatch.append(
-                                (
-                                    pNode,
-                                    cRoute,
-                                    cInputStyleId,
-                                    cCorrection,
-                                    (displayedTextStartIndex, inputElementsStartIndex, index, cRoute, "", cCorrection)
-                                )
-                            )
-                        }
-                    }
-                }
+        print(nodeIndex, startNode.children.count, correctGraphNode)
+        // nodesをそれぞれ遡っていく必要がある
+        typealias SearchItem = (
+            suffixTreeNode: ReplaceSuffixTree.Node,
+            startNodeIndex: Int,
+            route: [Int],
+            correction: CorrectGraph.Correction
+        )
+        typealias Match = (
+            displayedTextStartIndex: Int?,
+            inputElementsStartIndex: Int?,
+            inputElementsEndIndex: Int?,
+            backwardRoute: [Int],
+            value: String,
+            /// このマッチを認可するノードの`index`
+            licenserNodeIndex: Int?,
+            /// groupId
+            groupId: Int?,
+            correction: CorrectGraph.Correction
+        )
+        var backSearchMatch: [Match] = []
+        var stack: [SearchItem] = [(startNode, nodeIndex, [nodeIndex], correctGraphNode.correction.isTypo ? .typo : .none)]
+        while let (cSuffixTreeNode, cNodeIndex, cRoute, cCorrection) = stack.popLast() {
+            let isUnInsertedNode = cNodeIndex == nodeIndex && cRoute.count == 1
+            let bNode = if isUnInsertedNode {
+                cSuffixTreeNode.find(key: correctGraphNode.value)
+            } else {
+                cSuffixTreeNode.find(key: self.nodes[cNodeIndex].character)
             }
-            let replacePrefixTree = InputStyle(from: item.inputStyle).replacePrefixTree
-            typealias SearchItem = (
-                node: ReplacePrefixTree.Node,
-                nextIndex: Int,
-                inputStyleId: InputStyle.ID,
-                longestMatch: Match
-            )
-            var stack: [SearchItem] = []
-            for match in backSearchMatch {
-                stack.append((match.endNode, index, match.inputStyleId, match.longestMatch))
-            }
-            if stack.isEmpty {
-                stack.append((replacePrefixTree, index, .all, (nil, index, index, backwardRoute: [], value: "", correction: .none)))
-            }
-            var matches: [Match] = []
-            while let (cNode, cIndex, cInputStyleId, cLongestMatch) = stack.popLast() {
-                let continuous = cIndex < input.endIndex && cInputStyleId.isCompatible(with: .init(from: input[cIndex].inputStyle))
-                if continuous, let nNode = cNode.find(key: input[cIndex].character) {
-                    if let value = nNode.value {
-                        // valueがある場合longestMatchを更新
-                        stack.append((nNode, cIndex + 1, .init(from: input[cIndex].inputStyle), (cLongestMatch.displayedTextStartIndex, cLongestMatch.inputElementsStartIndex, cIndex + 1, cLongestMatch.backwardRoute, value, cLongestMatch.correction)))
-                    } else if (cIndex == index && cLongestMatch.backwardRoute.isEmpty) {
-                        // valueがなくても、1文字だけの場合はlongestMatchを更新
-                        stack.append((nNode, cIndex + 1, .init(from: input[cIndex].inputStyle), (cLongestMatch.displayedTextStartIndex, cIndex, cIndex + 1, cLongestMatch.backwardRoute, String(input[cIndex].character), .none)))
+            print(nodeIndex, cRoute, isUnInsertedNode ? correctGraphNode.value : self.nodes[cNodeIndex].character, bNode?.character, cSuffixTreeNode.children.count, cCorrection)
+            if let bNode {
+                // cNodeIndexのprevをリスト
+                let indices = if isUnInsertedNode {
+                    if let groupId = correctGraphNode.groupId,
+                       let lastNodeIndex = self.nodes.lastIndex(where: {$0.groupId == groupId}) {
+                        self.structure.prevIndices(displayedTextStartIndex: nil, inputElementsStartIndex: correctGraphNode.inputElementsRange.startIndex)
+                            .union(IndexSet(integer: lastNodeIndex))
                     } else {
-                        // それ以外の場合は普通に先に進む
-                        stack.append((nNode, cIndex + 1, .init(from: input[cIndex].inputStyle), cLongestMatch))
+                        self.structure.prevIndices(displayedTextStartIndex: nil, inputElementsStartIndex: correctGraphNode.inputElementsRange.startIndex)
                     }
                 } else {
-                    if cLongestMatch.inputElementsStartIndex != cLongestMatch.inputElementsEndIndex && !cLongestMatch.value.isEmpty {
-                        // longestMatch候補があれば、現在地点で打ち切ってmatchを確定する
-                        matches.append(cLongestMatch)
-                    } else if (cIndex == index && cLongestMatch.backwardRoute.isEmpty) {
-                        // 1文字目がrootに存在しない場合、character自体をmatchに登録する
-                        // これは置換ルールとして正規表現で.->\1が存在していると考えれば良い
-                        matches.append((nil, index, index + 1, [], value: String(input[cIndex].character), correction: .none))
-                    }
+                    self.prevIndices(for: self.nodes[cNodeIndex]).union(IndexSet(self.structure.allowedPrevIndex[cNodeIndex, default: []]))
                 }
-                // 誤字訂正を追加する
-                guard continuous else { continue }
-            perItem: for item in altItems[cIndex, default: []] {
-                // itemの対応するinputCountが1でない場合、少しややこしい
-                // altItemはひとまずreplace全体で一塊と考える
-                // 例えばab→an、sn→anなる二つのルールがあるときにabsnと打った場合、anan（あなn）が原理的には作られる
-                // しかし、一般のケースではreplaceで挿入や削除が起こる（例：amn→an）
-                // そこで、一旦はab→anのとき、[an]を一塊で扱う。つまり、現在ノードからa, nと辿った場合に候補が見つかる場合にのみ、stackに追加する
-                // この制限は将来的に取り除ける
-                var node: ReplacePrefixTree.Node? = cNode
-                if item.inputCount != 1 {
-                    var chars = Array(item.replace)  // FIXME: 本当はQueueにしたい
-                    while !chars.isEmpty {
-                        if let nNode = node?.find(key: chars.removeFirst()) {
-                            node = nNode
-                        } else {
-                            continue perItem
+                print(nodeIndex, cRoute, bNode.character, Array(indices), indices.map{self.nodes[$0].character})
+                // bNode: 1つ前のノード
+                // bNodeが値を持っているか？
+                if let value = bNode.value {
+                    // MARK: 条件A: bNodeがchildrenを持たない→longestMatchで確定なので追加して良い
+                    if bNode.children.isEmpty {
+                        let lastNode = indices.first {!self.nodes[$0].correction.isTypo}.map{self.nodes[$0]}
+                        let inputElementsStartIndex = lastNode?.inputElementsRange.endIndex
+                        let displayedTextStartIndex = lastNode?.displayedTextRange.endIndex
+                        backSearchMatch.append(
+                            (displayedTextStartIndex, inputElementsStartIndex, correctGraphNode.inputElementsRange.endIndex, cRoute, value, nil, nil, cCorrection)
+                        )
+                    } else {
+                        // MARK: 条件B: findできないprevノードが存在する
+                        for prevGraphNodeIndex in indices {
+                            if bNode.find(key: self.nodes[prevGraphNodeIndex].character) == nil {
+                                let inputElementsStartIndex = self.nodes[prevGraphNodeIndex].inputElementsRange.endIndex
+                                let displayedTextStartIndex = self.nodes[prevGraphNodeIndex].displayedTextRange.endIndex
+                                let licenser: Int? = if self.nodes[prevGraphNodeIndex].correction.isTypo {
+                                    prevGraphNodeIndex
+                                } else {
+                                    nil
+                                }
+                                backSearchMatch.append(
+                                    (displayedTextStartIndex, inputElementsStartIndex, correctGraphNode.inputElementsRange.endIndex, cRoute, value, licenser, nil, cCorrection)
+                                )
+                            }
                         }
                     }
-                } else {
+                } else if isUnInsertedNode {
+                    let lastNode = indices.first {!self.nodes[$0].correction.isTypo}.map{self.nodes[$0]}
+                    let displayedTextStartIndex = lastNode?.displayedTextRange.endIndex
+                    backSearchMatch.append(
+                        (
+                            displayedTextStartIndex,
+                            correctGraphNode.inputElementsRange.startIndex,
+                            correctGraphNode.inputElementsRange.endIndex,
+                            cRoute,
+                            String(correctGraphNode.value),
+                            nil,
+                            groupId: correctGraphNode.groupId,
+                            cCorrection
+                        )
+                    )
+                }
+                for prevGraphNodeIndex in indices {
+                    // TODO: InputGraph.NodeにもInputStyle.IDを持たせてここで比較する
                     stack.append(
                         (
-                            .init(),
-                            cIndex + item.inputCount,
-                            .init(from: input[cIndex].inputStyle),
-                            (cLongestMatch.displayedTextStartIndex, cLongestMatch.inputElementsStartIndex, cIndex + item.inputCount, cLongestMatch.backwardRoute, item.replace, .typo)
+                            bNode,
+                            prevGraphNodeIndex,
+                            [prevGraphNodeIndex] + cRoute,
+                            cCorrection.isTypo ? .typo : self.nodes[prevGraphNodeIndex].correction
                         )
                     )
                 }
-                if let node {
-                    // valueがあるかないかで分岐
-                    if let value = node.value {
-                        stack.append(
-                            (
-                                node,
-                                cIndex + item.inputCount,
-                                .init(from: input[cIndex].inputStyle),
-                                (cLongestMatch.displayedTextStartIndex, cLongestMatch.inputElementsStartIndex, cIndex + item.inputCount, cLongestMatch.backwardRoute, value, .typo)
-                            )
-                        )
+            } else {
+                // 最初である場合
+                if isUnInsertedNode {
+                    let displayedTextStartIndex: Int? = if cCorrection.isTypo {
+                        nil
                     } else {
-                        stack.append(
-                            (
-                                node,
-                                cIndex + item.inputCount,
-                                .init(from: input[cIndex].inputStyle),
-                                (cLongestMatch.displayedTextStartIndex, cLongestMatch.inputElementsStartIndex, cIndex + item.inputCount, cLongestMatch.backwardRoute, cLongestMatch.value, .typo)
-                            )
-                        )
+                        nil
                     }
+                    backSearchMatch.append(
+                        (
+                            displayedTextStartIndex,
+                            correctGraphNode.inputElementsRange.startIndex,
+                            correctGraphNode.inputElementsRange.endIndex,
+                            cRoute,
+                            String(correctGraphNode.value),
+                            nil,
+                            correctGraphNode.groupId,
+                            cCorrection
+                        )
+                    )
                 }
             }
-            }
-            // matchをinsertする
-            var removedNodeIndices: Set<Int> = []
-            for match in matches.sorted(by: { $0.backwardRoute.count > $1.backwardRoute.count }) {
-                let displayedTextStartIndex = if let d = match.displayedTextStartIndex {
-                    d
-                } else if let beforeNodeIndex = inputGraph.structure.inputElementsEndIndexToNodeIndices[index].first {
-                    inputGraph.nodes[beforeNodeIndex].displayedTextRange.endIndex
-                } else {
-                    Int?.none
-                }
-                guard let displayedTextStartIndex else { continue }
+        }
 
-                for backNodeIndex in match.backwardRoute {
-                    if removedNodeIndices.contains(backNodeIndex) {
-                        continue
-                    }
-                    inputGraph.structure.remove(at: backNodeIndex)
-                    removedNodeIndices.insert(backNodeIndex)
-                }
-
-                let characters = Array(match.value)
-                for (i, c) in zip(characters.indices, characters) {
-                    let inputElementRange: InputGraphStructure.Range = if i == characters.startIndex && i+1 == characters.endIndex {
-                        if let startIndex = match.inputElementsStartIndex {
-                            .range(startIndex, match.inputElementsEndIndex)
-                        } else {
-                            .endIndex(match.inputElementsEndIndex)
-                        }
-                    } else if i == characters.startIndex {
-                        if let startIndex = match.inputElementsStartIndex {
-                            .startIndex(startIndex)
-                        } else {
-                            .unknown
-                        }
-                    } else if i+1 == characters.endIndex {
-                        .endIndex(match.inputElementsEndIndex)
-                    } else {
-                        .unknown
-                    }
-                    let node = Node(
-                        character: c,
-                        displayedTextRange: .range(displayedTextStartIndex + i, displayedTextStartIndex + i + 1),
-                        inputElementsRange: inputElementRange,
+        print(backSearchMatch)
+        for match in backSearchMatch {
+            // licenserが存在するケースではlicenserと同じgroupIdを振る
+            let licenser = match.licenserNodeIndex.map{self.nodes[$0]}
+            // そうでなければ一塊で同じgroupとして追加。新規groupIdを発行
+            if match.value.count > 1 {
+                self.insertConnectedNodes(
+                    values: Array(match.value),
+                    inputElementsRange: .init(startIndex: match.inputElementsStartIndex, endIndex: match.inputElementsEndIndex),
+                    displayedTextStartIndex: match.displayedTextStartIndex,
+                    correction: match.correction,
+                    inputStyle: correctGraphNode.inputStyle
+                )
+            } else if match.value.count == 1 {
+                let index = self.insert(
+                    Node(
+                        character: match.value.first!,
+                        displayedTextRange: match.displayedTextStartIndex.map{.range($0, $0 + match.value.count)} ?? .unknown,
+                        inputElementsRange: .init(startIndex: match.inputElementsStartIndex, endIndex: match.inputElementsEndIndex),
+                        groupId: match.groupId ?? licenser?.groupId,
                         correction: match.correction
                     )
-                    inputGraph.insert(node)
+                )
+                if licenser?.groupId == nil, let licenserNodeIndex = match.licenserNodeIndex {
+                    self.createNewConnection(from: licenserNodeIndex, to: index)
                 }
+            }
+        }
+    }
+
+    mutating func createNewConnection(from fromNodeIndex: Int, to toNodeIndex: Int) {
+        assert(self.nodes[fromNodeIndex].groupId == nil)
+        let newId = self.structure.groupIdIota.new()
+        self.nodes[fromNodeIndex].groupId = newId
+        self.nodes[toNodeIndex].groupId = newId
+        let remove: (inout IndexSet) -> () = { indexSet in
+            indexSet.remove(fromNodeIndex)
+            indexSet.remove(toNodeIndex)
+        }
+        self.structure.inputElementsStartIndexToNodeIndices.mutatingForeach(transform: remove)
+        self.structure.inputElementsEndIndexToNodeIndices.mutatingForeach(transform: remove)
+        self.structure.displayedTextStartIndexToNodeIndices.mutatingForeach(transform: remove)
+        self.structure.displayedTextEndIndexToNodeIndices.mutatingForeach(transform: remove)
+        self.structure.allowedNextIndex[fromNodeIndex, default: []].append(toNodeIndex)
+        self.structure.allowedPrevIndex[toNodeIndex, default: []].append(fromNodeIndex)
+    }
+
+    mutating func insertConnectedNodes(values: [Character], inputElementsRange: InputGraphStructure.Range, displayedTextStartIndex: Int?, correction: CorrectGraph.Correction, inputStyle: InputGraph.InputStyle.ID) {
+        let id = self.structure.groupIdIota.new()
+        var lastNodeIndex: Int? = nil
+        for (i, c) in zip(values.indices, values) {
+            let inputElementRange: InputGraphStructure.Range = if i == values.startIndex && i+1 == values.endIndex {
+                .init(startIndex: inputElementsRange.startIndex, endIndex: inputElementsRange.endIndex)
+            } else if i == values.startIndex {
+                .init(startIndex: inputElementsRange.startIndex, endIndex: nil)
+            } else if i+1 == values.endIndex {
+                .init(startIndex: nil, endIndex: inputElementsRange.endIndex)
+            } else {
+                .unknown
+            }
+            let node = Node(
+                character: c,
+                displayedTextRange: displayedTextStartIndex.map{.range($0+i, $0 + i+1)} ?? .unknown,
+                inputElementsRange: inputElementRange,
+                groupId: id, 
+                correction: correction
+            )
+            lastNodeIndex = self.insert(node, allowedPrevNodeIndex: lastNodeIndex)
+        }
+    }
+
+    static func build(input: CorrectGraph) -> Self {
+        var inputGraph = Self()
+        inputGraph.structure.groupIdIota = input.groupIdIota
+        // 必ず、ノードより前のすべてのノードが処理済みであることを保証しながら、insertCorrectGraphNodeを実行する
+        var nodeIndices = Array(input.inputElementsStartIndexToNodeIndices.first ?? .init())
+        var processedIndices = IndexSet()
+        while let nodeIndex = nodeIndices.popLast() {
+            if processedIndices.contains(nodeIndex) {
+                continue
+            }
+            var prevIndices = input.prevIndices(for: nodeIndex)
+            if let prevIndex = input.allowedPrevIndex[nodeIndex] {
+                prevIndices.insert(prevIndex)
+            }
+            // 差がある場合
+            let diff = prevIndices.subtracting(processedIndices)
+            guard diff.isEmpty else {
+                nodeIndices.append(nodeIndex)
+                nodeIndices.append(contentsOf: diff)
+                continue
+            }
+            processedIndices.insert(nodeIndex)
+            inputGraph.backwardMatches(input, nodeIndex: nodeIndex)
+            nodeIndices.append(contentsOf: input.nextIndices(for: nodeIndex))
+            if let nextIndex = input.allowedNextIndex[nodeIndex] {
+                nodeIndices.append(nextIndex)
             }
         }
         return inputGraph

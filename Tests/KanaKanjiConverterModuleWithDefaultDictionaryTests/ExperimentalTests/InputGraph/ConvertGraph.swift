@@ -14,7 +14,7 @@ struct ConvertGraph: InputGraphProtocol {
         var latticeNodes: [LatticeNode]
         var displayedTextRange: InputGraphStructure.Range
         var inputElementsRange: InputGraphStructure.Range
-        var correction: InputGraph.Correction = .none
+        var correction: CorrectGraph.Correction = .none
     }
 
     var nodes: [Node] = [
