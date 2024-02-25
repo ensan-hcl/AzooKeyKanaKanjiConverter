@@ -91,6 +91,25 @@ final class InputGraphTests: XCTestCase {
         )
         print(inputGraph)
     }
+    func testBuildSimpleRoman2KanaInput_4文字_sits() throws {
+        let correctGraph = CorrectGraph.build(input: [
+            .init(character: "s", inputStyle: .roman2kana),
+            .init(character: "i", inputStyle: .roman2kana),
+            .init(character: "t", inputStyle: .roman2kana),
+            .init(character: "s", inputStyle: .roman2kana),
+        ])
+        let inputGraph = InputGraph.build(input: correctGraph)
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "し"}),
+            .init(character: "し", displayedTextRange: .range(0, 1), inputElementsRange: .range(0, 2), correction: .none)
+        )
+        // [s]のノードを消していないため、displayedTextIndex側で拾ってしまってエラー
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "た"}),
+            .init(character: "た", displayedTextRange: .range(1, 2), inputElementsRange: .range(2, 4), correction: .typo)
+        )
+        print(inputGraph)
+    }
     func testBuildSimpleRoman2KanaInput_3文字_its() throws {
         let correctGraph = CorrectGraph.build(input: [
             .init(character: "i", inputStyle: .roman2kana),

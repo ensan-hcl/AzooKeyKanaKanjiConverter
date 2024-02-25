@@ -86,8 +86,14 @@ struct InputGraphStructure {
         return indexSet
     }
 
+    enum Connection {
+        case none
+        case nextRestriction(Int)
+        case restriction(prev: Int, next: Int)
+        case prevRestriction(Int)
+    }
     /// 戻り値は`index`
-    mutating func insert<T>(_ node: T, nodes: inout [T], displayedTextRange: Range, inputElementsRange: Range, allowedPrevNodeIndex: Int? = nil) -> Int {
+    mutating func insert<T>(_ node: T, nodes: inout [T], displayedTextRange: Range, inputElementsRange: Range, connection: Connection = .none) -> Int {
         // 可能ならdeadNodeIndicesを再利用する
         let index: Int
         if let deadIndex = self.deadNodeIndices.popLast() {
@@ -98,35 +104,49 @@ struct InputGraphStructure {
             index = nodes.count - 1
         }
         // このケースではここにだけ追加する
-        if let allowedPrevNodeIndex {
-            self.allowedPrevIndex[index, default: []].append(allowedPrevNodeIndex)
-            self.allowedNextIndex[allowedPrevNodeIndex, default: []].append(index)
+        if case let .restriction(prev, next) = connection {
+            self.allowedPrevIndex[prev, default: []].append(index)
+            self.allowedPrevIndex[index, default: []].append(prev)
+            self.allowedNextIndex[next, default: []].append(index)
+            self.allowedNextIndex[index, default: []].append(next)
             return index
         }
-        // それ以外の場合は通常の通り追加する
-        if let startIndex = displayedTextRange.startIndex {
-            if self.displayedTextStartIndexToNodeIndices.endIndex <= startIndex {
-                self.displayedTextStartIndexToNodeIndices.append(contentsOf: Array(repeating: IndexSet(), count: startIndex - self.displayedTextStartIndexToNodeIndices.endIndex + 1))
+        if case let .nextRestriction(next) = connection {
+            self.allowedNextIndex[index, default: []].append(next)
+            self.allowedNextIndex[next, default: []].append(index)
+        } else {
+            // 出ているノードに特に制限はないので、endIndexは登録できる
+            if let endIndex = displayedTextRange.endIndex {
+                if self.displayedTextEndIndexToNodeIndices.endIndex <= endIndex {
+                    self.displayedTextEndIndexToNodeIndices.append(contentsOf: Array(repeating: IndexSet(), count: endIndex - self.displayedTextEndIndexToNodeIndices.endIndex + 1))
+                }
+                self.displayedTextEndIndexToNodeIndices[endIndex].insert(index)
             }
-            self.displayedTextStartIndexToNodeIndices[startIndex].insert(index)
+            if let endIndex = inputElementsRange.endIndex {
+                if self.inputElementsEndIndexToNodeIndices.endIndex <= endIndex {
+                    self.inputElementsEndIndexToNodeIndices.append(contentsOf: Array(repeating: IndexSet(), count: endIndex - self.inputElementsEndIndexToNodeIndices.endIndex + 1))
+                }
+                self.inputElementsEndIndexToNodeIndices[endIndex].insert(index)
+            }
         }
-        if let endIndex = displayedTextRange.endIndex {
-            if self.displayedTextEndIndexToNodeIndices.endIndex <= endIndex {
-                self.displayedTextEndIndexToNodeIndices.append(contentsOf: Array(repeating: IndexSet(), count: endIndex - self.displayedTextEndIndexToNodeIndices.endIndex + 1))
+        if case let .prevRestriction(prev) = connection {
+            self.allowedPrevIndex[index, default: []].append(prev)
+            self.allowedPrevIndex[prev, default: []].append(index)
+        } else {
+            // 入ってくるノードに特に制限はないので、startIndexは登録できる
+            // それ以外の場合は通常の通り追加する
+            if let startIndex = displayedTextRange.startIndex {
+                if self.displayedTextStartIndexToNodeIndices.endIndex <= startIndex {
+                    self.displayedTextStartIndexToNodeIndices.append(contentsOf: Array(repeating: IndexSet(), count: startIndex - self.displayedTextStartIndexToNodeIndices.endIndex + 1))
+                }
+                self.displayedTextStartIndexToNodeIndices[startIndex].insert(index)
             }
-            self.displayedTextEndIndexToNodeIndices[endIndex].insert(index)
-        }
-        if let startIndex = inputElementsRange.startIndex {
-            if self.inputElementsStartIndexToNodeIndices.endIndex <= startIndex {
-                self.inputElementsStartIndexToNodeIndices.append(contentsOf: Array(repeating: IndexSet(), count: startIndex - self.inputElementsStartIndexToNodeIndices.endIndex + 1))
+            if let startIndex = inputElementsRange.startIndex {
+                if self.inputElementsStartIndexToNodeIndices.endIndex <= startIndex {
+                    self.inputElementsStartIndexToNodeIndices.append(contentsOf: Array(repeating: IndexSet(), count: startIndex - self.inputElementsStartIndexToNodeIndices.endIndex + 1))
+                }
+                self.inputElementsStartIndexToNodeIndices[startIndex].insert(index)
             }
-            self.inputElementsStartIndexToNodeIndices[startIndex].insert(index)
-        }
-        if let endIndex = inputElementsRange.endIndex {
-            if self.inputElementsEndIndexToNodeIndices.endIndex <= endIndex {
-                self.inputElementsEndIndexToNodeIndices.append(contentsOf: Array(repeating: IndexSet(), count: endIndex - self.inputElementsEndIndexToNodeIndices.endIndex + 1))
-            }
-            self.inputElementsEndIndexToNodeIndices[endIndex].insert(index)
         }
         return index
     }
@@ -307,7 +327,7 @@ struct InputGraph: InputGraphProtocol {
                 // bNodeが値を持っているか？
                 if let value = bNode.value {
                     // MARK: 条件A: bNodeがchildrenを持たない→longestMatchで確定なので追加して良い
-                    if bNode.children.isEmpty {
+                    if bNode.children.isEmpty && !cCorrection.isTypo {
                         let lastNode = indices.first {!self.nodes[$0].correction.isTypo}.map{self.nodes[$0]}
                         let inputElementsStartIndex = lastNode?.inputElementsRange.endIndex
                         let displayedTextStartIndex = lastNode?.displayedTextRange.endIndex
@@ -449,7 +469,7 @@ struct InputGraph: InputGraphProtocol {
                 groupId: id, 
                 correction: correction
             )
-            lastNodeIndex = self.insert(node, allowedPrevNodeIndex: lastNodeIndex)
+            lastNodeIndex = self.insert(node, connection: lastNodeIndex.map {.prevRestriction($0)} ?? .none)
         }
     }
 
