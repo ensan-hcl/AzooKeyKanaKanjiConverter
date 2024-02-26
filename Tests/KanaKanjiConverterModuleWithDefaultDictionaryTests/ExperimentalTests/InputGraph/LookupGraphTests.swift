@@ -82,7 +82,7 @@ extension LOUDS {
 extension DicdataStore {
     func buildConvertGraph(inputGraph: consuming InputGraph, option: ConvertRequestOptions) -> ConvertGraph {
         let lookupGraph = LookupGraph.build(input: consume inputGraph, character2CharId: { self.character2charId($0.toKatakana()) } )
-        var stack: [Int] = Array(lookupGraph.nextIndices(for: lookupGraph.root))
+        var stack: [Int] = Array(lookupGraph.nextIndices(for: lookupGraph.root) + lookupGraph.structure.allowedNextIndex[0, default: []])
         var graphNodeIndex2LatticeNodes: [Int: [ConvertGraph.LatticeNode]] = [:]
         while let graphNodeIndex = stack.popLast() {
             let graphNode = lookupGraph.nodes[graphNodeIndex]
@@ -109,6 +109,7 @@ extension DicdataStore {
             }
             graphNodeIndex2LatticeNodes[graphNodeIndex] = latticeNodes
             stack.append(contentsOf: lookupGraph.nextIndices(for: graphNode))
+            stack.append(contentsOf: lookupGraph.structure.allowedNextIndex[graphNodeIndex, default: []])
         }
         return ConvertGraph.build(input: consume lookupGraph, nodeIndex2LatticeNode: graphNodeIndex2LatticeNodes)
     }
@@ -119,7 +120,8 @@ extension DicdataStore {
         var data: [(loudsNodeIndex: Int, dicdata: [DicdataElement])] = []
         for (key, value) in dict {
             // FIXME: use local option
-            data.append(contentsOf: LOUDS.getDataForLoudstxt3(identifier + "\(key)", indices: value.map {$0 & 2047}, option: option))
+            // trueIndexはそのまま、keyIndexはsplit-1=2047で&したものを用いる
+            data.append(contentsOf: LOUDS.getDataForLoudstxt3(identifier + "\(key)", indices: value.map {(trueIndex: $0, keyIndex: $0 & 2047)}, option: option))
         }
         return data
     }
@@ -130,17 +132,18 @@ final class LookupGraphTests: XCTestCase {
         .withDefaultDictionary(requireJapanesePrediction: false, requireEnglishPrediction: false, keyboardLanguage: .ja_JP, learningType: .nothing, memoryDirectoryURL: URL(fileURLWithPath: ""), sharedContainerURL: URL(fileURLWithPath: ""), metadata: .init(appVersionString: "Test"))
     }
 
-    func setup() -> (dicdataStore: DicdataStore, character2CharId: (Character) -> UInt8, louds_シ: LOUDS?) {
+    func setup() -> (dicdataStore: DicdataStore, character2CharId: (Character) -> UInt8) {
         let dicdataStore = DicdataStore(convertRequestOptions: requestOptions())
         let character2CharId: (Character) -> UInt8 = { dicdataStore.character2charId($0.toKatakana()) }
-        let louds = LOUDS.load("シ", option: requestOptions())
-        return (dicdataStore, character2CharId, louds)
+        return (dicdataStore, character2CharId)
     }
 
     func testByfixNodeIndices_しかい() throws {
         let values = setup()
-        XCTAssertNotNil(values.louds_シ)
-        guard let louds = values.louds_シ else { return }
+        guard let louds = LOUDS.load("シ", option: requestOptions()) else {
+            XCTFail()
+            return
+        }
         let correctGraph = CorrectGraph.build(input: [
             .init(character: "し", inputStyle: .direct),
             .init(character: "か", inputStyle: .direct),
@@ -168,12 +171,59 @@ final class LookupGraphTests: XCTestCase {
         XCTAssertTrue(dicdata.contains {$0.word == "市外"})
         XCTAssertTrue(dicdata.contains {$0.word == "市街"})
         XCTAssertTrue(dicdata.contains {$0.word == "死骸"})
+
+        // all keys
+        XCTAssertEqual(
+            dicdata.mapSet {$0.ruby}.symmetricDifference(["シ", "シカ", "シカイ", "シガ", "シガイ"]),
+            []
+        )
+    }
+
+    func testByfixNodeIndices_たいかく() throws {
+        let values = setup()
+        guard let louds = LOUDS.load("タ", option: requestOptions()) else {
+            XCTFail()
+            return
+        }
+        let correctGraph = CorrectGraph.build(input: [
+            .init(character: "た", inputStyle: .direct),
+            .init(character: "い", inputStyle: .direct),
+            .init(character: "か", inputStyle: .direct),
+            .init(character: "く", inputStyle: .direct),
+        ])
+        let inputGraph = InputGraph.build(input: correctGraph)
+        let lookupGraph = LookupGraph.build(input: inputGraph, character2CharId: values.character2CharId)
+        let startNodeIndex = lookupGraph.nextIndices(for: lookupGraph.root).first(where: { lookupGraph.nodes[$0].character == "た" })
+        XCTAssertNotNil(startNodeIndex)
+        let (loudsNodeIndices, _) = louds.byfixNodeIndices(lookupGraph, startGraphNodeIndex: startNodeIndex ?? 0)
+        let dicdataWithIndex = values.dicdataStore.getDicdataFromLoudstxt3(identifier: "タ", indices: loudsNodeIndices, option: requestOptions())
+        let dicdata = dicdataWithIndex.flatMapSet { $0.dicdata }
+        // タ
+        XCTAssertTrue(dicdata.contains {$0.word == "他"})
+        // タイ
+        XCTAssertTrue(dicdata.contains {$0.word == "タイ"})
+        XCTAssertTrue(dicdata.contains {$0.word == "他意"})
+        // タイカ
+        XCTAssertTrue(dicdata.contains {$0.word == "対価"})
+        // タイガ
+        XCTAssertTrue(dicdata.contains {$0.word == "大河"})
+        // タイカク
+        XCTAssertTrue(dicdata.contains {$0.word == "体格"})
+        // タイガク
+        XCTAssertTrue(dicdata.contains {$0.word == "退学"})
+        // all keys
+        XCTAssertEqual(
+            dicdata.mapSet {$0.ruby}.symmetricDifference(["タ", "タイ", "タイカ", "タイガ", "タイカク", "タイガク"]),
+            []
+        )
     }
 
     func testByfixNodeIndices_sittai() throws {
         let values = setup()
-        XCTAssertNotNil(values.louds_シ)
-        guard let louds = values.louds_シ else { return }
+        guard let louds = LOUDS.load("シ", option: requestOptions()) else {
+            XCTFail()
+            return
+        }
         // 「しっ」の候補が存在するかどうかを確認
         let correctGraph = CorrectGraph.build(input: [
             .init(character: "s", inputStyle: .roman2kana),
@@ -199,12 +249,19 @@ final class LookupGraphTests: XCTestCase {
         XCTAssertTrue(dicdata.contains {$0.word == "叱咤"})
         // シッタイ
         XCTAssertTrue(dicdata.contains {$0.word == "失態"})
+        // all keys
+        XCTAssertEqual(
+            dicdata.mapSet {$0.ruby}.symmetricDifference(["シ", "シッ", "シッタ", "シッタイ"]),
+            []
+        )
     }
 
     func testByfixNodeIndices_sitsi() throws {
         let values = setup()
-        XCTAssertNotNil(values.louds_シ)
-        guard let louds = values.louds_シ else { return }
+        guard let louds = LOUDS.load("シ", option: requestOptions()) else {
+            XCTFail()
+            return
+        }
         // ts -> ta
         let correctGraph = CorrectGraph.build(input: [
             .init(character: "s", inputStyle: .roman2kana),
@@ -231,5 +288,10 @@ final class LookupGraphTests: XCTestCase {
         // シタイ
         XCTAssertTrue(dicdata.contains {$0.word == "死体"})
         XCTAssertTrue(dicdata.contains {$0.word == "肢体"})
+        // all keys
+        XCTAssertEqual(
+            dicdata.mapSet {$0.ruby}.symmetricDifference(["シ", "シツ", "シタ", "シタイ"]),
+            []
+        )
     }
 }

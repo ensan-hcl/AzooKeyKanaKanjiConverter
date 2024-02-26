@@ -46,6 +46,41 @@ final class ExperimentalConversionTests: XCTestCase {
         .withDefaultDictionary(requireJapanesePrediction: false, requireEnglishPrediction: false, keyboardLanguage: .ja_JP, learningType: .nothing, memoryDirectoryURL: URL(fileURLWithPath: ""), sharedContainerURL: URL(fileURLWithPath: ""), metadata: .init(appVersionString: "Test"))
     }
 
+    func testBuildConvertGraph_たいかく() throws {
+        let dicdataStore = DicdataStore(requestOptions: requestOptions())
+        var c = ComposingText()
+        c.insertAtCursorPosition("たいかく", inputStyle: .direct)
+        let correctGraph = CorrectGraph.build(input: c.input)
+        let inputGraph = InputGraph.build(input: consume correctGraph)
+        let convertGraph = dicdataStore.buildConvertGraph(inputGraph: inputGraph, option: requestOptions())
+        XCTAssertEqual(
+            convertGraph.nodes.first {
+                $0.latticeNodes.contains(where: {$0.data.word == "他"})
+            }?.latticeNodes.mapSet {$0.data.ruby}
+            .symmetricDifference(["タ", "タイ", "タイカ", "タイガ", "タイカク", "タイガク"]),
+            []
+        )
+    }
+
+    func testConversion_たいかく() throws {
+        let dicdataStore = DicdataStore(requestOptions: requestOptions())
+        let kana2kanji = Kana2Kanji(dicdataStore: dicdataStore)
+        var c = ComposingText()
+        c.insertAtCursorPosition("たいかく", inputStyle: .direct)
+        let result = kana2kanji._experimental_all(c, option: requestOptions())
+        XCTAssertTrue(result.joinedPrevs().contains("体格")) // たいかく
+        XCTAssertTrue(result.joinedPrevs().contains("退学")) // たいがく
+    }
+
+    func testConversion_むらさき() throws {
+        let dicdataStore = DicdataStore(requestOptions: requestOptions())
+        let kana2kanji = Kana2Kanji(dicdataStore: dicdataStore)
+        var c = ComposingText()
+        c.insertAtCursorPosition("むらさき", inputStyle: .direct)
+        let result = kana2kanji._experimental_all(c, option: requestOptions())
+        XCTAssertTrue(result.joinedPrevs().contains("紫")) // むらさき
+    }
+
     func testConversion() throws {
         let dicdataStore = DicdataStore(requestOptions: requestOptions())
         let kana2kanji = Kana2Kanji(dicdataStore: dicdataStore)
