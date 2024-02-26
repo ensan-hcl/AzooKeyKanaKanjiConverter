@@ -51,9 +51,11 @@ extension InputGraphProtocol {
         self.structure.remove(at: index)
     }
 
-    mutating func insert(_ node: Node) {
+    @discardableResult
+    mutating func insert(_ node: Node, connection: InputGraphStructure.Connection = .none) -> Int {
         var nodes = self.nodes
-        let _ = self.structure.insert(node, nodes: &nodes, displayedTextRange: node.displayedTextRange, inputElementsRange: node.inputElementsRange)
+        let index = self.structure.insert(node, nodes: &nodes, displayedTextRange: node.displayedTextRange, inputElementsRange: node.inputElementsRange, connection: connection)
         self.nodes = consume nodes
+        return index
     }
 }

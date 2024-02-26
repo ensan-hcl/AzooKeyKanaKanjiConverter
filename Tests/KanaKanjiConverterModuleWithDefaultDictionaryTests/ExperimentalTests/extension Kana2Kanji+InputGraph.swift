@@ -14,7 +14,8 @@ extension Kana2Kanji {
     func _experimental_all(_ inputData: ComposingText, option: ConvertRequestOptions) -> ConvertGraph.LatticeNode {
         // グラフ構築
         print(#file, "start")
-        let inputGraph = InputGraph.build(input: inputData.input)
+        let correctGraph = CorrectGraph.build(input: inputData.input)
+        let inputGraph = InputGraph.build(input: consume correctGraph)
         // 辞書ルックアップによりconvertGraphを構築
         print(#file, "lookup", inputGraph)
         let convertGraph = self.dicdataStore.buildConvertGraph(inputGraph: consume inputGraph, option: option)

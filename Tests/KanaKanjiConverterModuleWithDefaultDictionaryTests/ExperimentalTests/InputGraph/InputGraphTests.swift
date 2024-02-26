@@ -22,177 +22,295 @@ final class InputGraphTests: XCTestCase {
         XCTAssertEqual(graph.prev(for: node2), [node1])
     }
 
-    func testBuild() throws {
-        do {
-            let graph = InputGraph.build(input: [
-                .init(character: "あ", inputStyle: .direct),
-                .init(character: "い", inputStyle: .direct),
-                .init(character: "う", inputStyle: .direct)
-            ])
-            XCTAssertEqual(graph.nodes.count, 4) // Root nodes
-        }
-        do {
-            let graph = InputGraph.build(input: [
-                .init(character: "あ", inputStyle: .direct),
-                .init(character: "か", inputStyle: .direct),
-                .init(character: "う", inputStyle: .direct)
-            ])
-            XCTAssertEqual(graph.nodes.count, 5) // Root nodes
-        }
-        do {
-            let graph = InputGraph.build(input: [
-                .init(character: "i", inputStyle: .roman2kana),
-                .init(character: "t", inputStyle: .roman2kana),
-                .init(character: "a", inputStyle: .roman2kana),
-            ])
-            XCTAssertEqual(graph.nodes.count, 3) // Root nodes
-            XCTAssertNil(graph.nodes.first(where: {$0.character == "あ"}))
-        }
-        do {
-            let graph = InputGraph.build(input: [
-                .init(character: "i", inputStyle: .roman2kana),
-                .init(character: "t", inputStyle: .roman2kana),
-                .init(character: "s", inputStyle: .roman2kana),
-            ])
-            XCTAssertEqual(graph.nodes.count, 5) // Root nodes
-            XCTAssertEqual(
-                graph.nodes.first(where: {$0.character == "い"}),
-                .init(character: "い", displayedTextRange: .range(0, 1), inputElementsRange: .range(0, 1), correction: .none)
-            )
-            XCTAssertEqual(
-                graph.nodes.first(where: {$0.character == "t"}),
-                .init(character: "t", displayedTextRange: .range(1, 2), inputElementsRange: .range(1, 2), correction: .none)
-            )
-            XCTAssertEqual(
-                graph.nodes.first(where: {$0.character == "s"}),
-                .init(character: "s", displayedTextRange: .range(2, 3), inputElementsRange: .range(2, 3), correction: .none)
-            )
-            XCTAssertEqual(
-                graph.nodes.first(where: {$0.character == "た"}),
-                .init(character: "た", displayedTextRange: .range(1, 2), inputElementsRange: .range(1, 3), correction: .typo)
-            )
-        }
-        do {
-            // ts->taの誤字訂正が存在
-            let graph = InputGraph.build(input: [
-                .init(character: "i", inputStyle: .roman2kana),
-                .init(character: "t", inputStyle: .roman2kana),
-                .init(character: "s", inputStyle: .roman2kana),
-                .init(character: "a", inputStyle: .roman2kana),
-            ])
-            XCTAssertEqual(graph.nodes.count, 6) // Root nodes
-            XCTAssertEqual(
-                graph.nodes.first(where: {$0.character == "い"}),
-                .init(character: "い", displayedTextRange: .range(0, 1), inputElementsRange: .range(0, 1), correction: .none)
-            )
-            XCTAssertEqual(
-                graph.nodes.first(where: {$0.character == "た"}),
-                .init(character: "た", displayedTextRange: .range(1, 2), inputElementsRange: .range(1, 3), correction: .typo)
-            )
-            XCTAssertEqual(
-                graph.nodes.first(where: {$0.character == "ぁ"}),
-                .init(character: "ぁ", displayedTextRange: .range(2, 3), inputElementsRange: .endIndex(4), correction: .none)
-            )
-        }
-        do {
-            // ts->taの誤字訂正は入力方式を跨いだ場合は発火しない
-            let graph = InputGraph.build(input: [
-                .init(character: "t", inputStyle: .roman2kana),
-                .init(character: "s", inputStyle: .direct),
-            ])
-            XCTAssertEqual(
-                graph.nodes.first(where: {$0.character == "t"}),
-                .init(character: "t", displayedTextRange: .range(0, 1), inputElementsRange: .range(0, 1), correction: .none)
-            )
-            XCTAssertFalse(graph.nodes.contains(.init(character: "た", displayedTextRange: .range(0, 1), inputElementsRange: .range(0, 2), correction: .typo)))
-        }
-        do {
-            // tt→っt
-            let graph = InputGraph.build(input: [
-                .init(character: "t", inputStyle: .roman2kana),
-                .init(character: "t", inputStyle: .roman2kana),
-            ])
-            XCTAssertEqual(
-                graph.nodes.first(where: {$0.character == "っ"}),
-                .init(character: "っ", displayedTextRange: .range(0, 1), inputElementsRange: .startIndex(0), correction: .none)
-            )
-            XCTAssertEqual(
-                graph.nodes.first(where: {$0.character == "t"}),
-                .init(character: "t", displayedTextRange: .range(1, 2), inputElementsRange: .endIndex(2), correction: .none)
-            )
-        }
-        do {
-            // tt→っt
-            let graph = InputGraph.build(input: [
-                .init(character: "i", inputStyle: .roman2kana),
-                .init(character: "t", inputStyle: .roman2kana),
-                .init(character: "t", inputStyle: .roman2kana),
-                .init(character: "a", inputStyle: .roman2kana),
-            ])
-            XCTAssertNil(graph.nodes.first(where: {$0.character == "t"}))
-            XCTAssertNil(graph.nodes.first(where: {$0.character == "あ"}))
-            XCTAssertEqual(
-                graph.nodes.first(where: {$0.character == "っ"}),
-                .init(character: "っ", displayedTextRange: .range(1, 2), inputElementsRange: .startIndex(1), correction: .none)
-            )
-            XCTAssertEqual(
-                graph.nodes.first(where: {$0.character == "た"}),
-                .init(character: "た", displayedTextRange: .range(2, 3), inputElementsRange: .endIndex(4), correction: .none)
-            )
-        }
-        do {
-            // tt→っt
-            let graph = InputGraph.build(input: [
-                .init(character: "t", inputStyle: .roman2kana),
-                .init(character: "t", inputStyle: .roman2kana),
-                .init(character: "a", inputStyle: .roman2kana),
-            ])
-            XCTAssertNil(graph.nodes.first(where: {$0.character == "t"}))
-            XCTAssertNil(graph.nodes.first(where: {$0.character == "あ"}))
-            XCTAssertEqual(
-                graph.nodes.first(where: {$0.character == "っ"}),
-                .init(character: "っ", displayedTextRange: .range(0, 1), inputElementsRange: .startIndex(0), correction: .none)
-            )
-            XCTAssertEqual(
-                graph.nodes.first(where: {$0.character == "た"}),
-                .init(character: "た", displayedTextRange: .range(1, 2), inputElementsRange: .endIndex(3), correction: .none)
-            )
-        }
-        do {
-            // nt→んt
-            let graph = InputGraph.build(input: [
-                .init(character: "n", inputStyle: .roman2kana),
-                .init(character: "t", inputStyle: .roman2kana),
-                .init(character: "a", inputStyle: .roman2kana),
-            ])
-            XCTAssertNil(graph.nodes.first(where: {$0.character == "t"}))
-            XCTAssertNil(graph.nodes.first(where: {$0.character == "あ"}))
-            XCTAssertEqual(
-                graph.nodes.first(where: {$0.character == "ん"}),
-                .init(character: "ん", displayedTextRange: .range(0, 1), inputElementsRange: .startIndex(0), correction: .none)
-            )
-            XCTAssertEqual(
-                graph.nodes.first(where: {$0.character == "た"}),
-                .init(character: "た", displayedTextRange: .range(1, 2), inputElementsRange: .endIndex(3), correction: .none)
-            )
-        }
-        do {
-            // t
-            // tt→っt
-            // っts→った (
-            // FIXME: 興味深いテストケースだが実装が重いので保留
-            /*
-            let graph = InputGraph.build(input: [
-                .init(character: "t", inputStyle: .roman2kana),
-                .init(character: "t", inputStyle: .roman2kana),
-                .init(character: "s", inputStyle: .roman2kana),
-            ])
-            print(graph)
-            XCTAssertEqual(
-                graph.nodes.first(where: {$0.character == "た"}),
-                .init(character: "た", displayedTextRange: .range(2, 3), inputElementsRange: .endIndex(4), correction: .none)
-            )
-             */
-        }
+    func testBuildSimpleDirectInput() throws {
+        let correctGraph = CorrectGraph.build(input: [
+            .init(character: "あ", inputStyle: .direct),
+            .init(character: "い", inputStyle: .direct),
+            .init(character: "う", inputStyle: .direct)
+        ])
+        let inputGraph = InputGraph.build(input: correctGraph)
+        XCTAssertEqual(inputGraph.nodes.count, 4) // Root nodes
     }
+    func testBuildSimpleDirectInput_typoあり() throws {
+        let correctGraph = CorrectGraph.build(input: [
+            .init(character: "あ", inputStyle: .direct),
+            .init(character: "か", inputStyle: .direct),
+            .init(character: "う", inputStyle: .direct)
+        ])
+        let inputGraph = InputGraph.build(input: correctGraph)
+        XCTAssertEqual(inputGraph.nodes.count, 5) // Root nodes
+    }
+    func testBuildSimpleRoman2KanaInput_1文字だけ() throws {
+        let correctGraph = CorrectGraph.build(input: [
+            .init(character: "i", inputStyle: .roman2kana),
+        ])
+        let inputGraph = InputGraph.build(input: correctGraph)
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "い"}),
+            .init(character: "い", displayedTextRange: .range(0, 1), inputElementsRange: .range(0, 1), correction: .none)
+        )
+        XCTAssertNil(
+            inputGraph.nodes.first(where: {$0.character == "i"})
+        )
+        XCTAssertEqual(inputGraph.nodes.count, 2) // Root nodes
+    }
+    func testBuildSimpleRoman2KanaInput_2文字_it() throws {
+        let correctGraph = CorrectGraph.build(input: [
+            .init(character: "i", inputStyle: .roman2kana),
+            .init(character: "t", inputStyle: .roman2kana),
+        ])
+        let inputGraph = InputGraph.build(input: correctGraph)
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "い"}),
+            .init(character: "い", displayedTextRange: .range(0, 1), inputElementsRange: .range(0, 1), correction: .none)
+        )
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "t"}),
+            .init(character: "t", displayedTextRange: .range(1, 2), inputElementsRange: .range(1, 2), correction: .none)
+        )
+        print(inputGraph)
+    }
+    func testBuildSimpleRoman2KanaInput_3文字_ita() throws {
+        let correctGraph = CorrectGraph.build(input: [
+            .init(character: "i", inputStyle: .roman2kana),
+            .init(character: "t", inputStyle: .roman2kana),
+            .init(character: "a", inputStyle: .roman2kana),
+        ])
+        let inputGraph = InputGraph.build(input: correctGraph)
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "い"}),
+            .init(character: "い", displayedTextRange: .range(0, 1), inputElementsRange: .range(0, 1), correction: .none)
+        )
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "t"}),
+            .init(character: "t", displayedTextRange: .range(1, 2), inputElementsRange: .range(1, 2), correction: .none, isReplaced: true)
+        )
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "た"}),
+            .init(character: "た", displayedTextRange: .range(1, 2), inputElementsRange: .range(1, 3), correction: .none)
+        )
+        print(inputGraph)
+    }
+    func testBuildSimpleRoman2KanaInput_4文字_sits() throws {
+        let correctGraph = CorrectGraph.build(input: [
+            .init(character: "s", inputStyle: .roman2kana),
+            .init(character: "i", inputStyle: .roman2kana),
+            .init(character: "t", inputStyle: .roman2kana),
+            .init(character: "s", inputStyle: .roman2kana),
+        ])
+        let inputGraph = InputGraph.build(input: correctGraph)
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "し" && $0.displayedTextRange == .range(0, 1)}),
+            .init(character: "し", displayedTextRange: .range(0, 1), inputElementsRange: .range(0, 2), correction: .none)
+        )
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "s"}),
+            .init(character: "s", displayedTextRange: .range(0, 1), inputElementsRange: .range(0, 1), correction: .none, isReplaced: true)
+        )
+        // [s]のノードを消していないため、displayedTextIndex側で拾ってしまってエラー
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "た"}),
+            .init(character: "た", displayedTextRange: .range(1, 2), inputElementsRange: .range(2, 4), correction: .typo)
+        )
+        print(inputGraph)
+    }
+    func testBuildSimpleRoman2KanaInput_3文字_its() throws {
+        let correctGraph = CorrectGraph.build(input: [
+            .init(character: "i", inputStyle: .roman2kana),
+            .init(character: "t", inputStyle: .roman2kana),
+            .init(character: "s", inputStyle: .roman2kana),
+        ])
+        let inputGraph = InputGraph.build(input: correctGraph)
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "い"}),
+            .init(character: "い", displayedTextRange: .range(0, 1), inputElementsRange: .range(0, 1), correction: .none)
+        )
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "t" && $0.inputElementsRange == .range(1, 2)}),
+            .init(character: "t", displayedTextRange: .range(1, 2), inputElementsRange: .range(1, 2), correction: .none)
+        )
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "s"}),
+            .init(character: "s", displayedTextRange: .range(2, 3), inputElementsRange: .range(2, 3), correction: .none)
+        )
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "t" && $0.inputElementsRange == .startIndex(1)}),
+            .init(character: "t", displayedTextRange: .range(1, 2), inputElementsRange: .startIndex(1), groupId: 0, correction: .typo)
+        )
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "た"}),
+            .init(character: "た", displayedTextRange: .range(1, 2), inputElementsRange: .range(1, 3), correction: .typo)
+        )
+        print(inputGraph)
+    }
+    func testBuildSimpleRoman2KanaInput_4文字_itsa() throws {
+        let correctGraph = CorrectGraph.build(input: [
+            .init(character: "i", inputStyle: .roman2kana),
+            .init(character: "t", inputStyle: .roman2kana),
+            .init(character: "s", inputStyle: .roman2kana),
+            .init(character: "a", inputStyle: .roman2kana),
+        ])
+        let inputGraph = InputGraph.build(input: correctGraph)
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "い"}),
+            .init(character: "い", displayedTextRange: .range(0, 1), inputElementsRange: .range(0, 1), correction: .none)
+        )
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "t" && $0.inputElementsRange == .range(1, 2)}),
+            .init(character: "t", displayedTextRange: .range(1, 2), inputElementsRange: .range(1, 2), correction: .none, isReplaced: true)
+        )
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "s"}),
+            .init(character: "s", displayedTextRange: .range(2, 3), inputElementsRange: .range(2, 3), correction: .none, isReplaced: true)
+        )
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "t" && $0.inputElementsRange == .startIndex(1)}),
+            .init(character: "t", displayedTextRange: .range(1, 2), inputElementsRange: .startIndex(1), groupId: 0, correction: .typo)
+        )
+        // groupIdの制約により、「た→あ」のみが許される遷移になる
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "た"}),
+            .init(character: "た", displayedTextRange: .range(1, 2), inputElementsRange: .range(1, 3), groupId: 1, correction: .typo)
+        )
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "あ"}),
+            .init(character: "あ", displayedTextRange: .range(2, 3), inputElementsRange: .range(3, 4), groupId: 1, correction: .none)
+        )
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "つ"}),
+            .init(character: "つ", displayedTextRange: .range(1, 2), inputElementsRange: .startIndex(1), groupId: 2, correction: .none)
+        )
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "ぁ"}),
+            .init(character: "ぁ", displayedTextRange: .range(2, 3), inputElementsRange: .endIndex(4), groupId: 2, correction: .none)
+        )
+        // 「さ」の生成は許されない
+        XCTAssertNil(inputGraph.nodes.first(where: {$0.character == "さ"}))
+    }
+
+    func testBuildMixedInput_2文字_ts() throws {
+        let correctGraph = CorrectGraph.build(input: [
+            .init(character: "t", inputStyle: .roman2kana),
+            .init(character: "s", inputStyle: .direct),
+        ])
+        let inputGraph = InputGraph.build(input: correctGraph)
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "t"}),
+            .init(character: "t", displayedTextRange: .range(0, 1), inputElementsRange: .range(0, 1), correction: .none)
+        )
+        XCTAssertFalse(inputGraph.nodes.contains(.init(character: "た", displayedTextRange: .range(0, 1), inputElementsRange: .range(0, 2), correction: .typo)))
+    }
+    func testBuildMixedInput_2文字_tt() throws {
+        let correctGraph = CorrectGraph.build(input: [
+            .init(character: "t", inputStyle: .roman2kana),
+            .init(character: "t", inputStyle: .roman2kana),
+        ])
+        let inputGraph = InputGraph.build(input: correctGraph)
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "っ"}),
+            .init(character: "っ", displayedTextRange: .range(0, 1), inputElementsRange: .startIndex(0), groupId: 0, correction: .none)
+        )
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "t" && $0.groupId != nil}),
+            .init(character: "t", displayedTextRange: .range(1, 2), inputElementsRange: .endIndex(2), groupId: 0, correction: .none)
+        )
+    }
+    func testBuildMixedInput_3文字_tta() throws {
+        let correctGraph = CorrectGraph.build(input: [
+            .init(character: "t", inputStyle: .roman2kana),
+            .init(character: "t", inputStyle: .roman2kana),
+            .init(character: "a", inputStyle: .roman2kana),
+        ])
+        let inputGraph = InputGraph.build(input: correctGraph)
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "っ"}),
+            .init(character: "っ", displayedTextRange: .range(0, 1), inputElementsRange: .startIndex(0), groupId: 0, correction: .none)
+        )
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "た"}),
+            // FIXME: 「た」のgroupIdは0だと嬉しい
+            .init(character: "た", displayedTextRange: .range(1, 2), inputElementsRange: .endIndex(3), groupId: nil, correction: .none)
+        )
+    }
+    func testBuildMixedInput_3文字_nta() throws {
+        let correctGraph = CorrectGraph.build(input: [
+            .init(character: "n", inputStyle: .roman2kana),
+            .init(character: "t", inputStyle: .roman2kana),
+            .init(character: "a", inputStyle: .roman2kana),
+        ])
+        let inputGraph = InputGraph.build(input: correctGraph)
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "ん"}),
+            .init(character: "ん", displayedTextRange: .range(0, 1), inputElementsRange: .startIndex(0), groupId: 0, correction: .none)
+        )
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "た"}),
+            .init(character: "た", displayedTextRange: .range(1, 2), inputElementsRange: .endIndex(3), groupId: nil, correction: .none)
+        )
+    }
+    func testBuildMixedInput_4文字_itta() throws {
+        let correctGraph = CorrectGraph.build(input: [
+            .init(character: "i", inputStyle: .roman2kana),
+            .init(character: "t", inputStyle: .roman2kana),
+            .init(character: "t", inputStyle: .roman2kana),
+            .init(character: "a", inputStyle: .roman2kana),
+        ])
+        let inputGraph = InputGraph.build(input: correctGraph)
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "い"}),
+            .init(character: "い", displayedTextRange: .range(0, 1), inputElementsRange: .range(0, 1), groupId: nil, correction: .none)
+        )
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "っ"}),
+            .init(character: "っ", displayedTextRange: .range(1, 2), inputElementsRange: .startIndex(1), groupId: 0, correction: .none)
+        )
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "た"}),
+            // FIXME: 「た」のgroupIdは0だと嬉しい
+            .init(character: "た", displayedTextRange: .range(2, 3), inputElementsRange: .endIndex(4), groupId: nil, correction: .none)
+        )
+    }
+
+    func testBuildMixedInput_5文字_sitsi() throws {
+        let correctGraph = CorrectGraph.build(input: [
+            .init(character: "s", inputStyle: .roman2kana),
+            .init(character: "i", inputStyle: .roman2kana),
+            .init(character: "t", inputStyle: .roman2kana),
+            .init(character: "s", inputStyle: .roman2kana),
+            .init(character: "i", inputStyle: .roman2kana),
+        ])
+        let inputGraph = InputGraph.build(input: correctGraph)
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "し"}),
+            .init(character: "し", displayedTextRange: .range(0, 1), inputElementsRange: .range(0, 2), groupId: nil, correction: .none)
+        )
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "た"}),
+            .init(character: "た", displayedTextRange: .range(1, 2), inputElementsRange: .range(2, 4), groupId: 1, correction: .typo)
+        )
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "い"}),
+            .init(character: "い", displayedTextRange: .range(2, 3), inputElementsRange: .range(4, 5), groupId: 1, correction: .none)
+        )
+
+    }
+
+    func testBuildMixedInput_3文字_tts() throws {
+        let correctGraph = CorrectGraph.build(input: [
+            .init(character: "t", inputStyle: .roman2kana),
+            .init(character: "t", inputStyle: .roman2kana),
+            .init(character: "s", inputStyle: .roman2kana),
+        ])
+        let inputGraph = InputGraph.build(input: correctGraph)
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "っ" && $0.correction == .none}),
+            .init(character: "っ", displayedTextRange: .range(0, 1), inputElementsRange: .startIndex(0), groupId: 2, correction: .none)
+        )
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "た"}),
+            // FIXME: 「た」のgroupIdは0だと嬉しい
+            .init(character: "た", displayedTextRange: .range(1, 2), inputElementsRange: .range(1, 3), groupId: nil, correction: .typo)
+        )
+    }
+
 }
