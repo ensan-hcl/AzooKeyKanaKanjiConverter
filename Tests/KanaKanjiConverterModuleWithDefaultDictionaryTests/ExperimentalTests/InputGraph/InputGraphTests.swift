@@ -83,7 +83,7 @@ final class InputGraphTests: XCTestCase {
         )
         XCTAssertEqual(
             inputGraph.nodes.first(where: {$0.character == "t"}),
-            .init(character: "t", displayedTextRange: .range(1, 2), inputElementsRange: .range(1, 2), correction: .none)
+            .init(character: "t", displayedTextRange: .range(1, 2), inputElementsRange: .range(1, 2), correction: .none, isReplaced: true)
         )
         XCTAssertEqual(
             inputGraph.nodes.first(where: {$0.character == "た"}),
@@ -100,8 +100,12 @@ final class InputGraphTests: XCTestCase {
         ])
         let inputGraph = InputGraph.build(input: correctGraph)
         XCTAssertEqual(
-            inputGraph.nodes.first(where: {$0.character == "し"}),
+            inputGraph.nodes.first(where: {$0.character == "し" && $0.displayedTextRange == .range(0, 1)}),
             .init(character: "し", displayedTextRange: .range(0, 1), inputElementsRange: .range(0, 2), correction: .none)
+        )
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "s"}),
+            .init(character: "s", displayedTextRange: .range(0, 1), inputElementsRange: .range(0, 1), correction: .none, isReplaced: true)
         )
         // [s]のノードを消していないため、displayedTextIndex側で拾ってしまってエラー
         XCTAssertEqual(
@@ -153,11 +157,11 @@ final class InputGraphTests: XCTestCase {
         )
         XCTAssertEqual(
             inputGraph.nodes.first(where: {$0.character == "t" && $0.inputElementsRange == .range(1, 2)}),
-            .init(character: "t", displayedTextRange: .range(1, 2), inputElementsRange: .range(1, 2), correction: .none)
+            .init(character: "t", displayedTextRange: .range(1, 2), inputElementsRange: .range(1, 2), correction: .none, isReplaced: true)
         )
         XCTAssertEqual(
             inputGraph.nodes.first(where: {$0.character == "s"}),
-            .init(character: "s", displayedTextRange: .range(2, 3), inputElementsRange: .range(2, 3), correction: .none)
+            .init(character: "s", displayedTextRange: .range(2, 3), inputElementsRange: .range(2, 3), correction: .none, isReplaced: true)
         )
         XCTAssertEqual(
             inputGraph.nodes.first(where: {$0.character == "t" && $0.inputElementsRange == .startIndex(1)}),
@@ -180,6 +184,8 @@ final class InputGraphTests: XCTestCase {
             inputGraph.nodes.first(where: {$0.character == "ぁ"}),
             .init(character: "ぁ", displayedTextRange: .range(2, 3), inputElementsRange: .endIndex(4), groupId: 2, correction: .none)
         )
+        // 「さ」の生成は許されない
+        XCTAssertNil(inputGraph.nodes.first(where: {$0.character == "さ"}))
     }
 
     func testBuildMixedInput_2文字_ts() throws {
@@ -223,7 +229,7 @@ final class InputGraphTests: XCTestCase {
         XCTAssertEqual(
             inputGraph.nodes.first(where: {$0.character == "た"}),
             // FIXME: 「た」のgroupIdは0だと嬉しい
-            .init(character: "た", displayedTextRange: .range(1, 2), inputElementsRange: .range(1, 3), groupId: nil, correction: .none)
+            .init(character: "た", displayedTextRange: .range(1, 2), inputElementsRange: .endIndex(3), groupId: nil, correction: .none)
         )
     }
     func testBuildMixedInput_3文字_nta() throws {
@@ -239,7 +245,7 @@ final class InputGraphTests: XCTestCase {
         )
         XCTAssertEqual(
             inputGraph.nodes.first(where: {$0.character == "た"}),
-            .init(character: "た", displayedTextRange: .range(1, 2), inputElementsRange: .range(1, 3), groupId: nil, correction: .none)
+            .init(character: "た", displayedTextRange: .range(1, 2), inputElementsRange: .endIndex(3), groupId: nil, correction: .none)
         )
     }
     func testBuildMixedInput_4文字_itta() throws {
@@ -261,7 +267,7 @@ final class InputGraphTests: XCTestCase {
         XCTAssertEqual(
             inputGraph.nodes.first(where: {$0.character == "た"}),
             // FIXME: 「た」のgroupIdは0だと嬉しい
-            .init(character: "た", displayedTextRange: .range(2, 3), inputElementsRange: .range(2, 4), groupId: nil, correction: .none)
+            .init(character: "た", displayedTextRange: .range(2, 3), inputElementsRange: .endIndex(4), groupId: nil, correction: .none)
         )
     }
     func testBuildMixedInput_3文字_tts() throws {

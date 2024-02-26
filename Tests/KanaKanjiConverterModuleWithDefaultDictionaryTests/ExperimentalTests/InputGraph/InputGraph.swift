@@ -252,6 +252,8 @@ struct InputGraph: InputGraphProtocol {
         var inputElementsRange: InputGraphStructure.Range
         var groupId: Int? = nil
         var correction: CorrectGraph.Correction = .none
+        /// すでにreplaceされてしまったノードであるかどうか？
+        var isReplaced: Bool = false
 
         var description: String {
             let ds = displayedTextRange.startIndex?.description ?? "?"
@@ -321,14 +323,24 @@ struct InputGraph: InputGraphProtocol {
                     }
                 } else {
                     self.prevIndices(for: self.nodes[cNodeIndex]).union(IndexSet(self.structure.allowedPrevIndex[cNodeIndex, default: []]))
+                        .filteredIndexSet {
+                            if let pEndIndex = self.nodes[$0].inputElementsRange.endIndex,
+                               let cStartIndex = self.nodes[cNodeIndex].inputElementsRange.startIndex {
+                                return pEndIndex == cStartIndex
+                            }
+                            return true
+                        }
                 }
-                print(nodeIndex, cRoute, bNode.character, Array(indices), indices.map{self.nodes[$0].character})
+
+                let nonReplacedIndices = indices.filteredIndexSet {!self.nodes[$0].isReplaced}
+
+                print(nodeIndex, cRoute, bNode.character, Array(indices), indices.map{(self.nodes[$0].character, self.nodes[$0].isReplaced)})
                 // bNode: 1つ前のノード
                 // bNodeが値を持っているか？
                 if let value = bNode.value {
                     // MARK: 条件A: bNodeがchildrenを持たない→longestMatchで確定なので追加して良い
                     if bNode.children.isEmpty && !cCorrection.isTypo {
-                        let lastNode = indices.first {!self.nodes[$0].correction.isTypo}.map{self.nodes[$0]}
+                        let lastNode = nonReplacedIndices.first {!self.nodes[$0].correction.isTypo}.map{self.nodes[$0]}
                         let inputElementsStartIndex = lastNode?.inputElementsRange.endIndex
                         let displayedTextStartIndex = lastNode?.displayedTextRange.endIndex
                         backSearchMatch.append(
@@ -336,7 +348,7 @@ struct InputGraph: InputGraphProtocol {
                         )
                     } else {
                         // MARK: 条件B: findできないprevノードが存在する
-                        for prevGraphNodeIndex in indices {
+                        for prevGraphNodeIndex in nonReplacedIndices {
                             if bNode.find(key: self.nodes[prevGraphNodeIndex].character) == nil {
                                 let inputElementsStartIndex = self.nodes[prevGraphNodeIndex].inputElementsRange.endIndex
                                 let displayedTextStartIndex = self.nodes[prevGraphNodeIndex].displayedTextRange.endIndex
@@ -352,7 +364,7 @@ struct InputGraph: InputGraphProtocol {
                         }
                     }
                 } else if isUnInsertedNode {
-                    let lastNode = indices.first {!self.nodes[$0].correction.isTypo}.map{self.nodes[$0]}
+                    let lastNode = nonReplacedIndices.first {!self.nodes[$0].correction.isTypo}.map{self.nodes[$0]}
                     let displayedTextStartIndex = lastNode?.displayedTextRange.endIndex
                     backSearchMatch.append(
                         (
@@ -403,6 +415,7 @@ struct InputGraph: InputGraphProtocol {
         }
 
         print(backSearchMatch)
+        var removeTargetIndices: IndexSet = IndexSet()
         for match in backSearchMatch {
             // licenserが存在するケースではlicenserと同じgroupIdを振る
             let licenser = match.licenserNodeIndex.map{self.nodes[$0]}
@@ -427,6 +440,11 @@ struct InputGraph: InputGraphProtocol {
                 )
                 if licenser?.groupId == nil, let licenserNodeIndex = match.licenserNodeIndex {
                     self.createNewConnection(from: licenserNodeIndex, to: index)
+                }
+            }
+            if match.correction == .none {
+                for nodeIndex in match.backwardRoute.dropLast() {
+                    self.nodes[nodeIndex].isReplaced = true
                 }
             }
         }
