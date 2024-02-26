@@ -455,14 +455,18 @@ struct InputGraph: InputGraphProtocol {
         let newId = self.structure.groupIdIota.new()
         self.nodes[fromNodeIndex].groupId = newId
         self.nodes[toNodeIndex].groupId = newId
-        let remove: (inout IndexSet) -> () = { indexSet in
-            indexSet.remove(fromNodeIndex)
+        self.structure.inputElementsStartIndexToNodeIndices.mutatingForeach { indexSet in
             indexSet.remove(toNodeIndex)
         }
-        self.structure.inputElementsStartIndexToNodeIndices.mutatingForeach(transform: remove)
-        self.structure.inputElementsEndIndexToNodeIndices.mutatingForeach(transform: remove)
-        self.structure.displayedTextStartIndexToNodeIndices.mutatingForeach(transform: remove)
-        self.structure.displayedTextEndIndexToNodeIndices.mutatingForeach(transform: remove)
+        self.structure.displayedTextStartIndexToNodeIndices.mutatingForeach { indexSet in
+            indexSet.remove(toNodeIndex)
+        }
+        self.structure.inputElementsEndIndexToNodeIndices.mutatingForeach { indexSet in
+            indexSet.remove(fromNodeIndex)
+        }
+        self.structure.displayedTextEndIndexToNodeIndices.mutatingForeach { indexSet in
+            indexSet.remove(fromNodeIndex)
+        }
         self.structure.allowedNextIndex[fromNodeIndex, default: []].append(toNodeIndex)
         self.structure.allowedPrevIndex[toNodeIndex, default: []].append(fromNodeIndex)
     }

@@ -270,6 +270,31 @@ final class InputGraphTests: XCTestCase {
             .init(character: "た", displayedTextRange: .range(2, 3), inputElementsRange: .endIndex(4), groupId: nil, correction: .none)
         )
     }
+
+    func testBuildMixedInput_5文字_sitsi() throws {
+        let correctGraph = CorrectGraph.build(input: [
+            .init(character: "s", inputStyle: .roman2kana),
+            .init(character: "i", inputStyle: .roman2kana),
+            .init(character: "t", inputStyle: .roman2kana),
+            .init(character: "s", inputStyle: .roman2kana),
+            .init(character: "i", inputStyle: .roman2kana),
+        ])
+        let inputGraph = InputGraph.build(input: correctGraph)
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "し"}),
+            .init(character: "し", displayedTextRange: .range(0, 1), inputElementsRange: .range(0, 2), groupId: nil, correction: .none)
+        )
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "た"}),
+            .init(character: "た", displayedTextRange: .range(1, 2), inputElementsRange: .range(2, 4), groupId: 1, correction: .typo)
+        )
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "い"}),
+            .init(character: "い", displayedTextRange: .range(2, 3), inputElementsRange: .range(4, 5), groupId: 1, correction: .none)
+        )
+
+    }
+
     func testBuildMixedInput_3文字_tts() throws {
         let correctGraph = CorrectGraph.build(input: [
             .init(character: "t", inputStyle: .roman2kana),
