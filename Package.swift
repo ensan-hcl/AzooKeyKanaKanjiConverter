@@ -31,13 +31,14 @@ let package = Package(
         .library(
             name: "KanaKanjiConverterModule",
             targets: ["KanaKanjiConverterModule"]
-        )
+        ),
     ],
     dependencies: [
         // Dependencies declare other packages that this package depends on.
         // .package(url: /* package url */, from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-algorithms", from: "1.0.0"),
-        .package(url: "https://github.com/apple/swift-collections", from: "1.0.0")
+        .package(url: "https://github.com/apple/swift-collections", from: "1.0.0"),
+        .package(url: "https://github.com/apple/swift-argument-parser", .upToNextMajor(from: "1.0.0")),
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
@@ -72,6 +73,13 @@ let package = Package(
             ],
             swiftSettings: swiftSettings
         ),
+        .executableTarget(
+            name: "CliTool",
+            dependencies: [
+                "KanaKanjiConverterModuleWithDefaultDictionary",
+                .product(name: "ArgumentParser", package: "swift-argument-parser"),
+            ]
+        ),
         .testTarget(
             name: "SwiftUtilsTests",
             dependencies: ["SwiftUtils"],
@@ -88,9 +96,10 @@ let package = Package(
         ),
         .testTarget(
             name: "KanaKanjiConverterModuleWithDefaultDictionaryTests",
-            dependencies: ["KanaKanjiConverterModuleWithDefaultDictionary",
-                           .product(name: "Collections", package: "swift-collections")
-],
+            dependencies: [
+                "KanaKanjiConverterModuleWithDefaultDictionary",
+                .product(name: "Collections", package: "swift-collections")
+            ],
             swiftSettings: swiftSettings
         )
     ]
