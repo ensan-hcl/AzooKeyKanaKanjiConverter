@@ -188,6 +188,41 @@ final class InputGraphTests: XCTestCase {
         XCTAssertNil(inputGraph.nodes.first(where: {$0.character == "さ"}))
     }
 
+    func testBuildSimpleRoman2KanaInput_7文字_youshou() throws {
+        let correctGraph = CorrectGraph.build(input: [
+            .init(character: "y", inputStyle: .roman2kana),
+            .init(character: "o", inputStyle: .roman2kana),
+            .init(character: "u", inputStyle: .roman2kana),
+            .init(character: "s", inputStyle: .roman2kana),
+            .init(character: "h", inputStyle: .roman2kana),
+            .init(character: "o", inputStyle: .roman2kana),
+            .init(character: "u", inputStyle: .roman2kana),
+        ])
+        let inputGraph = InputGraph.build(input: correctGraph)
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "よ"}),
+            .init(character: "よ", displayedTextRange: .range(0, 1), inputElementsRange: .range(0, 2), correction: .none)
+        )
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "う" && $0.displayedTextRange.startIndex == 1}),
+            .init(character: "う", displayedTextRange: .range(1, 2), inputElementsRange: .range(2, 3), correction: .none)
+        )
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "し"}),
+            .init(character: "し", displayedTextRange: .range(2, 3), inputElementsRange: .startIndex(3), groupId: 0, correction: .none)
+        )
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "ょ"}),
+            .init(character: "ょ", displayedTextRange: .range(3, 4), inputElementsRange: .endIndex(6), groupId: 0,
+                  correction: .none)
+        )
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "う" && $0.displayedTextRange.startIndex == 4}),
+            .init(character: "う", displayedTextRange: .range(4, 5), inputElementsRange: .range(6, 7), correction: .none)
+        )
+
+    }
+
     func testBuildMixedInput_2文字_ts() throws {
         let correctGraph = CorrectGraph.build(input: [
             .init(character: "t", inputStyle: .roman2kana),

@@ -19,7 +19,7 @@ extension Kana2Kanji {
         // 辞書ルックアップによりconvertGraphを構築
         print(#file, "lookup", inputGraph)
         let convertGraph = self.dicdataStore.buildConvertGraph(inputGraph: consume inputGraph, option: option)
-        print(#file, "convert", convertGraph)
+        print(#file, "convert")
         let result = convertGraph.convertAll(option: option, dicdataStore: self.dicdataStore)
         return result
     }
@@ -79,6 +79,31 @@ final class ExperimentalConversionTests: XCTestCase {
         c.insertAtCursorPosition("むらさき", inputStyle: .direct)
         let result = kana2kanji._experimental_all(c, option: requestOptions())
         XCTAssertTrue(result.joinedPrevs().contains("紫")) // むらさき
+    }
+
+    func testBuildConvertGraph_youshouki() throws {
+        let dicdataStore = DicdataStore(requestOptions: requestOptions())
+        var c = ComposingText()
+        c.insertAtCursorPosition("youshouki", inputStyle: .roman2kana)
+        let correctGraph = CorrectGraph.build(input: c.input)
+        let inputGraph = InputGraph.build(input: consume correctGraph)
+        let convertGraph = dicdataStore.buildConvertGraph(inputGraph: inputGraph, option: requestOptions())
+        XCTAssertEqual(
+            convertGraph.nodes.first {
+                $0.latticeNodes.contains(where: {$0.data.word == "世"})
+            }?.latticeNodes.mapSet {$0.data.ruby}
+                .symmetricDifference(["ヨ", "ヨウ", "ヨウシ", "ヨウショ", "ヨウショウ", "ヨウショウキ"]),
+            []
+        )
+    }
+
+    func testConversion_youshouki() throws {
+        let dicdataStore = DicdataStore(requestOptions: requestOptions())
+        let kana2kanji = Kana2Kanji(dicdataStore: dicdataStore)
+        var c = ComposingText()
+        c.insertAtCursorPosition("youshouki", inputStyle: .roman2kana)
+        let result = kana2kanji._experimental_all(c, option: requestOptions())
+        XCTAssertTrue(result.joinedPrevs().contains("幼少期")) // ようしょうき
     }
 
     func testConversion() throws {
