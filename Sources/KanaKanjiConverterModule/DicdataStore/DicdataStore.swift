@@ -420,57 +420,29 @@ public final class DicdataStore {
         if count == .zero {
             return []
         }
-        // 1文字に対する予測変換は検索が難しいので、特別に用意した辞書を用いて実施する
-        if count == 1 {
-            do {
-                let csvString = try String(contentsOf: requestOptions.dictionaryResourceURL.appendingPathComponent("p/p_\(key).csv", isDirectory: false), encoding: String.Encoding.utf8)
-                let csvLines = csvString.split(separator: "\n")
-                let csvData = csvLines.map {$0.split(separator: ",", omittingEmptySubsequences: false)}
-                let dicdata: [DicdataElement] = csvData
-                    .map {self.parseLoudstxt2FormattedEntry(from: $0)}
-                    .filter { Self.predictionUsable[$0.rcid] }
-                return dicdata
-            } catch {
-                debug("ファイルが存在しません: \(error)")
-                return []
-            }
-        } else if count == 2 {
-            var result: [DicdataElement] = []
-            let first = String(key.first!)
-            let charIDs = key.map(self.character2charId)
-            // 最大700件に絞ることによって低速化を回避する。
-            let prefixIndices = self.prefixMatchLOUDS(identifier: first, charIDs: charIDs, depth: 5).prefix(700)
-            result.append(
-                contentsOf: self.getDicdataFromLoudstxt3(identifier: first, indices: Set(prefixIndices))
-                    .filter { Self.predictionUsable[$0.rcid] }
-            )
-            let userDictIndices = self.prefixMatchLOUDS(identifier: "user", charIDs: charIDs, depth: 5).prefix(700)
-            result.append(contentsOf: self.getDicdataFromLoudstxt3(identifier: "user", indices: Set(userDictIndices)))
-            if learningManager.enabled {
-                let memoryDictIndices = self.prefixMatchLOUDS(identifier: "memory", charIDs: charIDs, depth: 5).prefix(700)
-                result.append(contentsOf: self.getDicdataFromLoudstxt3(identifier: "memory", indices: Set(memoryDictIndices)))
-                result.append(contentsOf: self.learningManager.temporaryPrefixMatch(charIDs: charIDs))
-            }
-            return result
+        // 最大700件に絞ることによって低速化を回避する。
+        var result: [DicdataElement] = []
+        let first = String(key.first!)
+        let charIDs = key.map(self.character2charId)
+        // 1, 2文字に対する予測変換は候補数が大きいので、depth（〜文字数）を制限する
+        let depth = if count == 1 || count == 2 {
+            5
         } else {
-            var result: [DicdataElement] = []
-            let first = String(key.first!)
-            let charIDs = key.map(self.character2charId)
-            // 最大700件に絞ることによって低速化を回避する。
-            let prefixIndices = self.prefixMatchLOUDS(identifier: first, charIDs: charIDs).prefix(700)
-            result.append(
-                contentsOf: self.getDicdataFromLoudstxt3(identifier: first, indices: Set(prefixIndices))
-                    .filter { Self.predictionUsable[$0.rcid] }
-            )
-            let userDictIndices = self.prefixMatchLOUDS(identifier: "user", charIDs: charIDs).prefix(700)
-            result.append(contentsOf: self.getDicdataFromLoudstxt3(identifier: "user", indices: Set(userDictIndices)))
-            if learningManager.enabled {
-                let memoryDictIndices = self.prefixMatchLOUDS(identifier: "memory", charIDs: charIDs).prefix(700)
-                result.append(contentsOf: self.getDicdataFromLoudstxt3(identifier: "memory", indices: Set(memoryDictIndices)))
-                result.append(contentsOf: self.learningManager.temporaryPrefixMatch(charIDs: charIDs))
-            }
-            return result
+            Int.max
         }
+        let prefixIndices = self.prefixMatchLOUDS(identifier: first, charIDs: charIDs, depth: depth).prefix(700)
+        result.append(
+            contentsOf: self.getDicdataFromLoudstxt3(identifier: first, indices: Set(consume prefixIndices))
+                .filter { Self.predictionUsable[$0.rcid] }
+        )
+        let userDictIndices = self.prefixMatchLOUDS(identifier: "user", charIDs: charIDs, depth: depth).prefix(700)
+        result.append(contentsOf: self.getDicdataFromLoudstxt3(identifier: "user", indices: Set(consume userDictIndices)))
+        if learningManager.enabled {
+            let memoryDictIndices = self.prefixMatchLOUDS(identifier: "memory", charIDs: charIDs).prefix(700)
+            result.append(contentsOf: self.getDicdataFromLoudstxt3(identifier: "memory", indices: Set(consume memoryDictIndices)))
+            result.append(contentsOf: self.learningManager.temporaryPrefixMatch(charIDs: charIDs))
+        }
+        return result
     }
 
     private func parseLoudstxt2FormattedEntry(from dataString: [some StringProtocol]) -> DicdataElement {
