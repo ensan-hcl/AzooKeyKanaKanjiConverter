@@ -30,7 +30,7 @@ public final class DicdataStore {
     private var charsID: [Character: UInt8] = [:]
     private var learningManager = LearningManager()
 
-    private var osUserDict: [DicdataElement] = []
+    private var dynamicUserDict: [DicdataElement] = []
 
     /// 辞書のエントリの最大長さ
     ///  - TODO: make this value as an option
@@ -71,6 +71,10 @@ public final class DicdataStore {
     }
 
     public enum Notification {
+        /// use `importDynamicUserDict` for data that cannot be obtained statically.
+        /// - warning: Too many dynamic user dictionary will damage conversion performance, as dynamic user dictionary uses inefficent algorithms for looking up. If your entries can be listed up statically, then use normal user dictionaries.
+        case importDynamicUserDict([DicdataElement])
+        @available(*, deprecated, renamed: "importDynamicUserDict", message: "it will be removed in AzooKeyKanaKanjiConverter v1.0")
         case importOSUserDict([DicdataElement])
         case setRequestOptions(ConvertRequestOptions)
         case forgetMemory(Candidate)
@@ -81,8 +85,8 @@ public final class DicdataStore {
         switch data {
         case .closeKeyboard:
             self.closeKeyboard()
-        case let .importOSUserDict(osUserDict):
-            self.osUserDict = osUserDict
+        case .importOSUserDict(let dicdata), .importDynamicUserDict(let dicdata):
+            self.dynamicUserDict = dicdata
         case let .forgetMemory(candidate):
             self.learningManager.forgetMemory(data: candidate.data)
             // loudsの処理があるので、リセットを実施する
@@ -606,12 +610,12 @@ public final class DicdataStore {
 
     /// OSのユーザ辞書からrubyに等しい語を返す。
     func getMatchOSUserDict(_ ruby: some StringProtocol) -> [DicdataElement] {
-        self.osUserDict.filter {$0.ruby == ruby}
+        self.dynamicUserDict.filter {$0.ruby == ruby}
     }
 
     /// OSのユーザ辞書からrubyに先頭一致する語を返す。
     func getPrefixMatchOSUserDict(_ ruby: some StringProtocol) -> [DicdataElement] {
-        self.osUserDict.filter {$0.ruby.hasPrefix(ruby)}
+        self.dynamicUserDict.filter {$0.ruby.hasPrefix(ruby)}
     }
 
     // 学習を反映する
