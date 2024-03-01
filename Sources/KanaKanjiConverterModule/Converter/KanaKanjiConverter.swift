@@ -25,6 +25,8 @@ import SwiftUtils
     private var nodes: [[LatticeNode]] = []
     private var completedData: Candidate?
     private var lastData: DicdataElement?
+    /// GPT-2統合
+    private var gpt2Model = LlamaState()
 
     /// リセットする関数
     public func stopComposition() {
@@ -32,6 +34,10 @@ import SwiftUtils
         self.nodes = []
         self.completedData = nil
         self.lastData = nil
+    }
+
+    package func _gpt2_evaluate(input: consuming [String]) async -> [Float] {
+        await self.gpt2Model.evaluate(input: consume input)
     }
 
     /// 入力する言語が分かったらこの関数をなるべく早い段階で呼ぶことで、SpellCheckerの初期化が行われ、変換がスムーズになる
@@ -396,7 +402,7 @@ import SwiftUtils
     ///   重複のない変換候補。
     /// - Note:
     ///   現在の実装は非常に複雑な方法で候補の順序を決定している。
-    private func processResult(inputData: ComposingText, result: (result: LatticeNode, nodes: [[LatticeNode]]), options: ConvertRequestOptions) -> ConversionResult {
+    private func processResult(inputData: ComposingText, result: (result: LatticeNode, nodes: [[LatticeNode]]), options: ConvertRequestOptions) async -> ConversionResult {
         self.previousInputData = inputData
         self.nodes = result.nodes
         let clauseResult = result.result.getCandidateData()
@@ -428,7 +434,16 @@ import SwiftUtils
         let sums: [(CandidateData, Candidate)] = clauseResult.map {($0, converter.processClauseCandidate($0))}
         // 文章全体を変換した場合の候補上位5件を作る
         let whole_sentence_unique_candidates = self.getUniqueCandidate(sums.map {$0.1})
-        let sentence_candidates = whole_sentence_unique_candidates.min(count: 5, sortedBy: {$0.value > $1.value})
+        var sentence_candidates = whole_sentence_unique_candidates.min(count: 10, sortedBy: {$0.value > $1.value})
+        // LMによるevaluationを反映する
+        if true {
+            let evaluation = await self.gpt2Model.evaluate(input: sentence_candidates.map{$0.text})
+            for (candidateIndex, value) in zip(sentence_candidates.indices, evaluation) {
+                print(sentence_candidates[candidateIndex].text, "lm eval \(value)", "azooKey eval \(sentence_candidates[candidateIndex].value)")
+                sentence_candidates[candidateIndex].value += value / 3
+            }
+        }
+
         // 予測変換を最大3件作成する
         let prediction_candidates: [Candidate] = options.requireJapanesePrediction ? Array(self.getUniqueCandidate(self.getPredictionCandidate(sums, composingText: inputData, options: options)).min(count: 3, sortedBy: {$0.value > $1.value})) : []
 
@@ -607,7 +622,7 @@ import SwiftUtils
     ///   - inputData: 変換対象のInputData。
     ///   - options: リクエストにかかるパラメータ。
     /// - Returns: `ConversionResult`
-    public func requestCandidates(_ inputData: ComposingText, options: ConvertRequestOptions) -> ConversionResult {
+    public func requestCandidates(_ inputData: ComposingText, options: ConvertRequestOptions) async -> ConversionResult {
         debug("requestCandidates 入力は", inputData)
         // 変換対象が無の場合
         if inputData.convertTarget.isEmpty {
@@ -621,7 +636,7 @@ import SwiftUtils
             return ConversionResult(mainResults: [], firstClauseResults: [])
         }
 
-        return self.processResult(inputData: inputData, result: result, options: options)
+        return await self.processResult(inputData: inputData, result: result, options: options)
     }
 
     /// 変換確定後の予測変換候補を要求する関数

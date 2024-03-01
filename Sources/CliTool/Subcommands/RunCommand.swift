@@ -3,7 +3,7 @@ import ArgumentParser
 import Foundation
 
 extension Subcommands {
-    struct Run: ParsableCommand {
+    struct Run: AsyncParsableCommand {
         @Argument(help: "ひらがなで表記された入力")
         var input: String = ""
 
@@ -17,11 +17,11 @@ extension Subcommands {
 
         static var configuration = CommandConfiguration(commandName: "run", abstract: "Show help for this utility.")
 
-        @MainActor mutating func run() {
+        @MainActor mutating func run() async {
             let converter = KanaKanjiConverter()
             var composingText = ComposingText()
             composingText.insertAtCursorPosition(input, inputStyle: .direct)
-            let result = converter.requestCandidates(composingText, options: requestOptions())
+            let result = await converter.requestCandidates(composingText, options: requestOptions())
             for candidate in result.mainResults.prefix(self.displayTopN) {
                 print(candidate.text)
             }
