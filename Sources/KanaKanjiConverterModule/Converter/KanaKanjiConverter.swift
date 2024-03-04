@@ -437,7 +437,7 @@ import SwiftUtils
         var sentence_candidates = whole_sentence_unique_candidates.min(count: 10, sortedBy: {$0.value > $1.value})
         // LMによるevaluationを反映する
         if true {
-            let evaluation = await self.gpt2Model.evaluate(input: sentence_candidates.map{$0.text})
+            let evaluation: [Float] = await self.gpt2Model.evaluate(input: sentence_candidates.map{$0.text})
             for (candidateIndex, value) in zip(sentence_candidates.indices, evaluation) {
                 print(sentence_candidates[candidateIndex].text, "lm eval \(value)", "azooKey eval \(sentence_candidates[candidateIndex].value)")
                 sentence_candidates[candidateIndex].value += value / 3

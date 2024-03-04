@@ -5,6 +5,7 @@
 //  Created by miwa on 2023/12/16.
 //
 import llama
+import SwiftUtils
 import Foundation
 
 enum LlamaError: Error {
@@ -36,10 +37,10 @@ actor LlamaContext {
 
     private static var ctx_params: llama_context_params {
         let n_threads = max(1, min(8, ProcessInfo.processInfo.processorCount - 2))
-        print("Using \(n_threads) threads")
+        debug("Using \(n_threads) threads")
         var ctx_params = llama_context_default_params()
         ctx_params.seed = 1234
-        ctx_params.n_ctx = 2048
+        ctx_params.n_ctx = 512
         ctx_params.n_threads       = UInt32(n_threads)
         ctx_params.n_threads_batch = UInt32(n_threads)
         ctx_params.n_batch = 1024
@@ -54,13 +55,13 @@ actor LlamaContext {
 
         let model = llama_load_model_from_file(path, model_params)
         guard let model else {
-            print("Could not load model at \(path)")
+            debug("Could not load model at \(path)")
             throw LlamaError.couldNotInitializeContext
         }
 
         let context = llama_new_context_with_model(model, ctx_params)
         guard let context else {
-            print("Could not load context!")
+            debug("Could not load context!")
             throw LlamaError.couldNotInitializeContext
         }
 
@@ -71,28 +72,28 @@ actor LlamaContext {
         llama_free(self.context)
         let context = llama_new_context_with_model(self.model, Self.ctx_params)
         guard let context else {
-            print("Could not load context!")
+            debug("Could not load context!")
             throw LlamaError.couldNotInitializeContext
         }
         self.context = context
     }
 
     func evaluate(text: String) -> Float {
-        print("attempting to complete \"\(text)\"")
+        debug("attempting to complete \"\(text)\"")
 
         tokens_list = tokenize(text: text, add_bos: true, add_eos: true)
 
         let n_ctx = llama_n_ctx(context)
         let n_kv_req = tokens_list.count + (Int(n_len) - tokens_list.count)
 
-        print("n_len = \(n_len), n_ctx = \(n_ctx), n_kv_req = \(n_kv_req)")
+        debug("n_len = \(n_len), n_ctx = \(n_ctx), n_kv_req = \(n_kv_req)")
 
         if n_kv_req > n_ctx {
-            print("error: n_kv_req > n_ctx, the required KV cache size is not big enough")
+            debug("error: n_kv_req > n_ctx, the required KV cache size is not big enough")
         }
 
         for id in tokens_list {
-            print(String(cString: token_to_piece(token: id) + [0]))
+            debug(String(cString: token_to_piece(token: id) + [0]))
         }
 
         llama_batch_clear(&batch)
@@ -107,39 +108,26 @@ actor LlamaContext {
         }
         // 評価
         if llama_decode(context, batch) != 0 {
-            print("llama_decode() failed")
+            debug("llama_decode() failed")
         }
 
         guard let logits = llama_get_logits(context) else {
-            print("logits unavailable")
+            debug("logits unavailable")
             return .nan
         }
         var sum: Float = 0
         // 流石にもう少しマシな方法で計算したいが、一旦
         // 最初の一トークンはBOSで無駄なので無視して良い
         for (i, token_id) in tokens_list.indexed().dropFirst() {
-            var logit: [Float] = []
+            var log_prob: Float = 0
             for index in ((i - 1) * Int(n_vocab)) ..< (i * Int(n_vocab)) {
-                logit.append(logits[index])
+                log_prob += exp(logits[index])
             }
-            // 計算方法
-            // log(e^x / sum e^v) = x - log(sum(e^v))
-            let log_prob = logit[Int(token_id)] - log(logit.reduce(into: 0) {
-                $0 += exp($1)
-            })
+            log_prob = log(log_prob)
+            log_prob = logits[Int((i - 1) * Int(n_vocab) + Int(token_id))] - log_prob
             sum += log_prob
         }
         return sum
-    }
-
-    struct CompletionStatus: Sendable, Equatable, Hashable {
-        var piece: String
-        var state: State
-        enum State: Sendable, Equatable, Hashable {
-            case normal
-            case eos
-            case maxlength
-        }
     }
 
     func clear() {
