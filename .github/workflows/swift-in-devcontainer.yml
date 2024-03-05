@@ -18,6 +18,12 @@ jobs:
       with:
         submodules: true
 
+    - name: Install Docker (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install --cask docker
+        open /Applications/Docker.app
+
     - name: Build and Test in DevContainer
       uses: devcontainers/ci@v0.3
       with:
