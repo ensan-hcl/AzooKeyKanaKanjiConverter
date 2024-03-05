@@ -21,8 +21,8 @@ jobs:
     - name: Install Docker (macOS)
       if: matrix.os == 'macos-latest'
       run: |
-        brew install --cask docker
-        open /Applications/Docker.app
+        brew install --cask docker || brew upgrade --cask docker
+        open -g -a Docker.app && sleep 60
 
     - name: Build and Test in DevContainer
       uses: devcontainers/ci@v0.3
