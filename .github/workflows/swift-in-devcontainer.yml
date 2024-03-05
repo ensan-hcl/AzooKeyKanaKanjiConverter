@@ -22,7 +22,7 @@ jobs:
       if: matrix.os == 'macos-latest'
       run: |
         brew install --cask docker || brew upgrade --cask docker
-        open -g -a Docker.app && sleep 60
+        open -g -a /Applications/Docker.app && sleep 60
 
     - name: Build and Test in DevContainer
       uses: devcontainers/ci@v0.3
