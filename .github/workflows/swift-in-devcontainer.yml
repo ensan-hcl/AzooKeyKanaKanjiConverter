@@ -23,6 +23,7 @@ jobs:
       run: |
         brew install --cask docker || brew upgrade --cask docker
         open -g -a /Applications/Docker.app && sleep 60
+        docker buildx version
 
     - name: Build and Test in DevContainer
       uses: devcontainers/ci@v0.3
