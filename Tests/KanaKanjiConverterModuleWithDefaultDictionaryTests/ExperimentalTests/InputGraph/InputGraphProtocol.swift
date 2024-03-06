@@ -55,7 +55,7 @@ extension InputGraphProtocol {
     mutating func insert(_ node: Node, connection: InputGraphStructure.Connection = .none) -> Int {
         var nodes = self.nodes
         let index = self.structure.insert(node, nodes: &nodes, displayedTextRange: node.displayedTextRange, inputElementsRange: node.inputElementsRange, connection: connection)
-        self.nodes = consume nodes
+        self.nodes = nodes
         return index
     }
 }
