@@ -5,25 +5,14 @@ on:
 
 jobs:
   build:
-    name: Swift on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-      fail-fast: false
+    name: Swift on ubuntu-latest
+    runs-on: ubuntu-latest
 
     steps:
     - name: Checkout
       uses: actions/checkout@v4
       with:
         submodules: true
-
-    - name: Install Docker (macOS)
-      if: matrix.os == 'macos-latest'
-      run: |
-        brew install --cask docker || brew upgrade --cask docker
-        open -g -a /Applications/Docker.app && sleep 60
-        docker buildx version
 
     - name: Build and Test in DevContainer
       uses: devcontainers/ci@v0.3
