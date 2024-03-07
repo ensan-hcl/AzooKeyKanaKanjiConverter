@@ -20,6 +20,9 @@ Docker コンテナーとのやりとりは VS Code が行ってくれます。
    ![Dev Containers 拡張機能をインストールする。`ms-vscode-remote.remote-containers` を検索するか、右下の通知をクリックしてインストールします。](Images/install-devcontainers-extension.png)
 
 3. 左下の `><` アイコンをクリックし、`Reopen in Container` を選択します。
+   ただし、こちらも同様に、VS Code は Dev Container の設定ファイルを検出して、拡張機能がインストールされていれば、自動的に Dev Container を開くように求めます。
+
+   ![Dev Container を開く。左下の `><` アイコンをクリックし、`Reopen in Container` を選択するか、右下の通知をクリックして開きます。](Images/reopen-in-container.png)
 
 4. しばらくすると、Dev Container が起動します。
    初回の起動時には、Docker イメージをダウンロードする必要があるので、かなり時間がかかります。
