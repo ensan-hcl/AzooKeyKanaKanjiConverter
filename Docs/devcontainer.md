@@ -12,6 +12,8 @@ Docker コンテナーとのやりとりは VS Code が行ってくれます。
 
 ## 開発環境の起動
 
+こちらも参考にしてください：[開発ガイド](./development_guide.md)
+
 1. VS Code でこのリポジトリーを開きます
 
 2. もし、[Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) 拡張機能がインストールされていない場合は、インストールします。
