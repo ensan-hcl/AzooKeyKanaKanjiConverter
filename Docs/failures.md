@@ -4,7 +4,7 @@ AzooKeyKanaKanjiConverterの開発上、明確に失敗だったと考えてい�
 
 このドキュメントの目的はAzooKeyKanaKanjiConverterの判断ミスを明確にして、今後AzooKeyKanaKanjiConverterのフォークを作成する方や、新たな日本語入力ソフトウェアを作ろうとする方に向けて知見を残しておくことです。
 
-AzooKeyKanaKanjiConverter本体については[azooKeyをベースとするプロダクトの開発開始時に注意すべき点](https://github.com/ensan-hcl/azooKey/tree/develop/docs/advice_for_azooKey_based_development)もご覧ください。
+AzooKeyKanaKanjiConverter本体については[azooKeyをベースとするプロダクトの開発開始時に注意すべき点](https://github.com/ensan-hcl/azooKey/tree/develop/docs/advice_for_azooKey_based_development.md)もご覧ください。
 
 ## コストの設計
 
