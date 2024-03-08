@@ -24,6 +24,8 @@ public extension ConvertRequestOptions {
         let dictionaryDirectory = Bundle.module.bundleURL.appendingPathComponent("Dictionary", isDirectory: true)
         #elseif os(macOS)
         let dictionaryDirectory = Bundle.module.resourceURL!.appendingPathComponent("Dictionary", isDirectory: true)
+        #elseif os(Windows)
+        let dictionaryDirectory = Bundle.windowsModule.resourceURL!.appendingPathComponent("Dictionary", isDirectory: true)
         #else
         let dictionaryDirectory = Bundle.module.resourceURL!.appendingPathComponent("Dictionary", isDirectory: true)
         #endif
