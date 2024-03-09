@@ -54,7 +54,7 @@ struct LOUDS: Sendable {
             }
             return flatChar2nodeIndices
         }
-        self.flatChar2nodeIndicesIndex = consume flatChar2nodeIndicesIndex
+        self.flatChar2nodeIndicesIndex = flatChar2nodeIndicesIndex
 
         var rankLarge: [UInt32] = .init(repeating: 0, count: bytes.count + 1)
         rankLarge.withUnsafeMutableBufferPointer { buffer in
@@ -62,7 +62,7 @@ struct LOUDS: Sendable {
                 buffer[i + 1] = buffer[i] &+ UInt32(Self.unit &- byte.nonzeroBitCount)
             }
         }
-        self.rankLarge = consume rankLarge
+        self.rankLarge = rankLarge
     }
 
     /// parentNodeIndex個の0を探索し、その次から1個増えるまでのIndexを返す。

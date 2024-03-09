@@ -22,8 +22,8 @@ extension Subcommands {
             var composingText = ComposingText()
             composingText.insertAtCursorPosition(input, inputStyle: .direct)
             let result = await converter.requestCandidates(composingText, options: requestOptions())
-            for candidate in result.mainResults.prefix(self.displayTopN) {
-                print(candidate.text)
+            for (i, candidate) in zip(0 ..< self.displayTopN, result.mainResults.prefix(self.displayTopN)) {
+                print(i, candidate.text)
             }
         }
 
