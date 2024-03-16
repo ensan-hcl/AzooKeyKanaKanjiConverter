@@ -53,7 +53,7 @@ public struct TextReplacer: Sendable {
         }
     }
 
-    @available(*, deprecated, renamed: "init(emojiDataProvider:)", message: "init() is depreacted and will be removed in v1.0. Use init(emojiDataProvider:) instead")
+    @available(*, deprecated, renamed: "init(emojiDataProvider:)", message: "it be removed in AzooKeyKanaKanjiConverter v1.0")
     public init() {
         self.init {
             if #available(iOS 16.4, *) {
