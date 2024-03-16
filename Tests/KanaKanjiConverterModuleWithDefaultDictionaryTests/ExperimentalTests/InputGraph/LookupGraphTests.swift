@@ -37,10 +37,10 @@ struct LookupGraph {
 
 
 extension LOUDS {
-    func byfixNodeIndices(_ lookupGraph: LookupGraph, startGraphNodeIndex: Int = 0) -> (IndexSet, [Int: [Int?]]) {
+    func byfixNodeIndices(_ lookupGraph: LookupGraph, startGraphNodeIndex: Int = 0) -> (IndexSet, [Int: [Int]]) {
         var indexSet = IndexSet(integer: 1)
         // loudsのノードとLookupGraphのノードの対応を取るための辞書
-        var loudsNodeIndex2GraphNodeEndIndices: [Int: [Int?]] = [:]
+        var loudsNodeIndex2GraphNodeEndIndices: [Int: [Int]] = [:]
         typealias SearchItem = (
             nodeIndex: Int,
             lastLoudsNodeIndex: Int
@@ -50,7 +50,7 @@ extension LOUDS {
             let cNode = lookupGraph.nodes[cNodeIndex]
             // nextNodesを探索
             if let loudsNodeIndex = self.searchCharNodeIndex(from: cLastLoudsNodeIndex, char: cNode.charId) {
-                loudsNodeIndex2GraphNodeEndIndices[loudsNodeIndex, default: []].append(cNode.inputElementsRange.endIndex)
+                loudsNodeIndex2GraphNodeEndIndices[loudsNodeIndex, default: []].append(cNodeIndex)
                 indexSet.insert(loudsNodeIndex)
                 let nextIndices = lookupGraph.allowedNextIndex[cNodeIndex, default: IndexSet()]
                 stack.append(contentsOf: nextIndices.compactMap { index in
@@ -84,19 +84,22 @@ extension DicdataStore {
             guard let louds = self.loadLOUDS(identifier: String(graphNode.character.toKatakana())) else {
                 continue
             }
-            let (loudsNodeIndices, loudsNodeIndex2GraphEndIndices) = louds.byfixNodeIndices(lookupGraph, startGraphNodeIndex: graphNodeIndex)
+            let (loudsNodeIndices, loudsNodeIndex2GraphNodeEndIndices) = louds.byfixNodeIndices(lookupGraph, startGraphNodeIndex: graphNodeIndex)
             let dicdataWithIndex: [(loudsNodeIndex: Int, dicdata: [DicdataElement])] = self.getDicdataFromLoudstxt3(identifier: String(graphNode.character.toKatakana()), indices: loudsNodeIndices, option: option)
             var latticeNodes: [ConvertGraph.LatticeNode] = []
             for (loudsNodeIndex, dicdata) in dicdataWithIndex {
-                for endIndex in loudsNodeIndex2GraphEndIndices[loudsNodeIndex, default: []] {
-                    let inputElementsRange = InputGraphRange(startIndex: graphNode.inputElementsRange.startIndex, endIndex: endIndex)
+                for endNodeIndex in loudsNodeIndex2GraphNodeEndIndices[loudsNodeIndex, default: []] {
+                    let inputElementsRange = InputGraphRange(
+                        startIndex: graphNode.inputElementsRange.startIndex,
+                        endIndex: lookupGraph.nodes[endNodeIndex].inputElementsRange.endIndex
+                    )
                     if graphNode.inputElementsRange.startIndex == 0 {
                         latticeNodes.append(contentsOf: dicdata.map {
-                            .init(data: $0, nextConvertNodeIndices: lookupGraph.allowedNextIndex[graphNodeIndex, default: []], inputElementsRange: inputElementsRange, prevs: [.BOSNode()])
+                            .init(data: $0, nextConvertNodeIndices: lookupGraph.allowedNextIndex[endNodeIndex, default: []], inputElementsRange: inputElementsRange, prevs: [.BOSNode()])
                         })
                     } else {
                         latticeNodes.append(contentsOf: dicdata.map {
-                            .init(data: $0, nextConvertNodeIndices: lookupGraph.allowedNextIndex[graphNodeIndex, default: []], inputElementsRange: inputElementsRange)
+                            .init(data: $0, nextConvertNodeIndices: lookupGraph.allowedNextIndex[endNodeIndex, default: []], inputElementsRange: inputElementsRange)
                         })
                     }
                 }
