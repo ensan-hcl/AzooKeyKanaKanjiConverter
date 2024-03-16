@@ -62,6 +62,39 @@ final class ExperimentalConversionTests: XCTestCase {
         )
     }
 
+    func testConversion_たい() throws {
+        let dicdataStore = DicdataStore(requestOptions: requestOptions())
+        let kana2kanji = Kana2Kanji(dicdataStore: dicdataStore)
+        var c = ComposingText()
+        c.insertAtCursorPosition("たい", inputStyle: .direct)
+        let result = kana2kanji._experimental_all(c, option: requestOptions())
+        XCTAssertTrue(result.joinedPrevs().contains("タイ")) // たい
+        XCTAssertTrue(result.joinedPrevs().contains("台")) // たい
+    }
+
+    func testConversion_いか() throws {
+        let dicdataStore = DicdataStore(requestOptions: requestOptions())
+        let kana2kanji = Kana2Kanji(dicdataStore: dicdataStore)
+        var c = ComposingText()
+        c.insertAtCursorPosition("いか", inputStyle: .direct)
+        let result = kana2kanji._experimental_all(c, option: requestOptions())
+        XCTAssertTrue(result.joinedPrevs().contains("以下")) // いか
+        XCTAssertTrue(result.joinedPrevs().contains("伊賀")) // いが
+        print(result.joinedPrevs())
+    }
+
+    func testConversion_たいか() throws {
+        let dicdataStore = DicdataStore(requestOptions: requestOptions())
+        let kana2kanji = Kana2Kanji(dicdataStore: dicdataStore)
+        var c = ComposingText()
+        c.insertAtCursorPosition("たいか", inputStyle: .direct)
+        let result = kana2kanji._experimental_all(c, option: requestOptions())
+        XCTAssertTrue(result.joinedPrevs().contains("対価")) // たいか
+        XCTAssertTrue(result.joinedPrevs().contains("大河")) // たいが
+        // FIXME: 「たいいか」が入っている
+        print(result.joinedPrevs())
+    }
+
     func testConversion_たいかく() throws {
         let dicdataStore = DicdataStore(requestOptions: requestOptions())
         let kana2kanji = Kana2Kanji(dicdataStore: dicdataStore)
@@ -106,7 +139,7 @@ final class ExperimentalConversionTests: XCTestCase {
         XCTAssertTrue(result.joinedPrevs().contains("幼少期")) // ようしょうき
     }
 
-    func testConversion() throws {
+    func testConversion_みらいえいが() throws {
         let dicdataStore = DicdataStore(requestOptions: requestOptions())
         let kana2kanji = Kana2Kanji(dicdataStore: dicdataStore)
         do {
@@ -121,6 +154,11 @@ final class ExperimentalConversionTests: XCTestCase {
             let result = kana2kanji._experimental_all(c, option: requestOptions())
             XCTAssertTrue(result.joinedPrevs().contains("未来映画"))
         }
+    }
+
+    func testConversion() throws {
+        let dicdataStore = DicdataStore(requestOptions: requestOptions())
+        let kana2kanji = Kana2Kanji(dicdataStore: dicdataStore)
         do {
             var c = ComposingText()
             c.insertAtCursorPosition("sitta", inputStyle: .roman2kana)
