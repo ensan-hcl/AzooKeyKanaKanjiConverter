@@ -51,7 +51,16 @@ struct InputGraphInputStyle: Identifiable {
         }
     }
 
-    init(id: InputGraphInputStyle.ID, replaceSuffixTree: ReplaceSuffixTree.Node, correctPrefixTree: CorrectPrefixTree.Node) {
+    init(from id: InputGraphInputStyle.ID) {
+        self = switch id {
+        case .all: .all
+        case .systemFlickDirect: .systemFlickDirect
+        case .systemRomanKana: .systemRomanKana
+        default: fatalError("Unimplemented")
+        }
+    }
+
+    private init(id: InputGraphInputStyle.ID, replaceSuffixTree: ReplaceSuffixTree.Node, correctPrefixTree: CorrectPrefixTree.Node) {
         self.id = id
         self.replaceSuffixTree = replaceSuffixTree
         self.correctPrefixTree = correctPrefixTree

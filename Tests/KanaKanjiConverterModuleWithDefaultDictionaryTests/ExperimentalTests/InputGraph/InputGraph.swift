@@ -58,13 +58,7 @@ struct InputGraph {
         self.nextCorrectNodeIndices[newIndex] = correctGraph.allowedNextIndex[nodeIndex]
 
         // 次に置換を動かす
-        let startNode = switch cgNode.inputStyle {
-        case .systemFlickDirect:
-            ReplaceSuffixTree.direct
-        case .systemRomanKana:
-            ReplaceSuffixTree.roman2kana
-        default: fatalError("implement it")
-        }
+        let startNode = InputGraphInputStyle.init(from: cgNode.inputStyle).replaceSuffixTree
         // nodesをそれぞれ遡っていく必要がある
         typealias SearchItem = (
             suffixTreeNode: ReplaceSuffixTree.Node,
