@@ -47,10 +47,10 @@ extension Kana2Kanji {
         // TODO: ここから先も差分ベースにする
         // 辞書ルックアップによりconvertGraphを構築
         print(#file, "lookup", previousResult.inputGraph)
-        let convertGraph = self.dicdataStore.buildConvertGraph(inputGraph: previousResult.inputGraph, option: option)
+        let convertGraph = self.dicdataStore.buildConvertGraph(inputGraph: inputGraph, option: option)
         print(#file, "convert")
         let result = convertGraph.convertAll(option: option, dicdataStore: self.dicdataStore)
-        return Result(endNode: result, correctGraph: previousResult.correctGraph, inputGraph: previousResult.inputGraph, convertGraph: convertGraph)
+        return Result(endNode: result, correctGraph: previousResult.correctGraph, inputGraph: inputGraph, convertGraph: convertGraph)
     }
 }
 
