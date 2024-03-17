@@ -27,7 +27,9 @@ struct LookupGraph {
     /// 許可されたprevIndex
     var allowedPrevIndex: [Int: IndexSet] = [:]
 
-    static func build(input: InputGraph, character2CharId: (Character) -> UInt8) -> Self {
+    static func build(input: consuming InputGraph, character2CharId: (Character) -> UInt8) -> Self {
+        // 不要なノードを削除し、計算量を減らす
+        let input = input.clean()
         let nodes = input.nodes.map {
             Node(character: $0.character, charId: character2CharId($0.character), inputElementsRange: $0.inputElementsRange, correction: $0.correction)
         }

@@ -17,7 +17,7 @@ final class InputGraphTests: XCTestCase {
             .init(character: "い", inputStyle: .direct),
             .init(character: "う", inputStyle: .direct)
         ])
-        let inputGraph = InputGraph.build(input: correctGraph)
+        let inputGraph = InputGraph.build(input: correctGraph).clean()
         XCTAssertEqual(inputGraph.nodes.count, 4) // Root nodes
     }
     func testBuildSimpleDirectInput_あかう() throws {
@@ -26,7 +26,7 @@ final class InputGraphTests: XCTestCase {
             .init(character: "か", inputStyle: .direct),
             .init(character: "う", inputStyle: .direct)
         ])
-        let inputGraph = InputGraph.build(input: correctGraph)
+        let inputGraph = InputGraph.build(input: correctGraph).clean()
         XCTAssertEqual(inputGraph.nodes.count, 5) // Root nodes
     }
 
@@ -36,14 +36,22 @@ final class InputGraphTests: XCTestCase {
             .init(character: "い", inputStyle: .direct),
             .init(character: "か", inputStyle: .direct)
         ])
-        let inputGraph = InputGraph.build(input: correctGraph)
+        let inputGraph = InputGraph.build(input: correctGraph).clean()
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "た"}),
+            .init(character: "た", inputElementsRange: .range(0, 1), correction: .none)
+        )
+        XCTAssertEqual(
+            inputGraph.nodes.first(where: {$0.character == "だ"}),
+            .init(character: "だ", inputElementsRange: .range(0, 1), correction: .typo)
+        )
     }
 
     func testBuildSimpleRoman2KanaInput_1文字だけ() throws {
         let correctGraph = CorrectGraph.build(input: [
             .init(character: "i", inputStyle: .roman2kana)
         ])
-        let inputGraph = InputGraph.build(input: correctGraph)
+        let inputGraph = InputGraph.build(input: correctGraph).clean()
         XCTAssertEqual(
             inputGraph.nodes.first(where: {$0.character == "い"}),
             .init(character: "い", inputElementsRange: .range(0, 1), correction: .none)
@@ -54,7 +62,7 @@ final class InputGraphTests: XCTestCase {
             .init(character: "i", inputStyle: .roman2kana),
             .init(character: "t", inputStyle: .roman2kana)
         ])
-        let inputGraph = InputGraph.build(input: correctGraph)
+        let inputGraph = InputGraph.build(input: correctGraph).clean()
         XCTAssertEqual(
             inputGraph.nodes.first(where: {$0.character == "い"}),
             .init(character: "い", inputElementsRange: .range(0, 1), correction: .none)
@@ -70,7 +78,7 @@ final class InputGraphTests: XCTestCase {
             .init(character: "t", inputStyle: .roman2kana),
             .init(character: "a", inputStyle: .roman2kana)
         ])
-        let inputGraph = InputGraph.build(input: correctGraph)
+        let inputGraph = InputGraph.build(input: correctGraph).clean()
         XCTAssertEqual(
             inputGraph.nodes.first(where: {$0.character == "い"}),
             .init(character: "い", inputElementsRange: .range(0, 1), correction: .none)
@@ -87,7 +95,7 @@ final class InputGraphTests: XCTestCase {
             .init(character: "t", inputStyle: .roman2kana),
             .init(character: "s", inputStyle: .roman2kana)
         ])
-        let inputGraph = InputGraph.build(input: correctGraph)
+        let inputGraph = InputGraph.build(input: correctGraph).clean()
         XCTAssertEqual(
             inputGraph.nodes.first(where: {$0.character == "し"}),
             .init(character: "し", inputElementsRange: .range(0, 2), correction: .none)
@@ -107,7 +115,7 @@ final class InputGraphTests: XCTestCase {
             .init(character: "t", inputStyle: .roman2kana),
             .init(character: "s", inputStyle: .roman2kana)
         ])
-        let inputGraph = InputGraph.build(input: correctGraph)
+        let inputGraph = InputGraph.build(input: correctGraph).clean()
         XCTAssertEqual(
             inputGraph.nodes.first(where: {$0.character == "い"}),
             .init(character: "い", inputElementsRange: .range(0, 1), correction: .none)
@@ -136,7 +144,7 @@ final class InputGraphTests: XCTestCase {
             .init(character: "s", inputStyle: .roman2kana),
             .init(character: "a", inputStyle: .roman2kana)
         ])
-        let inputGraph = InputGraph.build(input: correctGraph)
+        let inputGraph = InputGraph.build(input: correctGraph).clean()
         XCTAssertEqual(
             inputGraph.nodes.first(where: {$0.character == "い"}),
             .init(character: "い", inputElementsRange: .range(0, 1), correction: .none)
@@ -180,7 +188,7 @@ final class InputGraphTests: XCTestCase {
             .init(character: "o", inputStyle: .roman2kana),
             .init(character: "u", inputStyle: .roman2kana)
         ])
-        let inputGraph = InputGraph.build(input: correctGraph)
+        let inputGraph = InputGraph.build(input: correctGraph).clean()
         XCTAssertEqual(
             inputGraph.nodes.first(where: {$0.character == "よ"}),
             .init(character: "よ", inputElementsRange: .range(0, 2), correction: .none)
@@ -209,7 +217,7 @@ final class InputGraphTests: XCTestCase {
             .init(character: "t", inputStyle: .roman2kana),
             .init(character: "t", inputStyle: .roman2kana)
         ])
-        let inputGraph = InputGraph.build(input: correctGraph)
+        let inputGraph = InputGraph.build(input: correctGraph).clean()
         XCTAssertEqual(
             inputGraph.nodes.first(where: {$0.character == "っ"}),
             .init(character: "っ", inputElementsRange: .startIndex(0), correction: .none)
@@ -228,7 +236,7 @@ final class InputGraphTests: XCTestCase {
             .init(character: "t", inputStyle: .roman2kana),
             .init(character: "a", inputStyle: .roman2kana)
         ])
-        let inputGraph = InputGraph.build(input: correctGraph)
+        let inputGraph = InputGraph.build(input: correctGraph).clean()
         XCTAssertEqual(
             inputGraph.nodes.first(where: {$0.character == "っ"}),
             .init(character: "っ", inputElementsRange: .startIndex(0), correction: .none)
@@ -244,7 +252,7 @@ final class InputGraphTests: XCTestCase {
             .init(character: "t", inputStyle: .roman2kana),
             .init(character: "a", inputStyle: .roman2kana)
         ])
-        let inputGraph = InputGraph.build(input: correctGraph)
+        let inputGraph = InputGraph.build(input: correctGraph).clean()
         XCTAssertEqual(
             inputGraph.nodes.first(where: {$0.character == "ん"}),
             .init(character: "ん", inputElementsRange: .startIndex(0), correction: .none)
@@ -261,7 +269,7 @@ final class InputGraphTests: XCTestCase {
             .init(character: "t", inputStyle: .roman2kana),
             .init(character: "a", inputStyle: .roman2kana)
         ])
-        let inputGraph = InputGraph.build(input: correctGraph)
+        let inputGraph = InputGraph.build(input: correctGraph).clean()
         XCTAssertEqual(
             inputGraph.nodes.first(where: {$0.character == "い"}),
             .init(character: "い", inputElementsRange: .range(0, 1), correction: .none)
@@ -284,7 +292,7 @@ final class InputGraphTests: XCTestCase {
             .init(character: "s", inputStyle: .roman2kana),
             .init(character: "i", inputStyle: .roman2kana)
         ])
-        let inputGraph = InputGraph.build(input: correctGraph)
+        let inputGraph = InputGraph.build(input: correctGraph).clean()
         XCTAssertEqual(
             inputGraph.nodes.first(where: {$0.character == "し"}),
             .init(character: "し", inputElementsRange: .range(0, 2), correction: .none)
@@ -306,7 +314,7 @@ final class InputGraphTests: XCTestCase {
             .init(character: "t", inputStyle: .roman2kana),
             .init(character: "s", inputStyle: .roman2kana)
         ])
-        let inputGraph = InputGraph.build(input: correctGraph)
+        let inputGraph = InputGraph.build(input: correctGraph).clean()
         XCTAssertEqual(
             inputGraph.nodes.first(where: {$0.character == "っ" && $0.correction == .none}),
             .init(character: "っ", inputElementsRange: .startIndex(0), correction: .none)
@@ -330,7 +338,7 @@ final class InputGraphTests: XCTestCase {
             .init(character: "t", inputStyle: .roman2kana),
             .init(character: "s", inputStyle: .direct)
         ])
-        let inputGraph = InputGraph.build(input: correctGraph)
+        let inputGraph = InputGraph.build(input: correctGraph).clean()
         XCTAssertEqual(
             inputGraph.nodes.first(where: {$0.character == "t"}),
             .init(character: "t", inputElementsRange: .range(0, 1), correction: .none)

@@ -167,7 +167,7 @@ struct InputGraph {
         }
     }
 
-    private mutating func clean() {
+    consuming func clean() -> Self {
         var newGraph = Self(nodes: [])
         var indices: [(nodeIndex: Int, fromIndex: Int?)] = [(0, nil)]
         var processedNodeIndices: [Int: Int] = [:]
@@ -191,7 +191,7 @@ struct InputGraph {
             }
             processedNodeIndices[nodeIndex] = newIndex
         }
-        self = newGraph
+        return newGraph
     }
 
     static func build(input: CorrectGraph) -> Self {
@@ -222,9 +222,6 @@ struct InputGraph {
             }
             nodeIndices.append(contentsOf: input.allowedNextIndex[nodeIndex, default: IndexSet()])
         }
-
-        // invalidateしたnodeを削除する
-        inputGraph.clean()
         return inputGraph
     }
 }
