@@ -53,7 +53,7 @@ enum CorrectPrefixTree {
                 "k": .terminal(["gi"]),
                 "l": .terminal(["go"]),
                 "p": .terminal(["go"]),
-                "j": .terminal(["gu"]),
+                "j": .terminal(["gu"])
             ]),
             "m": Node([
                 "s": .terminal(["ma"]),
@@ -64,7 +64,7 @@ enum CorrectPrefixTree {
                 "k": .terminal(["mi"]),
                 "l": .terminal(["mo"]),
                 "p": .terminal(["mo"]),
-                "j": .terminal(["mu"]),
+                "j": .terminal(["mu"])
             ]),
             "t": Node([
                 "s": .terminal(["ta"]),
@@ -75,8 +75,8 @@ enum CorrectPrefixTree {
                 "k": .terminal(["ti"]),
                 "l": .terminal(["to"]),
                 "p": .terminal(["to"]),
-                "j": .terminal(["tu"]),
-            ]),
+                "j": .terminal(["tu"])
+            ])
         ])
     }()
     static let direct: Node = {
