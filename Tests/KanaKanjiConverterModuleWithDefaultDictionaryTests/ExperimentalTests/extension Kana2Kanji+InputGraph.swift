@@ -23,6 +23,30 @@ extension Kana2Kanji {
         let result = convertGraph.convertAll(option: option, dicdataStore: self.dicdataStore)
         return result
     }
+
+    func _experimental_additional(
+        composingText: ComposingText,
+        additionalInputsStartIndex: Int,
+        previousCorrectGraph: consuming CorrectGraph,
+        previousInputGraph: consuming InputGraph,
+        previousLookupGraph: consuming LookupGraph,
+        previousConvertGraph: consuming ConvertGraph,
+        option: ConvertRequestOptions
+    ) -> ConvertGraph.LatticeNode {
+        // グラフ構築
+        print(#file, "start")
+        for i in additionalInputsStartIndex ..< composingText.input.endIndex {
+            previousCorrectGraph.update(with: composingText.input[i], index: i, input: composingText.input)
+        }
+        // TODO: ここから先も差分ベースにする
+        let inputGraph = InputGraph.build(input: consume previousCorrectGraph)
+        // 辞書ルックアップによりconvertGraphを構築
+        print(#file, "lookup", inputGraph)
+        let convertGraph = self.dicdataStore.buildConvertGraph(inputGraph: consume inputGraph, option: option)
+        print(#file, "convert")
+        let result = convertGraph.convertAll(option: option, dicdataStore: self.dicdataStore)
+        return result
+    }
 }
 
 private extension ConvertGraph.LatticeNode {

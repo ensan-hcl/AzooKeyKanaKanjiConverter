@@ -60,10 +60,10 @@ struct InputGraphInputStyle: Identifiable {
         }
     }
 
-    private init(id: InputGraphInputStyle.ID, replaceSuffixTree: ReplaceSuffixTree.Node, correctPrefixTree: CorrectPrefixTree.Node) {
+    private init(id: InputGraphInputStyle.ID, replaceSuffixTree: ReplaceSuffixTree.Node, correctSuffixTree: CorrectSuffixTree.Node) {
         self.id = id
         self.replaceSuffixTree = replaceSuffixTree
-        self.correctPrefixTree = correctPrefixTree
+        self.correctSuffixTree = correctSuffixTree
     }
 
     struct ID: Equatable, Hashable, Sendable, CustomStringConvertible {
@@ -97,22 +97,22 @@ struct InputGraphInputStyle: Identifiable {
     static let all: Self = Self(
         id: .all,
         replaceSuffixTree: ReplaceSuffixTree.Node(),
-        correctPrefixTree: CorrectPrefixTree.Node()
+        correctSuffixTree: CorrectSuffixTree.Node()
     )
     static let systemFlickDirect: Self = Self(
         id: .systemFlickDirect,
         replaceSuffixTree: ReplaceSuffixTree.direct,
-        correctPrefixTree: CorrectPrefixTree.direct
+        correctSuffixTree: CorrectSuffixTree.direct
     )
     static let systemRomanKana: Self = Self(
         id: .systemRomanKana,
         replaceSuffixTree: ReplaceSuffixTree.roman2kana,
-        correctPrefixTree: CorrectPrefixTree.roman2kana
+        correctSuffixTree: CorrectSuffixTree.roman2kana
     )
 
     /// `id` for the input style.
     ///  - warning: value `0x00-0x7F` is reserved for system space.
     var id: ID
     var replaceSuffixTree: ReplaceSuffixTree.Node
-    var correctPrefixTree: CorrectPrefixTree.Node
+    var correctSuffixTree: CorrectSuffixTree.Node
 }

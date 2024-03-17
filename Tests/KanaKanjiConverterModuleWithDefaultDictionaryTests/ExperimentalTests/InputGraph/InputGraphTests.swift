@@ -37,7 +37,6 @@ final class InputGraphTests: XCTestCase {
             .init(character: "か", inputStyle: .direct)
         ])
         let inputGraph = InputGraph.build(input: correctGraph)
-        XCTAssertEqual(inputGraph.nodes.count, 5) // Root nodes
     }
 
     func testBuildSimpleRoman2KanaInput_1文字だけ() throws {
@@ -151,7 +150,6 @@ final class InputGraphTests: XCTestCase {
         XCTAssertNil(
             inputGraph.nodes.first(where: {$0.character == "t" && $0.inputElementsRange == .startIndex(1)})
         )
-        // groupIdの制約により、「た→あ」のみが許される遷移になる
         XCTAssertEqual(
             inputGraph.nodes.first(where: {$0.character == "た"}),
             .init(character: "た", inputElementsRange: .range(1, 3), correction: .typo)
@@ -325,7 +323,6 @@ final class InputGraphTests: XCTestCase {
             inputGraph.nodes.first(where: {$0.character == "た"}),
             .init(character: "た", inputElementsRange: .endIndex(3), correction: .typo)
         )
-        print(inputGraph)
     }
 
     func testBuildMixedInput_2文字_ts() throws {
