@@ -13,7 +13,7 @@ struct ConvertGraph {
     struct Node {
         var latticeNodes: [LatticeNode]
         var inputElementsRange: InputGraphRange
-        var correction: CorrectGraph2.Correction = .none
+        var correction: CorrectGraph.Correction = .none
     }
 
     var nodes: [Node] = [

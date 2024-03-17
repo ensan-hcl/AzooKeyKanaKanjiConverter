@@ -11,12 +11,11 @@ import DequeModule
 @testable import KanaKanjiConverterModule
 import XCTest
 
-
 struct InputGraph {
     struct Node: Equatable, CustomStringConvertible {
         var character: Character
         var inputElementsRange: InputGraphRange
-        var correction: CorrectGraph2.Correction = .none
+        var correction: CorrectGraph.Correction = .none
 
         var description: String {
             let `is` = inputElementsRange.startIndex?.description ?? "?"
@@ -35,7 +34,6 @@ struct InputGraph {
     var allowedPrevIndex: [Int: IndexSet] = [:]
     /// correctGraphのノード情報
     var nextCorrectNodeIndices: [Int: IndexSet] = [:]
-
 
     mutating func update(_ correctGraph: CorrectGraph, nodeIndex: Int) {
         let cgNode = correctGraph.nodes[nodeIndex]
@@ -60,13 +58,7 @@ struct InputGraph {
         self.nextCorrectNodeIndices[newIndex] = correctGraph.allowedNextIndex[nodeIndex]
 
         // 次に置換を動かす
-        let startNode = switch cgNode.inputStyle {
-        case .systemFlickDirect:
-            ReplaceSuffixTree.direct
-        case .systemRomanKana:
-            ReplaceSuffixTree.roman2kana
-        default: fatalError("implement it")
-        }
+        let startNode = InputGraphInputStyle.init(from: cgNode.inputStyle).replaceSuffixTree
         // nodesをそれぞれ遡っていく必要がある
         typealias SearchItem = (
             suffixTreeNode: ReplaceSuffixTree.Node,
@@ -74,7 +66,7 @@ struct InputGraph {
             route: [Int],
             // 発見された置換
             foundValue: Replacement?,
-            correction: CorrectGraph2.Correction
+            correction: CorrectGraph.Correction
         )
         typealias Match = (
             // 置換
@@ -126,7 +118,7 @@ struct InputGraph {
             let endIndex = self.nodes[replacement.route[replacement.route.endIndex - 1]].inputElementsRange.endIndex
 
             let characters = Array(replacement.value)
-            let correction: CorrectGraph2.Correction = if replacement.route.allSatisfy({!self.nodes[$0].correction.isTypo}) {
+            let correction: CorrectGraph.Correction = if replacement.route.allSatisfy({!self.nodes[$0].correction.isTypo}) {
                 .none
             } else {
                 .typo

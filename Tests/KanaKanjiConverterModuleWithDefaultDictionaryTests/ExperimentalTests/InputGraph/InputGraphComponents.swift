@@ -41,7 +41,6 @@ enum InputGraphRange: Equatable, Sendable {
     }
 }
 
-
 struct InputGraphInputStyle: Identifiable {
     init(from deprecatedInputStyle: KanaKanjiConverterModule.InputStyle) {
         switch deprecatedInputStyle {
@@ -52,9 +51,18 @@ struct InputGraphInputStyle: Identifiable {
         }
     }
 
-    init(id: InputGraphInputStyle.ID, replacePrefixTree: ReplacePrefixTree.Node, correctPrefixTree: CorrectPrefixTree.Node) {
+    init(from id: InputGraphInputStyle.ID) {
+        self = switch id {
+        case .all: .all
+        case .systemFlickDirect: .systemFlickDirect
+        case .systemRomanKana: .systemRomanKana
+        default: fatalError("Unimplemented")
+        }
+    }
+
+    private init(id: InputGraphInputStyle.ID, replaceSuffixTree: ReplaceSuffixTree.Node, correctPrefixTree: CorrectPrefixTree.Node) {
         self.id = id
-        self.replacePrefixTree = replacePrefixTree
+        self.replaceSuffixTree = replaceSuffixTree
         self.correctPrefixTree = correctPrefixTree
     }
 
@@ -88,23 +96,23 @@ struct InputGraphInputStyle: Identifiable {
     }
     static let all: Self = Self(
         id: .all,
-        replacePrefixTree: ReplacePrefixTree.Node(),
+        replaceSuffixTree: ReplaceSuffixTree.Node(),
         correctPrefixTree: CorrectPrefixTree.Node()
     )
     static let systemFlickDirect: Self = Self(
         id: .systemFlickDirect,
-        replacePrefixTree: ReplacePrefixTree.direct,
+        replaceSuffixTree: ReplaceSuffixTree.direct,
         correctPrefixTree: CorrectPrefixTree.direct
     )
     static let systemRomanKana: Self = Self(
         id: .systemRomanKana,
-        replacePrefixTree: ReplacePrefixTree.roman2kana,
+        replaceSuffixTree: ReplaceSuffixTree.roman2kana,
         correctPrefixTree: CorrectPrefixTree.roman2kana
     )
 
     /// `id` for the input style.
     ///  - warning: value `0x00-0x7F` is reserved for system space.
     var id: ID
-    var replacePrefixTree: ReplacePrefixTree.Node
+    var replaceSuffixTree: ReplaceSuffixTree.Node
     var correctPrefixTree: CorrectPrefixTree.Node
 }
