@@ -38,47 +38,56 @@ enum CorrectSuffixTree {
             "s": Node([
                 "g": .terminal("ga"),
                 "m": .terminal("ma"),
-                "t": .terminal("ta")
+                "t": .terminal("ta"),
+                "y": .terminal("ya")
             ]),
             "q": Node([
                 "g": .terminal("ga"),
                 "m": .terminal("ma"),
-                "t": .terminal("ta")
+                "t": .terminal("ta"),
+                "y": .terminal("ya")
             ]),
             "d": Node([
                 "g": .terminal("ge"),
                 "m": .terminal("me"),
-                "t": .terminal("te")
+                "t": .terminal("te"),
+                "y": .terminal("ya")
             ]),
             "r": Node([
                 "g": .terminal("ge"),
                 "m": .terminal("me"),
-                "t": .terminal("te")
+                "t": .terminal("te"),
+                "y": .terminal("ya")
             ]),
             "w": Node([
                 "g": .terminal("ge"),
                 "m": .terminal("me"),
-                "t": .terminal("te")
+                "t": .terminal("te"),
+                "y": .terminal("ya")
             ]),
             "k": Node([
                 "g": .terminal("gi"),
                 "m": .terminal("mi"),
-                "t": .terminal("ti")
+                "t": .terminal("ti"),
+                "y": .terminal("ya")
             ]),
             "l": Node([
                 "g": .terminal("go"),
                 "m": .terminal("mo"),
-                "t": .terminal("to")
+                "t": .terminal("to"),
+                "y": .terminal("ya")
             ]),
             "p": Node([
                 "g": .terminal("go"),
                 "m": .terminal("mo"),
-                "t": .terminal("to")
+                "t": .terminal("to"),
+                "y": .terminal("ya")
             ]),
             "j": Node([
                 "g": .terminal("gu"),
                 "m": .terminal("mu"),
-                "t": .terminal("tu")
+                "t": .terminal("tu"),
+                "y": .terminal("ya")
             ])
         ])
     }()

@@ -149,7 +149,6 @@ struct InputGraph {
             for i in prevIndices {
                 // firstIndexを追加してreplacementの最初を削除する
                 self.allowedNextIndex[i, default: IndexSet()].insert(firstIndex)
-                self.allowedNextIndex[i, default: IndexSet()].remove(replacement.route[0])
             }
             // 中央部の処理
             for i in firstIndex ..< lastIndex {
@@ -194,13 +193,40 @@ struct InputGraph {
         return newGraph
     }
 
+    /// インクリメンタルな構築のための関数。
+    /// - warning: 実装上の問題から使っていない
+    mutating func _applyAdditionalCorrectGraph(_ newCorrectGraph: CorrectGraph, addedNodeIndices: IndexSet) {
+        // ノードが末尾に追加されたケースでInputGraphを更新する
+        // ex. 「t」に対して「s」が追加された場合、correctGraphでは「t」「a」も追加されている
+        var processedIndices = IndexSet()
+        var nodeIndices = Array(addedNodeIndices.reversed())
+        while let nodeIndex = nodeIndices.popLast() {
+            if processedIndices.contains(nodeIndex) {
+                continue
+            }
+            // addedNodeIndicesの中で未処理のものがprevに入っているケース
+            let prevIndices = newCorrectGraph.allowedPrevIndex[nodeIndex, default: IndexSet()].intersection(addedNodeIndices)
+            // 差がある場合
+            let diff = prevIndices.subtracting(processedIndices)
+            guard diff.isEmpty else {
+                nodeIndices.append(nodeIndex)
+                nodeIndices.append(contentsOf: diff)
+                continue
+            }
+            processedIndices.insert(nodeIndex)
+            // root以外
+            assert(nodeIndex != 0)
+            self.update(newCorrectGraph, nodeIndex: nodeIndex)
+            nodeIndices.append(contentsOf: newCorrectGraph.allowedNextIndex[nodeIndex, default: IndexSet()])
+        }
+    }
+
     static func build(input: CorrectGraph) -> Self {
         var inputGraph = Self()
         // 必ず、ノードより前のすべてのノードが処理済みであることを保証しながら、updateを実行する
         var nodeIndices = Array([0])
         var processedIndices = IndexSet()
         while let nodeIndex = nodeIndices.popLast() {
-            print("build", input.nodes[nodeIndex].value)
             if processedIndices.contains(nodeIndex) {
                 continue
             }

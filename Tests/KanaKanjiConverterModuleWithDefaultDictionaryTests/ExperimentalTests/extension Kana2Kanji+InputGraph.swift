@@ -11,41 +11,46 @@ import Foundation
 import XCTest
 
 extension Kana2Kanji {
-    func _experimental_all(_ inputData: ComposingText, option: ConvertRequestOptions) -> ConvertGraph.LatticeNode {
+    struct Result {
+        var endNode: ConvertGraph.LatticeNode
+        var correctGraph: CorrectGraph
+        var inputGraph: InputGraph
+        var convertGraph: ConvertGraph
+    }
+    func _experimental_all(_ inputData: ComposingText, option: ConvertRequestOptions) -> Result {
         // グラフ構築
         print(#file, "start")
         let correctGraph = CorrectGraph.build(input: inputData.input)
-        let inputGraph = InputGraph.build(input: consume correctGraph)
+        let inputGraph = InputGraph.build(input: correctGraph)
         // 辞書ルックアップによりconvertGraphを構築
         print(#file, "lookup", inputGraph)
-        let convertGraph = self.dicdataStore.buildConvertGraph(inputGraph: consume inputGraph, option: option)
+        let convertGraph = self.dicdataStore.buildConvertGraph(inputGraph: inputGraph, option: option)
         print(#file, "convert")
         let result = convertGraph.convertAll(option: option, dicdataStore: self.dicdataStore)
-        return result
+        return Result(endNode: result, correctGraph: correctGraph, inputGraph: inputGraph, convertGraph: convertGraph)
     }
 
     func _experimental_additional(
         composingText: ComposingText,
         additionalInputsStartIndex: Int,
-        previousCorrectGraph: consuming CorrectGraph,
-        previousInputGraph: consuming InputGraph,
-        previousLookupGraph: consuming LookupGraph,
-        previousConvertGraph: consuming ConvertGraph,
+        previousResult: consuming Result,
         option: ConvertRequestOptions
-    ) -> ConvertGraph.LatticeNode {
+    ) -> Result {
         // グラフ構築
         print(#file, "start")
+        var insertedIndexSet = IndexSet()
         for i in additionalInputsStartIndex ..< composingText.input.endIndex {
-            previousCorrectGraph.update(with: composingText.input[i], index: i, input: composingText.input)
+            insertedIndexSet.formUnion(previousResult.correctGraph.update(with: composingText.input[i], index: i, input: composingText.input))
         }
+        // FIXME: inputGraphの差分ベースの構築は困難なため、普通に構築し直す
+        let inputGraph = InputGraph.build(input: previousResult.correctGraph)
         // TODO: ここから先も差分ベースにする
-        let inputGraph = InputGraph.build(input: consume previousCorrectGraph)
         // 辞書ルックアップによりconvertGraphを構築
-        print(#file, "lookup", inputGraph)
-        let convertGraph = self.dicdataStore.buildConvertGraph(inputGraph: consume inputGraph, option: option)
+        print(#file, "lookup", previousResult.inputGraph)
+        let convertGraph = self.dicdataStore.buildConvertGraph(inputGraph: previousResult.inputGraph, option: option)
         print(#file, "convert")
         let result = convertGraph.convertAll(option: option, dicdataStore: self.dicdataStore)
-        return result
+        return Result(endNode: result, correctGraph: previousResult.correctGraph, inputGraph: previousResult.inputGraph, convertGraph: convertGraph)
     }
 }
 
@@ -92,8 +97,8 @@ final class ExperimentalConversionTests: XCTestCase {
         var c = ComposingText()
         c.insertAtCursorPosition("たい", inputStyle: .direct)
         let result = kana2kanji._experimental_all(c, option: requestOptions())
-        XCTAssertTrue(result.joinedPrevs().contains("タイ")) // たい
-        XCTAssertTrue(result.joinedPrevs().contains("台")) // たい
+        XCTAssertTrue(result.endNode.joinedPrevs().contains("タイ")) // たい
+        XCTAssertTrue(result.endNode.joinedPrevs().contains("台")) // たい
     }
 
     func testConversion_いか() throws {
@@ -102,9 +107,9 @@ final class ExperimentalConversionTests: XCTestCase {
         var c = ComposingText()
         c.insertAtCursorPosition("いか", inputStyle: .direct)
         let result = kana2kanji._experimental_all(c, option: requestOptions())
-        XCTAssertTrue(result.joinedPrevs().contains("以下")) // いか
-        XCTAssertTrue(result.joinedPrevs().contains("伊賀")) // いが
-        print(result.joinedPrevs())
+        XCTAssertTrue(result.endNode.joinedPrevs().contains("以下")) // いか
+        XCTAssertTrue(result.endNode.joinedPrevs().contains("伊賀")) // いが
+        print(result.endNode.joinedPrevs())
     }
 
     func testConversion_たいか() throws {
@@ -113,10 +118,10 @@ final class ExperimentalConversionTests: XCTestCase {
         var c = ComposingText()
         c.insertAtCursorPosition("たいか", inputStyle: .direct)
         let result = kana2kanji._experimental_all(c, option: requestOptions())
-        XCTAssertTrue(result.joinedPrevs().contains("対価")) // たいか
-        XCTAssertTrue(result.joinedPrevs().contains("大河")) // たいが
+        XCTAssertTrue(result.endNode.joinedPrevs().contains("対価")) // たいか
+        XCTAssertTrue(result.endNode.joinedPrevs().contains("大河")) // たいが
         // FIXME: 「たいいか」が入っている
-        print(result.joinedPrevs())
+        print(result.endNode.joinedPrevs())
     }
 
     func testConversion_たいかく() throws {
@@ -125,8 +130,8 @@ final class ExperimentalConversionTests: XCTestCase {
         var c = ComposingText()
         c.insertAtCursorPosition("たいかく", inputStyle: .direct)
         let result = kana2kanji._experimental_all(c, option: requestOptions())
-        XCTAssertTrue(result.joinedPrevs().contains("体格")) // たいかく
-        XCTAssertTrue(result.joinedPrevs().contains("退学")) // たいがく
+        XCTAssertTrue(result.endNode.joinedPrevs().contains("体格")) // たいかく
+        XCTAssertTrue(result.endNode.joinedPrevs().contains("退学")) // たいがく
     }
 
     func testConversion_むらさき() throws {
@@ -135,7 +140,7 @@ final class ExperimentalConversionTests: XCTestCase {
         var c = ComposingText()
         c.insertAtCursorPosition("むらさき", inputStyle: .direct)
         let result = kana2kanji._experimental_all(c, option: requestOptions())
-        XCTAssertTrue(result.joinedPrevs().contains("紫")) // むらさき
+        XCTAssertTrue(result.endNode.joinedPrevs().contains("紫")) // むらさき
     }
 
     func testBuildConvertGraph_youshouki() throws {
@@ -160,7 +165,7 @@ final class ExperimentalConversionTests: XCTestCase {
         var c = ComposingText()
         c.insertAtCursorPosition("youshouki", inputStyle: .roman2kana)
         let result = kana2kanji._experimental_all(c, option: requestOptions())
-        XCTAssertTrue(result.joinedPrevs().contains("幼少期")) // ようしょうき
+        XCTAssertTrue(result.endNode.joinedPrevs().contains("幼少期")) // ようしょうき
     }
 
     func testConversion_みらいえいが() throws {
@@ -170,13 +175,13 @@ final class ExperimentalConversionTests: XCTestCase {
             var c = ComposingText()
             c.insertAtCursorPosition("みらいえいが", inputStyle: .direct)
             let result = kana2kanji._experimental_all(c, option: requestOptions())
-            XCTAssertTrue(result.joinedPrevs().contains("未来映画"))
+            XCTAssertTrue(result.endNode.joinedPrevs().contains("未来映画"))
         }
         do {
             var c = ComposingText()
             c.insertAtCursorPosition("miraieiga", inputStyle: .roman2kana)
             let result = kana2kanji._experimental_all(c, option: requestOptions())
-            XCTAssertTrue(result.joinedPrevs().contains("未来映画"))
+            XCTAssertTrue(result.endNode.joinedPrevs().contains("未来映画"))
         }
     }
 
@@ -187,32 +192,51 @@ final class ExperimentalConversionTests: XCTestCase {
             var c = ComposingText()
             c.insertAtCursorPosition("sitta", inputStyle: .roman2kana)
             let result = kana2kanji._experimental_all(c, option: requestOptions())
-            XCTAssertTrue(result.joinedPrevs().contains("知った"))
+            XCTAssertTrue(result.endNode.joinedPrevs().contains("知った"))
         }
         do {
             var c = ComposingText()
             c.insertAtCursorPosition("unda", inputStyle: .roman2kana)
             let result = kana2kanji._experimental_all(c, option: requestOptions())
-            XCTAssertTrue(result.joinedPrevs().contains("産んだ"))
+            XCTAssertTrue(result.endNode.joinedPrevs().contains("産んだ"))
         }
         do {
             var c = ComposingText()
             c.insertAtCursorPosition("ixtsuta", inputStyle: .roman2kana)
             let result = kana2kanji._experimental_all(c, option: requestOptions())
-            XCTAssertTrue(result.joinedPrevs().contains("言った"))
+            XCTAssertTrue(result.endNode.joinedPrevs().contains("言った"))
         }
         do {
             var c = ComposingText()
             c.insertAtCursorPosition("its", inputStyle: .roman2kana)
             let result = kana2kanji._experimental_all(c, option: requestOptions())
-            XCTAssertTrue(result.joinedPrevs().contains("いた"))
+            XCTAssertTrue(result.endNode.joinedPrevs().contains("いた"))
         }
         do {
             var c = ComposingText()
             c.insertAtCursorPosition("itsi", inputStyle: .roman2kana)
             let result = kana2kanji._experimental_all(c, option: requestOptions())
-            print(result.joinedPrevs())
-            XCTAssertTrue(result.joinedPrevs().contains("痛い"))
+            print(result.endNode.joinedPrevs())
+            XCTAssertTrue(result.endNode.joinedPrevs().contains("痛い"))
         }
+    }
+
+    func testConversion_incremental_たい() throws {
+        let dicdataStore = DicdataStore(requestOptions: requestOptions())
+        let kana2kanji = Kana2Kanji(dicdataStore: dicdataStore)
+        var c = ComposingText()
+        c.insertAtCursorPosition("たい", inputStyle: .direct)
+        let firstResult = kana2kanji._experimental_all(c, option: requestOptions())
+        XCTAssertTrue(firstResult.endNode.joinedPrevs().contains("タイ")) // たい
+        XCTAssertTrue(firstResult.endNode.joinedPrevs().contains("台")) // たい
+        c.insertAtCursorPosition("こ", inputStyle: .direct)
+        let secondResult = kana2kanji._experimental_additional(
+            composingText: c,
+            additionalInputsStartIndex: 2,
+            previousResult: firstResult,
+            option: requestOptions()
+        )
+        XCTAssertTrue(secondResult.endNode.joinedPrevs().contains("太鼓")) // たいこ
+        XCTAssertTrue(secondResult.endNode.joinedPrevs().contains("太古")) // たいこ
     }
 }

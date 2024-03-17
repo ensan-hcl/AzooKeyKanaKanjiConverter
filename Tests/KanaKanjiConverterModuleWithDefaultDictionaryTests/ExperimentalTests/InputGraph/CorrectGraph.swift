@@ -56,10 +56,11 @@ struct CorrectGraph {
         return index
     }
 
-    mutating func insertConnectedTypoNodes(values: [Character], startIndex: Int, endIndex: Int, inputStyle: InputGraphInputStyle.ID, lastIndexSet: IndexSet) -> Int {
+    private mutating func insertConnectedTypoNodes(values: [Character], startIndex: Int, endIndex: Int, inputStyle: InputGraphInputStyle.ID, lastIndexSet: IndexSet) -> (lastIndex: Int, insertedIndexSet: IndexSet) {
         guard !values.isEmpty else {
             fatalError("values must not be empty")
         }
+        var insertedIndexSet = IndexSet()
         var lastIndexSet = lastIndexSet
         for (i, c) in zip(values.indices, values) {
             let inputElementRange: InputGraphRange = if i == values.startIndex && i+1 == values.endIndex {
@@ -77,12 +78,16 @@ struct CorrectGraph {
                 correction: .typo,
                 value: c
             )
-            lastIndexSet = IndexSet(integer: self.insert(node, nextTo: lastIndexSet))
+            let nodeIndex = self.insert(node, nextTo: lastIndexSet)
+            lastIndexSet = IndexSet(integer: nodeIndex)
+            insertedIndexSet.insert(nodeIndex)
         }
-        return lastIndexSet.first!
+        return (lastIndexSet.first!, insertedIndexSet)
     }
 
-    mutating func update(with item: ComposingText.InputElement, index: Int, input: [ComposingText.InputElement]) {
+    @discardableResult
+    mutating func update(with item: ComposingText.InputElement, index: Int, input: [ComposingText.InputElement]) -> IndexSet {
+        var insertedIndexSet = IndexSet()
         // 訂正のない候補を追加
         do {
             let nodeIndex = self.insert(
@@ -95,6 +100,7 @@ struct CorrectGraph {
                 nextTo: self.inputIndexToEndNodeIndices[index, default: IndexSet()]
             )
             self.inputIndexToEndNodeIndices[index + 1, default: IndexSet()].insert(nodeIndex)
+            insertedIndexSet.insert(nodeIndex)
         }
 
         // 訂正候補を追加
@@ -123,7 +129,7 @@ struct CorrectGraph {
                     if value.isEmpty {
                         continue
                     } else if value.count > 1 {
-                        let nodeIndex = self.insertConnectedTypoNodes(
+                        let (nodeIndex, indexSet) = self.insertConnectedTypoNodes(
                             values: Array(value),
                             startIndex: index - cRouteCount + 1,
                             endIndex: index + 1,
@@ -131,6 +137,7 @@ struct CorrectGraph {
                             lastIndexSet: self.inputIndexToEndNodeIndices[index - cRouteCount + 1, default: IndexSet()]
                         )
                         self.inputIndexToEndNodeIndices[index + 1, default: IndexSet()].insert(nodeIndex)
+                        insertedIndexSet.formUnion(indexSet)
                     } else {
                         let nodeIndex = self.insert(
                             Node(
@@ -142,10 +149,12 @@ struct CorrectGraph {
                             nextTo: self.inputIndexToEndNodeIndices[index - cRouteCount + 1, default: IndexSet()]
                         )
                         self.inputIndexToEndNodeIndices[index + 1, default: IndexSet()].insert(nodeIndex)
+                        insertedIndexSet.insert(nodeIndex)
                     }
                 }
             }
         }
+        return insertedIndexSet
     }
 
     static func build(input: [ComposingText.InputElement]) -> Self {
