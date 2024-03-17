@@ -109,7 +109,18 @@ final class ExperimentalConversionTests: XCTestCase {
         let result = kana2kanji._experimental_all(c, option: requestOptions())
         XCTAssertTrue(result.endNode.joinedPrevs().contains("以下")) // いか
         XCTAssertTrue(result.endNode.joinedPrevs().contains("伊賀")) // いが
-        print(result.endNode.joinedPrevs())
+    }
+
+    func testConversion_かかく() throws {
+        let dicdataStore = DicdataStore(requestOptions: requestOptions())
+        let kana2kanji = Kana2Kanji(dicdataStore: dicdataStore)
+        var c = ComposingText()
+        c.insertAtCursorPosition("かかく", inputStyle: .direct)
+        let result = kana2kanji._experimental_all(c, option: requestOptions())
+        XCTAssertTrue(result.endNode.joinedPrevs().contains("価格")) // かかく
+        XCTAssertTrue(result.endNode.joinedPrevs().contains("科学")) // かがく
+        XCTAssertTrue(result.endNode.joinedPrevs().contains("画角")) // がかく
+        XCTAssertTrue(result.endNode.joinedPrevs().contains("雅楽")) // ががく
     }
 
     func testConversion_たいか() throws {
@@ -120,8 +131,6 @@ final class ExperimentalConversionTests: XCTestCase {
         let result = kana2kanji._experimental_all(c, option: requestOptions())
         XCTAssertTrue(result.endNode.joinedPrevs().contains("対価")) // たいか
         XCTAssertTrue(result.endNode.joinedPrevs().contains("大河")) // たいが
-        // FIXME: 「たいいか」が入っている
-        print(result.endNode.joinedPrevs())
     }
 
     func testConversion_たいかく() throws {
@@ -216,7 +225,6 @@ final class ExperimentalConversionTests: XCTestCase {
             var c = ComposingText()
             c.insertAtCursorPosition("itsi", inputStyle: .roman2kana)
             let result = kana2kanji._experimental_all(c, option: requestOptions())
-            print(result.endNode.joinedPrevs())
             XCTAssertTrue(result.endNode.joinedPrevs().contains("痛い"))
         }
     }
