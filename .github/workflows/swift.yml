@@ -10,15 +10,16 @@ on:
 
 jobs:
   build:
-    name: Swift on ${{ matrix.os }}
+    name: Swift ${{ matrix.swift-version }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
+        swift-version: [5.9, 5.10]
     steps:
-    - uses: swift-actions/setup-swift@v2
+    - uses: swift-actions/setup-swift@v1
       with:
-        swift-version: 5.9
+        swift-version: ${{ matrix.swift-version }}
     - uses: actions/checkout@v4
       with:
         submodules: true
