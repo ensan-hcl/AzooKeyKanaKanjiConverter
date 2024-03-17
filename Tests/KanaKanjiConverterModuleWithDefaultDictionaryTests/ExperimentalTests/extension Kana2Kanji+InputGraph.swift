@@ -19,7 +19,7 @@ extension Kana2Kanji {
         // 辞書ルックアップによりconvertGraphを構築
         print(#file, "lookup", inputGraph)
         let convertGraph = self.dicdataStore.buildConvertGraph(inputGraph: consume inputGraph, option: option)
-        print(#file, "convert", convertGraph)
+        print(#file, "convert")
         let result = convertGraph.convertAll(option: option, dicdataStore: self.dicdataStore)
         return result
     }
@@ -46,7 +46,100 @@ final class ExperimentalConversionTests: XCTestCase {
         .withDefaultDictionary(requireJapanesePrediction: false, requireEnglishPrediction: false, keyboardLanguage: .ja_JP, learningType: .nothing, memoryDirectoryURL: URL(fileURLWithPath: ""), sharedContainerURL: URL(fileURLWithPath: ""), metadata: .init(appVersionString: "Test"))
     }
 
-    func testConversion() throws {
+    func testBuildConvertGraph_たいかく() throws {
+        let dicdataStore = DicdataStore(requestOptions: requestOptions())
+        var c = ComposingText()
+        c.insertAtCursorPosition("たいかく", inputStyle: .direct)
+        let correctGraph = CorrectGraph.build(input: c.input)
+        let inputGraph = InputGraph.build(input: consume correctGraph)
+        let convertGraph = dicdataStore.buildConvertGraph(inputGraph: inputGraph, option: requestOptions())
+        XCTAssertEqual(
+            convertGraph.nodes.first {
+                $0.latticeNodes.contains(where: {$0.data.word == "他"})
+            }?.latticeNodes.mapSet {$0.data.ruby}
+            .symmetricDifference(["タ", "タイ", "タイカ", "タイガ", "タイカク", "タイガク"]),
+            []
+        )
+    }
+
+    func testConversion_たい() throws {
+        let dicdataStore = DicdataStore(requestOptions: requestOptions())
+        let kana2kanji = Kana2Kanji(dicdataStore: dicdataStore)
+        var c = ComposingText()
+        c.insertAtCursorPosition("たい", inputStyle: .direct)
+        let result = kana2kanji._experimental_all(c, option: requestOptions())
+        XCTAssertTrue(result.joinedPrevs().contains("タイ")) // たい
+        XCTAssertTrue(result.joinedPrevs().contains("台")) // たい
+    }
+
+    func testConversion_いか() throws {
+        let dicdataStore = DicdataStore(requestOptions: requestOptions())
+        let kana2kanji = Kana2Kanji(dicdataStore: dicdataStore)
+        var c = ComposingText()
+        c.insertAtCursorPosition("いか", inputStyle: .direct)
+        let result = kana2kanji._experimental_all(c, option: requestOptions())
+        XCTAssertTrue(result.joinedPrevs().contains("以下")) // いか
+        XCTAssertTrue(result.joinedPrevs().contains("伊賀")) // いが
+        print(result.joinedPrevs())
+    }
+
+    func testConversion_たいか() throws {
+        let dicdataStore = DicdataStore(requestOptions: requestOptions())
+        let kana2kanji = Kana2Kanji(dicdataStore: dicdataStore)
+        var c = ComposingText()
+        c.insertAtCursorPosition("たいか", inputStyle: .direct)
+        let result = kana2kanji._experimental_all(c, option: requestOptions())
+        XCTAssertTrue(result.joinedPrevs().contains("対価")) // たいか
+        XCTAssertTrue(result.joinedPrevs().contains("大河")) // たいが
+        // FIXME: 「たいいか」が入っている
+        print(result.joinedPrevs())
+    }
+
+    func testConversion_たいかく() throws {
+        let dicdataStore = DicdataStore(requestOptions: requestOptions())
+        let kana2kanji = Kana2Kanji(dicdataStore: dicdataStore)
+        var c = ComposingText()
+        c.insertAtCursorPosition("たいかく", inputStyle: .direct)
+        let result = kana2kanji._experimental_all(c, option: requestOptions())
+        XCTAssertTrue(result.joinedPrevs().contains("体格")) // たいかく
+        XCTAssertTrue(result.joinedPrevs().contains("退学")) // たいがく
+    }
+
+    func testConversion_むらさき() throws {
+        let dicdataStore = DicdataStore(requestOptions: requestOptions())
+        let kana2kanji = Kana2Kanji(dicdataStore: dicdataStore)
+        var c = ComposingText()
+        c.insertAtCursorPosition("むらさき", inputStyle: .direct)
+        let result = kana2kanji._experimental_all(c, option: requestOptions())
+        XCTAssertTrue(result.joinedPrevs().contains("紫")) // むらさき
+    }
+
+    func testBuildConvertGraph_youshouki() throws {
+        let dicdataStore = DicdataStore(requestOptions: requestOptions())
+        var c = ComposingText()
+        c.insertAtCursorPosition("youshouki", inputStyle: .roman2kana)
+        let correctGraph = CorrectGraph.build(input: c.input)
+        let inputGraph = InputGraph.build(input: consume correctGraph)
+        let convertGraph = dicdataStore.buildConvertGraph(inputGraph: inputGraph, option: requestOptions())
+        XCTAssertEqual(
+            convertGraph.nodes.first {
+                $0.latticeNodes.contains(where: {$0.data.word == "世"})
+            }?.latticeNodes.mapSet {$0.data.ruby}
+                .symmetricDifference(["ヨ", "ヨウ", "ヨウシ", "ヨウショ", "ヨウショウ", "ヨウショウキ"]),
+            []
+        )
+    }
+
+    func testConversion_youshouki() throws {
+        let dicdataStore = DicdataStore(requestOptions: requestOptions())
+        let kana2kanji = Kana2Kanji(dicdataStore: dicdataStore)
+        var c = ComposingText()
+        c.insertAtCursorPosition("youshouki", inputStyle: .roman2kana)
+        let result = kana2kanji._experimental_all(c, option: requestOptions())
+        XCTAssertTrue(result.joinedPrevs().contains("幼少期")) // ようしょうき
+    }
+
+    func testConversion_みらいえいが() throws {
         let dicdataStore = DicdataStore(requestOptions: requestOptions())
         let kana2kanji = Kana2Kanji(dicdataStore: dicdataStore)
         do {
@@ -61,6 +154,11 @@ final class ExperimentalConversionTests: XCTestCase {
             let result = kana2kanji._experimental_all(c, option: requestOptions())
             XCTAssertTrue(result.joinedPrevs().contains("未来映画"))
         }
+    }
+
+    func testConversion() throws {
+        let dicdataStore = DicdataStore(requestOptions: requestOptions())
+        let kana2kanji = Kana2Kanji(dicdataStore: dicdataStore)
         do {
             var c = ComposingText()
             c.insertAtCursorPosition("sitta", inputStyle: .roman2kana)

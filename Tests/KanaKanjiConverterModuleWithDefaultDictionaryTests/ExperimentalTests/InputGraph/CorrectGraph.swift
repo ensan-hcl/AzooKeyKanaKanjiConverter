@@ -10,6 +10,136 @@ import Foundation
 import XCTest
 
 struct CorrectGraph {
+    var nodes: [Node] = [
+        // BOSノードは最初から追加
+        .init(inputElementsRange: .endIndex(0), inputStyle: .all, correction: .none, value: "\0")
+    ]
+    /// 許可されたNextIndex
+    var allowedNextIndex: [Int: IndexSet] = [:]
+    /// 許可されたprevIndex
+    var allowedPrevIndex: [Int: IndexSet] = [:]
+
+    struct Node: Equatable, Sendable {
+        var inputElementsRange: InputGraphRange
+        var inputStyle: InputGraphInputStyle.ID
+        var correction: CorrectGraph2.Correction
+        var value: Character
+    }
+
+    @discardableResult
+    mutating func insert(_ node: consuming Node, nextTo prevNodeIndexSet: IndexSet) -> Int {
+        let index = nodes.count
+        for prevNodeIndex in prevNodeIndexSet {
+            self.allowedNextIndex[prevNodeIndex, default: IndexSet()].insert(index)
+        }
+        self.allowedPrevIndex[index, default: IndexSet()].formUnion(prevNodeIndexSet)
+        self.nodes.append(consume node)
+        return index
+    }
+
+    mutating func insertConnectedTypoNodes(values: [Character], startIndex: Int, endIndex: Int, inputStyle: InputGraphInputStyle.ID, lastIndexSet: IndexSet) -> Int {
+        guard !values.isEmpty else {
+            fatalError("values must not be empty")
+        }
+        var lastIndexSet = lastIndexSet
+        for (i, c) in zip(values.indices, values) {
+            let inputElementRange: InputGraphRange = if i == values.startIndex && i+1 == values.endIndex {
+                .range(startIndex, endIndex)
+            } else if i == values.startIndex {
+                .init(startIndex: startIndex, endIndex: nil)
+            } else if i+1 == values.endIndex {
+                .init(startIndex: nil, endIndex: endIndex)
+            } else {
+                .unknown
+            }
+            let node = Node(
+                inputElementsRange: inputElementRange,
+                inputStyle: inputStyle,
+                correction: .typo,
+                value: c
+            )
+            lastIndexSet = IndexSet(integer: self.insert(node, nextTo: lastIndexSet))
+        }
+        return lastIndexSet.first!
+    }
+
+    static func build(input: [ComposingText.InputElement]) -> Self {
+        var correctGraph = Self()
+        var inputIndexToEndNodeIndices: [Int: IndexSet] = [0: IndexSet(integer: 0)]
+        for (index, item) in zip(input.indices, input) {
+            // 訂正のない候補を追加
+            do {
+                let nodeIndex = correctGraph.insert(
+                    Node(
+                        inputElementsRange: .range(index, index + 1),
+                        inputStyle: InputGraphInputStyle(from: input[index].inputStyle).id,
+                        correction: .none,
+                        value: item.character
+                    ),
+                    nextTo: inputIndexToEndNodeIndices[index, default: IndexSet()]
+                )
+                inputIndexToEndNodeIndices[index + 1, default: IndexSet()].insert(nodeIndex)
+            }
+
+            // 訂正候補を追加
+            let correctPrefixTree = switch item.inputStyle {
+            case .roman2kana: CorrectPrefixTree.roman2kana
+            case .direct: CorrectPrefixTree.direct
+            }
+            typealias Match = (replace: String, inputCount: Int)
+            typealias SearchItem = (
+                node: CorrectPrefixTree.Node,
+                nextIndex: Int,
+                route: [Character],
+                inputStyleId: InputGraphInputStyle.ID
+            )
+            var stack: [SearchItem] = [
+                (correctPrefixTree, index, [], .all),
+            ]
+            while let (cNode, cIndex, cRoute, cInputStyleId) = stack.popLast() {
+                guard cIndex < input.endIndex else {
+                    continue
+                }
+                let inputStyleId = InputGraphInputStyle(from: input[cIndex].inputStyle).id
+                guard cInputStyleId.isCompatible(with: inputStyleId) else {
+                    continue
+                }
+                if let nNode = cNode.find(key: input[cIndex].character) {
+                    stack.append((nNode, cIndex + 1, cRoute + [input[cIndex].character], inputStyleId))
+                    for value in nNode.value {
+                        if value.isEmpty {
+                            continue
+                        } else if value.count > 1 {
+                            let nodeIndex = correctGraph.insertConnectedTypoNodes(
+                                values: Array(value),
+                                startIndex: index,
+                                endIndex: index + cRoute.count + 1,
+                                inputStyle: inputStyleId, 
+                                lastIndexSet: inputIndexToEndNodeIndices[index, default: IndexSet()]
+                            )
+                            inputIndexToEndNodeIndices[index + cRoute.count + 1, default: IndexSet()].insert(nodeIndex)
+                        } else {
+                            let nodeIndex = correctGraph.insert(
+                                Node(
+                                    inputElementsRange: .range(index, index + cRoute.count + 1),
+                                    inputStyle: inputStyleId,
+                                    correction: .typo,
+                                    value: value.first!
+                                ),
+                                nextTo: inputIndexToEndNodeIndices[index, default: IndexSet()]
+                            )
+                            inputIndexToEndNodeIndices[index + cRoute.count + 1, default: IndexSet()].insert(nodeIndex)
+                        }
+                    }
+                }
+            }
+        }
+        return correctGraph
+    }
+}
+
+
+struct CorrectGraph2 {
     var nodes: [Node] = []
     /// 許可されたNextIndex
     var allowedNextIndex: [Int: Int] = [:]
@@ -44,8 +174,8 @@ struct CorrectGraph {
     }
 
     struct Node: Equatable, Sendable {
-        var inputElementsRange: InputGraphStructure.Range
-        var inputStyle: InputGraph.InputStyle.ID
+        var inputElementsRange: InputGraphRange
+        var inputStyle: InputGraphInputStyle.ID
         var correction: Correction
         var value: Character
         var groupId: Int?
@@ -88,11 +218,11 @@ struct CorrectGraph {
         return index
     }
 
-    mutating func insertConnectedTypoNodes(values: [Character], startIndex: Int, endIndex: Int, inputStyle: InputGraph.InputStyle.ID) {
+    mutating func insertConnectedTypoNodes(values: [Character], startIndex: Int, endIndex: Int, inputStyle: InputGraphInputStyle.ID) {
         var indices: [Int] = []
         let id = self.groupIdIota.new()
         for (i, c) in zip(values.indices, values) {
-            let inputElementRange: InputGraphStructure.Range = if i == values.startIndex && i+1 == values.endIndex {
+            let inputElementRange: InputGraphRange = if i == values.startIndex && i+1 == values.endIndex {
                 .range(startIndex, endIndex)
             } else if i == values.startIndex {
                 .init(startIndex: startIndex, endIndex: nil)
@@ -124,7 +254,7 @@ struct CorrectGraph {
             correctGraph.insert(
                 Node(
                     inputElementsRange: .range(index, index + 1),
-                    inputStyle: InputGraph.InputStyle(from: input[index].inputStyle).id,
+                    inputStyle: InputGraphInputStyle(from: input[index].inputStyle).id,
                     correction: .none,
                     value: item.character
                 )
@@ -138,7 +268,7 @@ struct CorrectGraph {
                 node: CorrectPrefixTree.Node,
                 nextIndex: Int,
                 route: [Character],
-                inputStyleId: InputGraph.InputStyle.ID
+                inputStyleId: InputGraphInputStyle.ID
             )
             var stack: [SearchItem] = [
                 (correctPrefixTree, index, [], .all),
@@ -147,7 +277,7 @@ struct CorrectGraph {
                 guard cIndex < input.endIndex else {
                     continue
                 }
-                let inputStyleId = InputGraph.InputStyle(from: input[cIndex].inputStyle).id
+                let inputStyleId = InputGraphInputStyle(from: input[cIndex].inputStyle).id
                 guard cInputStyleId.isCompatible(with: inputStyleId) else {
                     continue
                 }
@@ -223,7 +353,7 @@ final class CorrectGraphTests: XCTestCase {
             .init(inputElementsRange: .range(2, 3), inputStyle: .systemFlickDirect, correction: .none, value: "う")
         )
         if let index = graph.nodes.firstIndex(where: {$0.value == "う"}) {
-            XCTAssertEqual(graph.prevIndices(for: index).count, 2)
+            XCTAssertEqual(graph.allowedPrevIndex[index, default: .init()].count, 2)
         } else {
             XCTAssertThrowsError("Should not be nil")
         }
@@ -257,14 +387,14 @@ final class CorrectGraphTests: XCTestCase {
         )
         XCTAssertEqual(
             graph.nodes.first(where: {$0.value == "t" && $0.inputElementsRange == .startIndex(0)}),
-            .init(inputElementsRange: .startIndex(0), inputStyle: .systemRomanKana, correction: .typo, value: "t", groupId: 0)
+            .init(inputElementsRange: .startIndex(0), inputStyle: .systemRomanKana, correction: .typo, value: "t")
         )
         XCTAssertEqual(
             graph.nodes.first(where: {$0.value == "a"}),
-            .init(inputElementsRange: .endIndex(2), inputStyle: .systemRomanKana, correction: .typo, value: "a", groupId: 0)
+            .init(inputElementsRange: .endIndex(2), inputStyle: .systemRomanKana, correction: .typo, value: "a")
         )
         if let index = graph.nodes.firstIndex(where: {$0.value == "a"}) {
-            let indices = graph.prevIndices(for: index)
+            let indices = graph.allowedPrevIndex[index, default: .init()]
             XCTAssertEqual(indices.count, 1)
             XCTAssertEqual(
                 indices.first,

@@ -9,50 +9,53 @@ import XCTest
 import Foundation
 @testable import KanaKanjiConverterModule
 
-struct ConvertGraph: InputGraphProtocol {
-    struct Node: InputGraphNodeProtocol {
+struct ConvertGraph {
+    struct Node {
         var latticeNodes: [LatticeNode]
-        var displayedTextRange: InputGraphStructure.Range
-        var inputElementsRange: InputGraphStructure.Range
-        var correction: CorrectGraph.Correction = .none
+        var inputElementsRange: InputGraphRange
+        var correction: CorrectGraph2.Correction = .none
     }
 
     var nodes: [Node] = [
         // root node
-        Node(latticeNodes: [], displayedTextRange: .endIndex(0), inputElementsRange: .endIndex(0))
+        Node(latticeNodes: [], inputElementsRange: .endIndex(0))
     ]
 
-    var structure: InputGraphStructure = InputGraphStructure()
+    /// 許可されたNextIndex
+    var allowedNextIndex: [Int: IndexSet] = [:]
+    /// 許可されたprevIndex
+    var allowedPrevIndex: [Int: IndexSet] = [:]
 
     static func build(input: LookupGraph, nodeIndex2LatticeNode: [Int: [LatticeNode]]) -> Self {
         let nodes = input.nodes.enumerated().map { (index, node) in
-            Node(latticeNodes: nodeIndex2LatticeNode[index, default: []], displayedTextRange: node.displayedTextRange, inputElementsRange: node.inputElementsRange, correction: node.correction)
+            Node(latticeNodes: nodeIndex2LatticeNode[index, default: []], inputElementsRange: node.inputElementsRange, correction: node.correction)
         }
-        return Self(nodes: nodes, structure: input.structure)
+        return Self(nodes: nodes, allowedNextIndex: input.allowedNextIndex, allowedPrevIndex: input.allowedPrevIndex)
     }
 }
+
 extension ConvertGraph {
     /// ラティスのノード。これを用いて計算する。
     final class LatticeNode: CustomStringConvertible {
         /// このノードが保持する辞書データ
         public let data: DicdataElement
+        /// このノードが保持するデータの次に続くノードのConvertGraph上のindex
+        var nextConvertNodeIndices: IndexSet = []
         /// このノードの前に来ているノード。`N_best`の分だけ保存する
         var prevs: [RegisteredNode] = []
         /// `prevs`の各要素に対応するスコアのデータ
         var values: [PValue] = []
-        /// inputData.input内のrange
-        var displayedTextRange: InputGraphStructure.Range
-        var inputElementsRange: InputGraphStructure.Range
+        var inputElementsRange: InputGraphRange
 
         /// `EOS`に対応するノード。
         static var EOSNode: LatticeNode {
-            LatticeNode(data: DicdataElement.EOSData, displayedTextRange: .unknown, inputElementsRange: .unknown)
+            LatticeNode(data: DicdataElement.EOSData, nextConvertNodeIndices: [], inputElementsRange: .unknown)
         }
 
-        init(data: DicdataElement, displayedTextRange: InputGraphStructure.Range, inputElementsRange: InputGraphStructure.Range, prevs: [RegisteredNode] = []) {
+        init(data: DicdataElement, nextConvertNodeIndices: IndexSet, inputElementsRange: InputGraphRange, prevs: [RegisteredNode] = []) {
             self.data = data
             self.values = [data.value()]
-            self.displayedTextRange = displayedTextRange
+            self.nextConvertNodeIndices = nextConvertNodeIndices
             self.inputElementsRange = inputElementsRange
             self.prevs = prevs
         }
@@ -65,7 +68,6 @@ extension ConvertGraph {
                 data: self.data,
                 registered: self.prevs[index],
                 totalValue: value,
-                displayedTextRange: self.displayedTextRange,
                 inputElementsRange: self.inputElementsRange
             )
         }
@@ -82,21 +84,19 @@ extension ConvertGraph {
         /// 始点からこのノードまでのコスト
         let totalValue: PValue
         /// inputData.input内のrange
-        var displayedTextRange: InputGraphStructure.Range
-        var inputElementsRange: InputGraphStructure.Range
+        var inputElementsRange: InputGraphRange
 
-        init(data: DicdataElement, registered: RegisteredNode?, totalValue: PValue, displayedTextRange: InputGraphStructure.Range, inputElementsRange: InputGraphStructure.Range) {
+        init(data: DicdataElement, registered: RegisteredNode?, totalValue: PValue, inputElementsRange: InputGraphRange) {
             self.data = data
             self.prev = registered
             self.totalValue = totalValue
-            self.displayedTextRange = displayedTextRange
             self.inputElementsRange = inputElementsRange
         }
 
         /// 始点ノードを生成する関数
         /// - Returns: 始点ノードのデータ
         static func BOSNode() -> RegisteredNode {
-            RegisteredNode(data: DicdataElement.BOSData, registered: nil, totalValue: 0, displayedTextRange: .endIndex(0), inputElementsRange: .endIndex(0))
+            RegisteredNode(data: DicdataElement.BOSData, registered: nil, totalValue: 0, inputElementsRange: .endIndex(0))
         }
     }
 
@@ -108,31 +108,29 @@ protocol RegisteredNodeProtocol {
     var data: DicdataElement {get}
     var prev: (any RegisteredNodeProtocol)? {get}
     var totalValue: PValue {get}
-    /// inputData.input内のrange
-    var displayedTextRange: InputGraphStructure.Range {get}
-    var inputElementsRange: InputGraphStructure.Range {get}
+    var inputElementsRange: InputGraphRange {get}
 }
 
 extension ConvertGraph {
     func convertAll(option: borrowing ConvertRequestOptions, dicdataStore: DicdataStore) -> LatticeNode {
         let result: LatticeNode = LatticeNode.EOSNode
-        result.displayedTextRange = .startIndex(self.structure.displayedTextEndIndexToNodeIndices.endIndex)
-        result.inputElementsRange = .startIndex(self.structure.inputElementsEndIndexToNodeIndices.endIndex)
+        result.inputElementsRange = .init(startIndex: self.nodes.compactMap {$0.inputElementsRange.endIndex}.max(), endIndex: nil)
         var processStack = Array(self.nodes.enumerated().reversed())
         var processedIndices: IndexSet = [0] // root
         var invalidIndices: IndexSet = []
-        // 「i文字目から始まるnodes」に対して
         while let (i, graphNode) = processStack.popLast() {
             // 処理済みなら無視する
             guard !processedIndices.contains(i), !invalidIndices.contains(i) else {
                 continue
             }
             // 全てのprevNodeが処理済みか確かめる
-            let prevIndices = self.structure.prevIndices(displayedTextStartIndex: graphNode.displayedTextRange.startIndex, inputElementsStartIndex: graphNode.inputElementsRange.startIndex)
+            let prevIndices = self.allowedPrevIndex[i, default: []]
             guard !prevIndices.isEmpty else {
+                // 空の場合は無視して次へ
                 invalidIndices.insert(i)
                 continue
             }
+
             var unprocessedPrevs: [(Int, Node)] = []
             for prevIndex in prevIndices {
                 if !processedIndices.contains(prevIndex) && !invalidIndices.contains(prevIndex) {
@@ -145,7 +143,7 @@ extension ConvertGraph {
                 processStack.append(contentsOf: unprocessedPrevs)
                 continue
             }
-            print(i, graphNode.displayedTextRange, graphNode.inputElementsRange)
+            print(i, graphNode.inputElementsRange)
             processedIndices.insert(i)
             // 処理を実施する
             for node in graphNode.latticeNodes {
@@ -164,19 +162,14 @@ extension ConvertGraph {
                     // valuesを更新する
                     node.values = node.prevs.map {$0.totalValue + wValue}
                 }
-                // このLatticeNodeに後続するグラフのノードを検索
-                let nextIndices = self.structure.nextIndices(
-                    displayedTextEndIndex: node.displayedTextRange.endIndex,
-                    inputElementsEndIndex: node.inputElementsRange.endIndex
-                )
-                // 文字数がcountと等しい場合登録する
-                if nextIndices.isEmpty || self.structure.inputElementsStartIndexToNodeIndices.endIndex == node.inputElementsRange.endIndex {
+                // 終端の場合は終了
+                if node.nextConvertNodeIndices.isEmpty || result.inputElementsRange.startIndex == node.inputElementsRange.endIndex {
                     for index in node.prevs.indices {
                         let newnode: RegisteredNode = node.getRegisteredNode(index, value: node.values[index])
                         result.prevs.append(newnode)
                     }
                 } else {
-                    for nextIndex in nextIndices {
+                    for nextIndex in node.nextConvertNodeIndices {
                         // nodeの繋がる次にあり得る全てのnextnodeに対して
                         for nextnode in self.nodes[nextIndex].latticeNodes {
                             // この関数はこの時点で呼び出して、後のnode.registered.isEmptyで最終的に弾くのが良い。

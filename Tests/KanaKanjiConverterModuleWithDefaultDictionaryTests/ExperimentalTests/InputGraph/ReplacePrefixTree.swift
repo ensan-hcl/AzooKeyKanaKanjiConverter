@@ -12,7 +12,7 @@ import XCTest
 
 // 置換のためのprefix tree
 enum ReplacePrefixTree {
-    static var characterNodes: [InputGraph.InputStyle.ID: [Character: [Node]]] = [:]
+    static var characterNodes: [InputGraphInputStyle.ID: [Character: [Node]]] = [:]
 
     final class Node {
         init(_ children: [Character: Node] = [:], character: Character = "\0", value: String? = nil, parent: Node? = nil) {
@@ -28,7 +28,7 @@ enum ReplacePrefixTree {
         func find(key: Character) -> Node? {
             return children[key]
         }
-        func insert(route: some Collection<Character>, value: consuming String, inputStyle: InputGraph.InputStyle.ID) {
+        func insert(route: some Collection<Character>, value: consuming String, inputStyle: InputGraphInputStyle.ID) {
             if let first = route.first {
                 if let tree = self.children[first] {
                     tree.insert(route: route.dropFirst(), value: consume value, inputStyle: inputStyle)
@@ -77,7 +77,7 @@ enum ReplaceSuffixTree {
         func find(key: Character) -> Node? {
             return children[key]
         }
-        func insert(route: some Collection<Character>, value: consuming String, inputStyle: InputGraph.InputStyle.ID) {
+        func insert(route: some Collection<Character>, value: consuming String, inputStyle: InputGraphInputStyle.ID) {
             if let first = route.first {
                 if let tree = self.children[first] {
                     tree.insert(route: route.dropFirst(), value: consume value, inputStyle: inputStyle)
