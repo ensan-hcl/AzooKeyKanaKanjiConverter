@@ -32,6 +32,12 @@ let package = Package(
             name: "KanaKanjiConverterModule",
             targets: ["KanaKanjiConverterModule"]
         ),
+        /// C言語向けのdylibモジュール
+        .library(
+            name: "anco",
+            type: .dynamic,
+            targets: ["LibAnco"]
+        )
     ],
     dependencies: [
         // Dependencies declare other packages that this package depends on.
@@ -73,6 +79,13 @@ let package = Package(
             ],
             swiftSettings: swiftSettings
         ),
+        .target(
+            name: "LibAnco",
+            dependencies: [
+                "KanaKanjiConverterModuleWithDefaultDictionary",
+            ]
+        ),
+
         .executableTarget(
             name: "CliTool",
             dependencies: [
