@@ -8,13 +8,6 @@
 import Algorithms
 import Foundation
 
-@resultBuilder
-public struct ArrayBuilder {
-    public static func buildBlock<T>(_ values: T...) -> [T] {
-        values
-    }
-}
-
 public extension Sequence {
     /// Returns a sequence that contains the elements of this sequence followed by the elements of the given sequence.
     /// - Parameters:
