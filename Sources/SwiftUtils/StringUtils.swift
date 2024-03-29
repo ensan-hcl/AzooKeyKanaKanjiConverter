@@ -74,15 +74,6 @@ public extension StringProtocol {
         return String(utf16CodeUnits: result, count: result.count)
     }
 
-    /// Returns an Index value that is the specified distance from the start index.
-    /// - Parameter:
-    ///   - offset: The distance to offset from the start index.
-    /// - Returns: An Index value that is the specified distance from the start index.
-    @inlinable
-    func indexFromStart(_ offset: Int) -> Index {
-        self.index(self.startIndex, offsetBy: offset)
-    }
-
     // FIXME: レガシーな実装なのでどうにかしたい。Migrationする……？
     // エスケープが必要なのは次の文字:
     /*
