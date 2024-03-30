@@ -27,7 +27,6 @@ struct LookupGraph {
     /// node indexから始まるloudsノードのindex
     var loudsNodeIndex: [Int: [Int: Int]] = [:]
 
-
     static func build(input: consuming InputGraph, character2CharId: (Character) -> UInt8) -> Self {
         let nodes = input.nodes.map {
             Node(character: $0.character, charId: character2CharId($0.character), inputElementsRange: $0.inputElementsRange, correction: $0.correction)
@@ -194,4 +193,3 @@ extension DicdataStore {
         return data
     }
 }
-

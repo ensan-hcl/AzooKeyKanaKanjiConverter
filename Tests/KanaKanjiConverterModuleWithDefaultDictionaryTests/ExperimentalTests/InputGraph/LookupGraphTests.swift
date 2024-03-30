@@ -218,7 +218,7 @@ final class LookupGraphTests: XCTestCase {
         let correctGraph1 = CorrectGraph.build(input: [
             .init(character: "た", inputStyle: .direct),
             .init(character: "い", inputStyle: .direct),
-            .init(character: "か", inputStyle: .direct),
+            .init(character: "か", inputStyle: .direct)
         ])
         let inputGraph1 = InputGraph.build(input: correctGraph1)
         var lookupGraph1 = LookupGraph.build(input: inputGraph1, character2CharId: values.character2CharId)
@@ -268,7 +268,7 @@ final class LookupGraphTests: XCTestCase {
         let correctGraph1 = CorrectGraph.build(input: [
             .init(character: "た", inputStyle: .direct),
             .init(character: "い", inputStyle: .direct),
-            .init(character: "か", inputStyle: .direct),
+            .init(character: "か", inputStyle: .direct)
         ])
         let inputGraph1 = InputGraph.build(input: correctGraph1)
         var lookupGraph1 = LookupGraph.build(input: inputGraph1, character2CharId: values.character2CharId)
@@ -278,7 +278,7 @@ final class LookupGraphTests: XCTestCase {
 
         let correctGraph2 = CorrectGraph.build(input: [
             .init(character: "た", inputStyle: .direct),
-            .init(character: "い", inputStyle: .direct),
+            .init(character: "い", inputStyle: .direct)
         ])
         let inputGraph2 = InputGraph.build(input: correctGraph2)
         var lookupGraph2 = LookupGraph.build(input: inputGraph2, character2CharId: values.character2CharId)
