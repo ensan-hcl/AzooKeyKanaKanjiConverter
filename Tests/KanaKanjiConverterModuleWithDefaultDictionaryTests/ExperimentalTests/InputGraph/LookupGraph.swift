@@ -248,7 +248,6 @@ extension DicdataStore {
         return (lookupGraph, ConvertGraph(input: lookupGraph, nodeIndex2LatticeNode: graphNodeIndex2LatticeNodes))
     }
 
-
     func getDicdataFromLoudstxt3(identifier: String, indices: some Sequence<Int>, option: ConvertRequestOptions) -> [(loudsNodeIndex: Int, dicdata: [DicdataElement])] {
         // split = 2048
         let dict = [Int: [Int]].init(grouping: indices, by: {$0 >> 11})
