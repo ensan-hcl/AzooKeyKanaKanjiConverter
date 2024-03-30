@@ -26,11 +26,13 @@ struct ConvertGraph {
     /// 許可されたprevIndex
     var allowedPrevIndex: [Int: IndexSet] = [:]
 
-    static func build(input: LookupGraph, nodeIndex2LatticeNode: [Int: [LatticeNode]]) -> Self {
+    init(input: LookupGraph, nodeIndex2LatticeNode: [Int: [LatticeNode]]) {
         let nodes = input.nodes.enumerated().map { (index, node) in
             Node(latticeNodes: nodeIndex2LatticeNode[index, default: []], inputElementsRange: node.inputElementsRange, correction: node.correction)
         }
-        return Self(nodes: nodes, allowedNextIndex: input.allowedNextIndex, allowedPrevIndex: input.allowedPrevIndex)
+        self.nodes = nodes
+        self.allowedPrevIndex = input.allowedPrevIndex
+        self.allowedNextIndex = input.allowedNextIndex
     }
 }
 

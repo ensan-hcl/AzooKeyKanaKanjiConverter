@@ -34,6 +34,18 @@ struct LookupGraph {
         return Self(nodes: nodes, allowedNextIndex: input.allowedNextIndex, allowedPrevIndex: input.allowedPrevIndex)
     }
 
+    func nextIndexWithMatch(_ nodeIndex: Int, cacheNodeIndex: Int, cacheGraph: borrowing LookupGraph) -> [(Int, Int?)] {
+        let seeds: [Int] = Array(self.allowedNextIndex[nodeIndex, default: []])
+        let cached = cacheGraph.allowedNextIndex[cacheNodeIndex, default: []].map {($0, cacheGraph.nodes[$0])}
+        return seeds.map { seed in
+            if let first = cached.first(where: {$0.1.charId == self.nodes[seed].charId}) {
+                (seed, first.0)
+            } else {
+                (seed, nil)
+            }
+        }
+    }
+
     mutating func byfixNodeIndices(in louds: LOUDS, startGraphNodeIndex: Int = 0) -> (IndexSet, [Int: [Int]]) {
         var indexSet = IndexSet(integer: 1)
         // loudsのノードとLookupGraphのノードの対応を取るための辞書
@@ -95,16 +107,9 @@ struct LookupGraph {
                 loudsNodeIndex2GraphNodeEndIndices[loudsNodeIndex, default: []].append(cNodeIndex)
                 indexSet.insert(loudsNodeIndex)
                 // next nodesを確認する
-                let cachedNextNodes = cacheLookupGraph.allowedNextIndex[cCacheNodeIndex, default: []].map { ($0, cacheLookupGraph.nodes[$0].charId) }
-                let currentNextNodes = self.allowedNextIndex[cCacheNodeIndex, default: []].map { ($0, self.nodes[$0].charId) }
-                for currentNextNode in currentNextNodes {
-                    if let item = cachedNextNodes.first(where: {$0.1 == currentNextNode.1}) {
-                        stack.append((currentNextNode.0, item.0, loudsNodeIndex))
-                    } else {
-                        stack.append((currentNextNode.0, nil, loudsNodeIndex))
-                    }
-                }
-
+                stack.append(contentsOf: self.nextIndexWithMatch(cNodeIndex, cacheNodeIndex: cCacheNodeIndex, cacheGraph: cacheLookupGraph).map {
+                    ($0.0, $0.1, loudsNodeIndex)
+                })
             }
             // キャッシュが効かないケース
             else if let loudsNodeIndex = louds.searchCharNodeIndex(from: cLastLoudsNodeIndex, char: cNode.charId) {
@@ -133,7 +138,7 @@ struct LookupGraph {
 }
 
 extension DicdataStore {
-    func buildConvertGraph(inputGraph: consuming InputGraph, option: ConvertRequestOptions) -> ConvertGraph {
+    func buildConvertGraph(inputGraph: consuming InputGraph, option: ConvertRequestOptions) -> (LookupGraph, ConvertGraph) {
         var lookupGraph = LookupGraph.build(input: consume inputGraph, character2CharId: { self.character2charId($0.toKatakana()) })
         var stack = Array(lookupGraph.allowedNextIndex[0, default: []])
         var graphNodeIndex2LatticeNodes: [Int: [ConvertGraph.LatticeNode]] = [:]
@@ -178,8 +183,71 @@ extension DicdataStore {
             processedIndexSet.insert(graphNodeIndex)
             stack.append(contentsOf: lookupGraph.allowedNextIndex[graphNodeIndex, default: []])
         }
-        return ConvertGraph.build(input: lookupGraph, nodeIndex2LatticeNode: graphNodeIndex2LatticeNodes)
+        return (lookupGraph, ConvertGraph(input: lookupGraph, nodeIndex2LatticeNode: graphNodeIndex2LatticeNodes))
     }
+
+    func buildConvertGraphDifferential(inputGraph: consuming InputGraph, cacheLookupGraph: LookupGraph, option: ConvertRequestOptions) -> (LookupGraph, ConvertGraph) {
+        var lookupGraph = LookupGraph.build(input: consume inputGraph, character2CharId: { self.character2charId($0.toKatakana()) })
+        typealias StackItem = (
+            currentLookupGraphNodeIndex: Int,
+            cacheLookupGraphNodeIndex: Int?
+        )
+        // BOS同士はマッチする
+        // BOSの次のノードのうちマッチするもの、しないものを確認
+        var stack: [StackItem] = lookupGraph.nextIndexWithMatch(0, cacheNodeIndex: 0, cacheGraph: cacheLookupGraph)
+        var graphNodeIndex2LatticeNodes: [Int: [ConvertGraph.LatticeNode]] = [:]
+        var processedIndexSet = IndexSet()
+        while let (graphNodeIndex, cacheGraphNodeIndex) = stack.popLast() {
+            // 処理済みのノードは無視
+            guard !processedIndexSet.contains(graphNodeIndex) else {
+                continue
+            }
+            let graphNode = lookupGraph.nodes[graphNodeIndex]
+            guard let louds = self.loadLOUDS(identifier: String(graphNode.character.toKatakana())) else {
+                continue
+            }
+            /// graphNodeIndexから始まる辞書エントリを列挙
+            ///   * loudsNodeIndices: loudsから得たloudstxt内のデータの位置
+            ///   * loudsNodeIndex2GraphNodeEndIndices: それぞれのloudsNodeIndexがどのgraphNodeIndexを終端とするか
+            let (indexSet, loudsNodeIndex2GraphNodeEndIndices) = if let cacheGraphNodeIndex {
+                lookupGraph.differentialByfixSearch(in: louds, cacheLookupGraph: cacheLookupGraph, graphNodeIndex: (graphNodeIndex, cacheGraphNodeIndex))
+            } else {
+                lookupGraph.byfixNodeIndices(in: louds, startGraphNodeIndex: graphNodeIndex)
+            }
+            let dicdataWithIndex: [(loudsNodeIndex: Int, dicdata: [DicdataElement])] = self.getDicdataFromLoudstxt3(identifier: String(graphNode.character.toKatakana()), indices: indexSet, option: option)
+
+            // latticeNodesを構築する
+            var latticeNodes: [ConvertGraph.LatticeNode] = []
+            for (loudsNodeIndex, dicdata) in dicdataWithIndex {
+                for endNodeIndex in loudsNodeIndex2GraphNodeEndIndices[loudsNodeIndex, default: []] {
+                    let inputElementsRange = InputGraphRange(
+                        startIndex: graphNode.inputElementsRange.startIndex,
+                        endIndex: lookupGraph.nodes[endNodeIndex].inputElementsRange.endIndex
+                    )
+                    if graphNode.inputElementsRange.startIndex == 0 {
+                        latticeNodes.append(contentsOf: dicdata.map {
+                            .init(data: $0, nextConvertNodeIndices: lookupGraph.allowedNextIndex[endNodeIndex, default: []], inputElementsRange: inputElementsRange, prevs: [.BOSNode()])
+                        })
+                    } else {
+                        latticeNodes.append(contentsOf: dicdata.map {
+                            .init(data: $0, nextConvertNodeIndices: lookupGraph.allowedNextIndex[endNodeIndex, default: []], inputElementsRange: inputElementsRange)
+                        })
+                    }
+                }
+            }
+            graphNodeIndex2LatticeNodes[graphNodeIndex] = latticeNodes
+
+            // 続くノードのindexを追加する
+            processedIndexSet.insert(graphNodeIndex)
+            if let cacheGraphNodeIndex {
+                stack.append(contentsOf: lookupGraph.nextIndexWithMatch(graphNodeIndex, cacheNodeIndex: cacheGraphNodeIndex, cacheGraph: cacheLookupGraph))
+            } else {
+                stack.append(contentsOf: lookupGraph.allowedNextIndex[graphNodeIndex, default: []].map {($0, nil)})
+            }
+        }
+        return (lookupGraph, ConvertGraph(input: lookupGraph, nodeIndex2LatticeNode: graphNodeIndex2LatticeNodes))
+    }
+
 
     func getDicdataFromLoudstxt3(identifier: String, indices: some Sequence<Int>, option: ConvertRequestOptions) -> [(loudsNodeIndex: Int, dicdata: [DicdataElement])] {
         // split = 2048

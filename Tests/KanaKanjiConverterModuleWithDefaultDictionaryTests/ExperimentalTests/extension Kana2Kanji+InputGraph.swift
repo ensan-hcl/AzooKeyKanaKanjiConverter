@@ -15,6 +15,7 @@ extension Kana2Kanji {
         var endNode: ConvertGraph.LatticeNode
         var correctGraph: CorrectGraph
         var inputGraph: InputGraph
+        var lookupGraph: LookupGraph
         var convertGraph: ConvertGraph
     }
     func _experimental_all(_ inputData: ComposingText, option: ConvertRequestOptions) -> Result {
@@ -24,10 +25,10 @@ extension Kana2Kanji {
         let inputGraph = InputGraph.build(input: correctGraph)
         // 辞書ルックアップによりconvertGraphを構築
         print(#file, "lookup", inputGraph)
-        let convertGraph = self.dicdataStore.buildConvertGraph(inputGraph: inputGraph, option: option)
+        let (lookupGraph, convertGraph) = self.dicdataStore.buildConvertGraph(inputGraph: inputGraph, option: option)
         print(#file, "convert")
         let result = convertGraph.convertAll(option: option, dicdataStore: self.dicdataStore)
-        return Result(endNode: result, correctGraph: correctGraph, inputGraph: inputGraph, convertGraph: convertGraph)
+        return Result(endNode: result, correctGraph: correctGraph, inputGraph: inputGraph, lookupGraph: lookupGraph, convertGraph: convertGraph)
     }
 
     func _experimental_additional(
@@ -44,13 +45,13 @@ extension Kana2Kanji {
         }
         // FIXME: inputGraphの差分ベースの構築は困難なため、普通に構築し直す
         let inputGraph = InputGraph.build(input: previousResult.correctGraph)
-        // TODO: ここから先も差分ベースにする
         // 辞書ルックアップによりconvertGraphを構築
         print(#file, "lookup", previousResult.inputGraph)
-        let convertGraph = self.dicdataStore.buildConvertGraph(inputGraph: inputGraph, option: option)
+        let (lookupGraph, convertGraph) = self.dicdataStore.buildConvertGraphDifferential(inputGraph: inputGraph, cacheLookupGraph: previousResult.lookupGraph, option: option)
         print(#file, "convert")
+        // TODO: ここから先も差分ベースにする
         let result = convertGraph.convertAll(option: option, dicdataStore: self.dicdataStore)
-        return Result(endNode: result, correctGraph: previousResult.correctGraph, inputGraph: inputGraph, convertGraph: convertGraph)
+        return Result(endNode: result, correctGraph: previousResult.correctGraph, inputGraph: inputGraph, lookupGraph: lookupGraph, convertGraph: convertGraph)
     }
 }
 
@@ -81,7 +82,7 @@ final class ExperimentalConversionTests: XCTestCase {
         c.insertAtCursorPosition("たいかく", inputStyle: .direct)
         let correctGraph = CorrectGraph.build(input: c.input)
         let inputGraph = InputGraph.build(input: consume correctGraph)
-        let convertGraph = dicdataStore.buildConvertGraph(inputGraph: inputGraph, option: requestOptions())
+        let (_, convertGraph) = dicdataStore.buildConvertGraph(inputGraph: inputGraph, option: requestOptions())
         XCTAssertEqual(
             convertGraph.nodes.first {
                 $0.latticeNodes.contains(where: {$0.data.word == "他"})
@@ -158,7 +159,7 @@ final class ExperimentalConversionTests: XCTestCase {
         c.insertAtCursorPosition("youshouki", inputStyle: .roman2kana)
         let correctGraph = CorrectGraph.build(input: c.input)
         let inputGraph = InputGraph.build(input: consume correctGraph)
-        let convertGraph = dicdataStore.buildConvertGraph(inputGraph: inputGraph, option: requestOptions())
+        let (_, convertGraph) = dicdataStore.buildConvertGraph(inputGraph: inputGraph, option: requestOptions())
         XCTAssertEqual(
             convertGraph.nodes.first {
                 $0.latticeNodes.contains(where: {$0.data.word == "世"})
@@ -246,5 +247,13 @@ final class ExperimentalConversionTests: XCTestCase {
         )
         XCTAssertTrue(secondResult.endNode.joinedPrevs().contains("太鼓")) // たいこ
         XCTAssertTrue(secondResult.endNode.joinedPrevs().contains("太古")) // たいこ
+        c.insertAtCursorPosition("く", inputStyle: .direct)
+        let thirdResult = kana2kanji._experimental_additional(
+            composingText: c,
+            additionalInputsStartIndex: 3,
+            previousResult: secondResult,
+            option: requestOptions()
+        )
+        XCTAssertTrue(thirdResult.endNode.joinedPrevs().contains("大国")) // たいこく
     }
 }
