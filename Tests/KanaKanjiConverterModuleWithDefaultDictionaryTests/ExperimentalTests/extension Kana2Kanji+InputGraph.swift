@@ -47,10 +47,9 @@ extension Kana2Kanji {
         let inputGraph = InputGraph.build(input: previousResult.correctGraph)
         // 辞書ルックアップによりconvertGraphを構築
         print(#file, "lookup", previousResult.inputGraph)
-        let (lookupGraph, convertGraph) = self.dicdataStore.buildConvertGraphDifferential(inputGraph: inputGraph, cacheLookupGraph: previousResult.lookupGraph, option: option)
+        var (lookupGraph, convertGraph, matchInfo) = self.dicdataStore.buildConvertGraphDifferential(inputGraph: inputGraph, cacheLookupGraph: previousResult.lookupGraph, option: option)
         print(#file, "convert")
-        // TODO: ここから先も差分ベースにする
-        let result = convertGraph.convertAll(option: option, dicdataStore: self.dicdataStore)
+        let result = convertGraph.convertAllDifferential(cacheConvertGraph: previousResult.convertGraph, option: option, dicdataStore: self.dicdataStore, lookupGraphMatchInfo: matchInfo)
         return Result(endNode: result, correctGraph: previousResult.correctGraph, inputGraph: inputGraph, lookupGraph: lookupGraph, convertGraph: convertGraph)
     }
 }
@@ -87,7 +86,7 @@ final class ExperimentalConversionTests: XCTestCase {
             convertGraph.nodes.first {
                 $0.latticeNodes.contains(where: {$0.data.word == "他"})
             }?.latticeNodes.mapSet {$0.data.ruby}
-            .symmetricDifference(["タ", "タイ", "タイカ", "タイガ", "タイカク", "タイガク"]),
+                .symmetricDifference(["タ", "タイ", "タイカ", "タイガ", "タイカク", "タイガク"]),
             []
         )
     }
@@ -255,5 +254,87 @@ final class ExperimentalConversionTests: XCTestCase {
             option: requestOptions()
         )
         XCTAssertTrue(thirdResult.endNode.joinedPrevs().contains("大国")) // たいこく
+    }
+
+    func testConversion_incremental_intai() throws {
+        let dicdataStore = DicdataStore(requestOptions: requestOptions())
+        let kana2kanji = Kana2Kanji(dicdataStore: dicdataStore)
+        var c = ComposingText()
+        c.insertAtCursorPosition("i", inputStyle: .roman2kana)
+        let firstResult = kana2kanji._experimental_all(c, option: requestOptions())
+        XCTAssertTrue(firstResult.endNode.joinedPrevs().contains("胃")) // い
+        c.insertAtCursorPosition("n", inputStyle: .roman2kana)
+        let secondResult = kana2kanji._experimental_additional(
+            composingText: c,
+            additionalInputsStartIndex: 1,
+            previousResult: firstResult,
+            option: requestOptions()
+        )
+        print(secondResult.endNode.joinedPrevs())
+        c.insertAtCursorPosition("t", inputStyle: .roman2kana)
+        let thirdResult = kana2kanji._experimental_additional(
+            composingText: c,
+            additionalInputsStartIndex: 2,
+            previousResult: secondResult,
+            option: requestOptions()
+        )
+        print(thirdResult.endNode.joinedPrevs())
+        c.insertAtCursorPosition("a", inputStyle: .roman2kana)
+        let forthResult = kana2kanji._experimental_additional(
+            composingText: c,
+            additionalInputsStartIndex: 3,
+            previousResult: thirdResult,
+            option: requestOptions()
+        )
+        XCTAssertTrue(forthResult.endNode.joinedPrevs().contains("インタ")) // インタ
+        c.insertAtCursorPosition("i", inputStyle: .roman2kana)
+        let fifthResult = kana2kanji._experimental_additional(
+            composingText: c,
+            additionalInputsStartIndex: 4,
+            previousResult: forthResult,
+            option: requestOptions()
+        )
+        XCTAssertTrue(fifthResult.endNode.joinedPrevs().contains("引退")) // インタイ
+    }
+
+    func testConversion_incremental_intsi() throws {
+        let dicdataStore = DicdataStore(requestOptions: requestOptions())
+        let kana2kanji = Kana2Kanji(dicdataStore: dicdataStore)
+        var c = ComposingText()
+        c.insertAtCursorPosition("i", inputStyle: .roman2kana)
+        let firstResult = kana2kanji._experimental_all(c, option: requestOptions())
+        XCTAssertTrue(firstResult.endNode.joinedPrevs().contains("胃")) // い
+        c.insertAtCursorPosition("n", inputStyle: .roman2kana)
+        let secondResult = kana2kanji._experimental_additional(
+            composingText: c,
+            additionalInputsStartIndex: 1,
+            previousResult: firstResult,
+            option: requestOptions()
+        )
+        //        XCTAssertTrue(secondResult.endNode.joinedPrevs().contains("胃n")) // in
+        c.insertAtCursorPosition("t", inputStyle: .roman2kana)
+        let thirdResult = kana2kanji._experimental_additional(
+            composingText: c,
+            additionalInputsStartIndex: 2,
+            previousResult: secondResult,
+            option: requestOptions()
+        )
+        //        XCTAssertTrue(thirdResult.endNode.joinedPrevs().contains("インt")) // int
+        c.insertAtCursorPosition("s", inputStyle: .roman2kana)
+        let forthResult = kana2kanji._experimental_additional(
+            composingText: c,
+            additionalInputsStartIndex: 3,
+            previousResult: thirdResult,
+            option: requestOptions()
+        )
+        XCTAssertTrue(forthResult.endNode.joinedPrevs().contains("インタ")) // インタ
+        c.insertAtCursorPosition("i", inputStyle: .roman2kana)
+        let fifthResult = kana2kanji._experimental_additional(
+            composingText: c,
+            additionalInputsStartIndex: 4,
+            previousResult: forthResult,
+            option: requestOptions()
+        )
+        XCTAssertTrue(fifthResult.endNode.joinedPrevs().contains("引退")) // インタイ
     }
 }

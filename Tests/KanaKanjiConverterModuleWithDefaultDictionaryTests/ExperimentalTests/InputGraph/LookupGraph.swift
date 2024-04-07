@@ -85,7 +85,12 @@ struct LookupGraph {
         return (indexSet, loudsNodeIndex2GraphNodeEndIndices)
     }
 
-    mutating func differentialByfixSearch(in louds: LOUDS, cacheLookupGraph: LookupGraph, graphNodeIndex: (start: Int, cache: Int)) -> (IndexSet, [Int: [Int]]) {
+    mutating func differentialByfixSearch(
+        in louds: LOUDS,
+        cacheLookupGraph: LookupGraph,
+        graphNodeIndex: (start: Int, cache: Int),
+        lookupGraphMatch: inout [Int: Int]
+    ) -> (IndexSet, [Int: [Int]]) {
         guard var graphNodeEndIndexToLoudsNodeIndex = cacheLookupGraph.loudsNodeIndex[graphNodeIndex.cache] else {
             return self.byfixNodeIndices(in: louds, startGraphNodeIndex: graphNodeIndex.start)
         }
@@ -110,6 +115,8 @@ struct LookupGraph {
                 stack.append(contentsOf: self.nextIndexWithMatch(cNodeIndex, cacheNodeIndex: cCacheNodeIndex, cacheGraph: cacheLookupGraph).map {
                     ($0.0, $0.1, loudsNodeIndex)
                 })
+                // マッチ情報を更新する
+                lookupGraphMatch[cNodeIndex] = cCacheNodeIndex
             }
             // キャッシュが効かないケース
             else if let loudsNodeIndex = louds.searchCharNodeIndex(from: cLastLoudsNodeIndex, char: cNode.charId) {
@@ -168,11 +175,11 @@ extension DicdataStore {
                     )
                     if graphNode.inputElementsRange.startIndex == 0 {
                         latticeNodes.append(contentsOf: dicdata.map {
-                            .init(data: $0, nextConvertNodeIndices: lookupGraph.allowedNextIndex[endNodeIndex, default: []], inputElementsRange: inputElementsRange, prevs: [.BOSNode()])
+                            .init(data: $0, endNodeIndex: endNodeIndex, inputElementsRange: inputElementsRange, prevs: [.BOSNode()])
                         })
                     } else {
                         latticeNodes.append(contentsOf: dicdata.map {
-                            .init(data: $0, nextConvertNodeIndices: lookupGraph.allowedNextIndex[endNodeIndex, default: []], inputElementsRange: inputElementsRange)
+                            .init(data: $0, endNodeIndex: endNodeIndex, inputElementsRange: inputElementsRange)
                         })
                     }
                 }
@@ -186,7 +193,15 @@ extension DicdataStore {
         return (lookupGraph, ConvertGraph(input: lookupGraph, nodeIndex2LatticeNode: graphNodeIndex2LatticeNodes))
     }
 
-    func buildConvertGraphDifferential(inputGraph: consuming InputGraph, cacheLookupGraph: LookupGraph, option: ConvertRequestOptions) -> (LookupGraph, ConvertGraph) {
+    func buildConvertGraphDifferential(
+        inputGraph: consuming InputGraph,
+        cacheLookupGraph: LookupGraph,
+        option: ConvertRequestOptions
+    ) -> (
+        lookupGraph: LookupGraph,
+        convertGraph: ConvertGraph,
+        lookupGraphMatch: [Int: Int]
+    ) {
         var lookupGraph = LookupGraph.build(input: consume inputGraph, character2CharId: { self.character2charId($0.toKatakana()) })
         typealias StackItem = (
             currentLookupGraphNodeIndex: Int,
@@ -197,6 +212,8 @@ extension DicdataStore {
         var stack: [StackItem] = lookupGraph.nextIndexWithMatch(0, cacheNodeIndex: 0, cacheGraph: cacheLookupGraph)
         var graphNodeIndex2LatticeNodes: [Int: [ConvertGraph.LatticeNode]] = [:]
         var processedIndexSet = IndexSet()
+        var lookupGraphMatch: [Int: Int] = [:]
+
         while let (graphNodeIndex, cacheGraphNodeIndex) = stack.popLast() {
             // 処理済みのノードは無視
             guard !processedIndexSet.contains(graphNodeIndex) else {
@@ -210,7 +227,7 @@ extension DicdataStore {
             ///   * loudsNodeIndices: loudsから得たloudstxt内のデータの位置
             ///   * loudsNodeIndex2GraphNodeEndIndices: それぞれのloudsNodeIndexがどのgraphNodeIndexを終端とするか
             let (indexSet, loudsNodeIndex2GraphNodeEndIndices) = if let cacheGraphNodeIndex {
-                lookupGraph.differentialByfixSearch(in: louds, cacheLookupGraph: cacheLookupGraph, graphNodeIndex: (graphNodeIndex, cacheGraphNodeIndex))
+                lookupGraph.differentialByfixSearch(in: louds, cacheLookupGraph: cacheLookupGraph, graphNodeIndex: (graphNodeIndex, cacheGraphNodeIndex), lookupGraphMatch: &lookupGraphMatch)
             } else {
                 lookupGraph.byfixNodeIndices(in: louds, startGraphNodeIndex: graphNodeIndex)
             }
@@ -226,11 +243,11 @@ extension DicdataStore {
                     )
                     if graphNode.inputElementsRange.startIndex == 0 {
                         latticeNodes.append(contentsOf: dicdata.map {
-                            .init(data: $0, nextConvertNodeIndices: lookupGraph.allowedNextIndex[endNodeIndex, default: []], inputElementsRange: inputElementsRange, prevs: [.BOSNode()])
+                            .init(data: $0, endNodeIndex: endNodeIndex, inputElementsRange: inputElementsRange, prevs: [.BOSNode()])
                         })
                     } else {
                         latticeNodes.append(contentsOf: dicdata.map {
-                            .init(data: $0, nextConvertNodeIndices: lookupGraph.allowedNextIndex[endNodeIndex, default: []], inputElementsRange: inputElementsRange)
+                            .init(data: $0, endNodeIndex: endNodeIndex, inputElementsRange: inputElementsRange)
                         })
                     }
                 }
@@ -245,7 +262,7 @@ extension DicdataStore {
                 stack.append(contentsOf: lookupGraph.allowedNextIndex[graphNodeIndex, default: []].map {($0, nil)})
             }
         }
-        return (lookupGraph, ConvertGraph(input: lookupGraph, nodeIndex2LatticeNode: graphNodeIndex2LatticeNodes))
+        return (lookupGraph, ConvertGraph(input: lookupGraph, nodeIndex2LatticeNode: graphNodeIndex2LatticeNodes), lookupGraphMatch)
     }
 
     func getDicdataFromLoudstxt3(identifier: String, indices: some Sequence<Int>, option: ConvertRequestOptions) -> [(loudsNodeIndex: Int, dicdata: [DicdataElement])] {
