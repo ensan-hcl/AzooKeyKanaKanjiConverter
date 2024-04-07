@@ -47,10 +47,9 @@ extension Kana2Kanji {
         let inputGraph = InputGraph.build(input: previousResult.correctGraph)
         // 辞書ルックアップによりconvertGraphを構築
         print(#file, "lookup", previousResult.inputGraph)
-        let (lookupGraph, convertGraph) = self.dicdataStore.buildConvertGraphDifferential(inputGraph: inputGraph, cacheLookupGraph: previousResult.lookupGraph, option: option)
+        var (lookupGraph, convertGraph, matchInfo) = self.dicdataStore.buildConvertGraphDifferential(inputGraph: inputGraph, cacheLookupGraph: previousResult.lookupGraph, option: option)
         print(#file, "convert")
-        // TODO: ここから先も差分ベースにする
-        let result = convertGraph.convertAll(option: option, dicdataStore: self.dicdataStore)
+        let result = convertGraph.convertAllDifferential(cacheConvertGraph: previousResult.convertGraph, option: option, dicdataStore: self.dicdataStore, lookupGraphMatchInfo: matchInfo)
         return Result(endNode: result, correctGraph: previousResult.correctGraph, inputGraph: inputGraph, lookupGraph: lookupGraph, convertGraph: convertGraph)
     }
 }
@@ -245,6 +244,7 @@ final class ExperimentalConversionTests: XCTestCase {
             previousResult: firstResult,
             option: requestOptions()
         )
+        print(secondResult.endNode.joinedPrevs())
         XCTAssertTrue(secondResult.endNode.joinedPrevs().contains("太鼓")) // たいこ
         XCTAssertTrue(secondResult.endNode.joinedPrevs().contains("太古")) // たいこ
         c.insertAtCursorPosition("く", inputStyle: .direct)
@@ -254,6 +254,7 @@ final class ExperimentalConversionTests: XCTestCase {
             previousResult: secondResult,
             option: requestOptions()
         )
+        print(thirdResult.endNode.joinedPrevs())
         XCTAssertTrue(thirdResult.endNode.joinedPrevs().contains("大国")) // たいこく
     }
 }

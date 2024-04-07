@@ -236,7 +236,8 @@ final class LookupGraphTests: XCTestCase {
         var lookupGraph2 = LookupGraph.build(input: inputGraph2, character2CharId: values.character2CharId)
         let startNodeIndex2 = lookupGraph2.allowedNextIndex[0, default: IndexSet()].first(where: { lookupGraph2.nodes[$0].character == "た" })
         XCTAssertNotNil(startNodeIndex2)
-        let (loudsNodeIndices2, _) = lookupGraph2.differentialByfixSearch(in: louds, cacheLookupGraph: lookupGraph1, graphNodeIndex: (startNodeIndex2 ?? 0, startNodeIndex1 ?? 0))
+        var matchInfo: [Int: Int] = [:]
+        let (loudsNodeIndices2, _) = lookupGraph2.differentialByfixSearch(in: louds, cacheLookupGraph: lookupGraph1, graphNodeIndex: (startNodeIndex2 ?? 0, startNodeIndex1 ?? 0), lookupGraphMatch: &matchInfo)
         let dicdataWithIndex = values.dicdataStore.getDicdataFromLoudstxt3(identifier: "タ", indices: loudsNodeIndices2, option: requestOptions())
         let dicdata = dicdataWithIndex.flatMapSet { $0.dicdata }
         // タ
@@ -284,7 +285,8 @@ final class LookupGraphTests: XCTestCase {
         var lookupGraph2 = LookupGraph.build(input: inputGraph2, character2CharId: values.character2CharId)
         let startNodeIndex2 = lookupGraph2.allowedNextIndex[0, default: IndexSet()].first(where: { lookupGraph2.nodes[$0].character == "た" })
         XCTAssertNotNil(startNodeIndex2)
-        let (loudsNodeIndices2, _) = lookupGraph2.differentialByfixSearch(in: louds, cacheLookupGraph: lookupGraph1, graphNodeIndex: (startNodeIndex2 ?? 0, startNodeIndex1 ?? 0))
+        var matchInfo: [Int: Int] = [:]
+        let (loudsNodeIndices2, _) = lookupGraph2.differentialByfixSearch(in: louds, cacheLookupGraph: lookupGraph1, graphNodeIndex: (startNodeIndex2 ?? 0, startNodeIndex1 ?? 0), lookupGraphMatch: &matchInfo)
         let dicdataWithIndex = values.dicdataStore.getDicdataFromLoudstxt3(identifier: "タ", indices: loudsNodeIndices2, option: requestOptions())
         let dicdata = dicdataWithIndex.flatMapSet { $0.dicdata }
         // タ
