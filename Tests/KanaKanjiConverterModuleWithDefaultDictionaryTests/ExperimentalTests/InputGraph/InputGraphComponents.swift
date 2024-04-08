@@ -56,6 +56,7 @@ struct InputGraphInputStyle: Identifiable {
         case .all: .all
         case .systemFlickDirect: .systemFlickDirect
         case .systemRomanKana: .systemRomanKana
+        case .none: .none
         default: fatalError("Unimplemented")
         }
     }
@@ -78,7 +79,8 @@ struct InputGraphInputStyle: Identifiable {
                 self = .systemRomanKana
             }
         }
-        static let all = Self(id: 0x00)
+        static let none = Self(id: 0x00)
+        static let all = Self(id: 0xFF)
         static let systemFlickDirect = Self(id: 0x01)
         static let systemRomanKana = Self(id: 0x02)
         var id: UInt8
@@ -94,6 +96,11 @@ struct InputGraphInputStyle: Identifiable {
             "ID(\(id))"
         }
     }
+    static let none: Self = Self(
+        id: .none,
+        replaceSuffixTree: ReplaceSuffixTree.Node(),
+        correctSuffixTree: CorrectSuffixTree.Node()
+    )
     static let all: Self = Self(
         id: .all,
         replaceSuffixTree: ReplaceSuffixTree.Node(),
