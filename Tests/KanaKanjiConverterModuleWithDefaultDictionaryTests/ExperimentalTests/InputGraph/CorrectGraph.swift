@@ -9,20 +9,35 @@ import Foundation
 import KanaKanjiConverterModule
 
 struct CorrectGraph {
-    enum Correction: CustomStringConvertible {
+    enum Correction: Hashable, Sendable, CustomStringConvertible {
         /// 訂正ではない
         case none
         /// 訂正である
-        case typo
+        case typo(weight: PValue)
 
         var isTypo: Bool {
-            self == .typo
+            if case .typo = self {
+                true
+            } else {
+                false
+            }
         }
 
         var description: String {
             switch self {
             case .none: "none"
             case .typo: "typo"
+            }
+        }
+
+        consuming func merged(with value: Self) -> Self {
+            switch self {
+            case .none: value
+            case .typo(weight: let w):
+                switch value {
+                case .none: .typo(weight: w)
+                case .typo(weight: let w2): .typo(weight: w + w2)
+                }
             }
         }
     }
@@ -56,9 +71,12 @@ struct CorrectGraph {
         return index
     }
 
-    private mutating func insertConnectedTypoNodes(values: [Character], startIndex: Int, endIndex: Int, inputStyle: InputGraphInputStyle.ID, lastIndexSet: IndexSet) -> (lastIndex: Int, insertedIndexSet: IndexSet) {
+    private mutating func insertConnectedTypoNodes(values: [Character], startIndex: Int, endIndex: Int, inputStyle: InputGraphInputStyle.ID, lastIndexSet: IndexSet, typoWeight: PValue) -> (lastIndex: Int, insertedIndexSet: IndexSet) {
         guard !values.isEmpty else {
             fatalError("values must not be empty")
+        }
+        guard startIndex < endIndex else {
+            fatalError("it must be true: startIndex < endIndex")
         }
         var insertedIndexSet = IndexSet()
         var lastIndexSet = lastIndexSet
@@ -75,7 +93,7 @@ struct CorrectGraph {
             let node = Node(
                 inputElementsRange: inputElementRange,
                 inputStyle: inputStyle,
-                correction: .typo,
+                correction: .typo(weight: typoWeight / PValue(endIndex - startIndex)),
                 value: c
             )
             let nodeIndex = self.insert(node, nextTo: lastIndexSet)
@@ -126,15 +144,16 @@ struct CorrectGraph {
             if let nNode = cNode.find(key: input[cIndex].value) {
                 stack.append((nNode, cIndex - 1, cRouteCount + 1, inputStyleId))
                 for value in nNode.value {
-                    if value.isEmpty {
+                    if value.replace.isEmpty {
                         continue
-                    } else if value.count > 1 {
+                    } else if value.replace.count > 1 {
                         let (nodeIndex, indexSet) = self.insertConnectedTypoNodes(
-                            values: Array(value),
+                            values: Array(value.replace),
                             startIndex: index - cRouteCount + 1,
                             endIndex: index + 1,
                             inputStyle: inputStyleId,
-                            lastIndexSet: self.inputIndexToEndNodeIndices[index - cRouteCount + 1, default: IndexSet()]
+                            lastIndexSet: self.inputIndexToEndNodeIndices[index - cRouteCount + 1, default: IndexSet()],
+                            typoWeight: value.weight
                         )
                         self.inputIndexToEndNodeIndices[index + 1, default: IndexSet()].insert(nodeIndex)
                         insertedIndexSet.formUnion(indexSet)
@@ -143,8 +162,8 @@ struct CorrectGraph {
                             Node(
                                 inputElementsRange: .range(index - cRouteCount + 1, index + 1),
                                 inputStyle: inputStyleId,
-                                correction: .typo,
-                                value: value.first!
+                                correction: .typo(weight: value.weight),
+                                value: value.replace.first!
                             ),
                             nextTo: self.inputIndexToEndNodeIndices[index - cRouteCount + 1, default: IndexSet()]
                         )

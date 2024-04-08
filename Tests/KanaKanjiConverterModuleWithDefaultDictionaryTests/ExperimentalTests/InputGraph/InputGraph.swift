@@ -20,7 +20,13 @@ struct InputGraph {
         var description: String {
             let `is` = inputElementsRange.startIndex?.description ?? "?"
             let ie = inputElementsRange.endIndex?.description ?? "?"
-            return "Node(\"\(character)\", i(\(`is`)..<\(ie)), isTypo: \(correction.isTypo))"
+            let typoDescription = switch correction {
+            case .none:
+                ""
+            case .typo(let weight):
+                ", typoWeight: \(weight)"
+            }
+            return "Node(\"\(character)\", i(\(`is`)..<\(ie))\(typoDescription))"
         }
     }
 
@@ -93,7 +99,7 @@ struct InputGraph {
                             [prevGraphNodeIndex] + cRoute,
                             // bNodeがvalueを持っていればそれで置き換え、持っていなければ現在のものを用いる
                             foundValue: bNode.value.map {Replacement(route: cRoute, value: $0)} ?? cFoundValue,
-                            cCorrection.isTypo ? .typo : self.nodes[prevGraphNodeIndex].correction
+                            cCorrection.merged(with: self.nodes[prevGraphNodeIndex].correction)
                         )
                     )
                 }
@@ -118,11 +124,7 @@ struct InputGraph {
             let endIndex = self.nodes[replacement.route[replacement.route.endIndex - 1]].inputElementsRange.endIndex
 
             let characters = Array(replacement.value)
-            let correction: CorrectGraph.Correction = if replacement.route.allSatisfy({!self.nodes[$0].correction.isTypo}) {
-                .none
-            } else {
-                .typo
-            }
+            let correction: CorrectGraph.Correction = replacement.route.reduce(.none) { $0.merged(with: self.nodes[$1].correction) }
             let newNodes = characters.indices.map { index in
                 let range: InputGraphRange = if index == characters.startIndex && index == characters.endIndex - 1 {
                     .init(startIndex: startIndex, endIndex: endIndex)

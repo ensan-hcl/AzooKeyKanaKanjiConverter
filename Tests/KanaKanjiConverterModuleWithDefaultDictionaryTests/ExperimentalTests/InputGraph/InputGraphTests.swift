@@ -43,7 +43,7 @@ final class InputGraphTests: XCTestCase {
         )
         XCTAssertEqual(
             inputGraph.nodes.first(where: {$0.character == "だ"}),
-            .init(character: "だ", inputElementsRange: .range(0, 1), correction: .typo)
+            .init(character: "だ", inputElementsRange: .range(0, 1), correction: .typo(weight: -3))
         )
     }
 
@@ -106,7 +106,7 @@ final class InputGraphTests: XCTestCase {
         )
         XCTAssertEqual(
             inputGraph.nodes.first(where: {$0.character == "た"}),
-            .init(character: "た", inputElementsRange: .range(2, 4), correction: .typo)
+            .init(character: "た", inputElementsRange: .range(2, 4), correction: .typo(weight: -3))
         )
     }
     func testBuildSimpleRoman2KanaInput_3文字_its() throws {
@@ -130,11 +130,11 @@ final class InputGraphTests: XCTestCase {
         )
         XCTAssertEqual(
             inputGraph.nodes.first(where: {$0.character == "t" && $0.inputElementsRange == .startIndex(1)}),
-            .init(character: "t", inputElementsRange: .startIndex(1), correction: .typo)
+            .init(character: "t", inputElementsRange: .startIndex(1), correction: .typo(weight: -3/2))
         )
         XCTAssertEqual(
             inputGraph.nodes.first(where: {$0.character == "た"}),
-            .init(character: "た", inputElementsRange: .range(1, 3), correction: .typo)
+            .init(character: "た", inputElementsRange: .range(1, 3), correction: .typo(weight: -3))
         )
     }
     func testBuildSimpleRoman2KanaInput_4文字_itsa() throws {
@@ -159,11 +159,11 @@ final class InputGraphTests: XCTestCase {
         )
         XCTAssertEqual(
             inputGraph.nodes.first(where: {$0.character == "t" && $0.inputElementsRange == .startIndex(1)}),
-            .init(character: "t", inputElementsRange: .startIndex(1), correction: .typo)
+            .init(character: "t", inputElementsRange: .startIndex(1), correction: .typo(weight: -3/2))
         )
         XCTAssertEqual(
             inputGraph.nodes.first(where: {$0.character == "た"}),
-            .init(character: "た", inputElementsRange: .range(1, 3), correction: .typo)
+            .init(character: "た", inputElementsRange: .range(1, 3), correction: .typo(weight: -3))
         )
         XCTAssertEqual(
             inputGraph.nodes.first(where: {$0.character == "あ"}),
@@ -309,7 +309,7 @@ final class InputGraphTests: XCTestCase {
         )
         XCTAssertEqual(
             inputGraph.nodes.first(where: {$0.character == "た"}),
-            .init(character: "た", inputElementsRange: .range(2, 4), correction: .typo)
+            .init(character: "た", inputElementsRange: .range(2, 4), correction: .typo(weight: -3))
         )
         XCTAssertEqual(
             inputGraph.nodes.first(where: {$0.character == "い"}),
@@ -330,8 +330,8 @@ final class InputGraphTests: XCTestCase {
             .init(character: "っ", inputElementsRange: .startIndex(0), correction: .none)
         )
         XCTAssertEqual(
-            inputGraph.nodes.first(where: {$0.character == "っ" && $0.correction == .typo}),
-            .init(character: "っ", inputElementsRange: .startIndex(0), correction: .typo)
+            inputGraph.nodes.first(where: {$0.character == "っ" && $0.correction == .typo(weight: -3/2)}),
+            .init(character: "っ", inputElementsRange: .startIndex(0), correction: .typo(weight: -3/2))
         )
         XCTAssertEqual(
             inputGraph.nodes.first(where: {$0.character == "s"}),
@@ -339,7 +339,7 @@ final class InputGraphTests: XCTestCase {
         )
         XCTAssertEqual(
             inputGraph.nodes.first(where: {$0.character == "た"}),
-            .init(character: "た", inputElementsRange: .endIndex(3), correction: .typo)
+            .init(character: "た", inputElementsRange: .endIndex(3), correction: .typo(weight: -3))
         )
     }
 
@@ -367,11 +367,11 @@ final class InputGraphTests: XCTestCase {
         )
         XCTAssertEqual(
             inputGraph.nodes.first(where: {$0.character == "ち"}),
-            .init(character: "ち", inputElementsRange: .startIndex(0), correction: .typo)
+            .init(character: "ち", inputElementsRange: .startIndex(0), correction: .typo(weight: -3))
         )
         XCTAssertEqual(
-            inputGraph.nodes.first(where: {$0.character == "ゃ" && $0.correction == .typo}),
-            .init(character: "ゃ", inputElementsRange: .endIndex(3), correction: .typo)
+            inputGraph.nodes.first(where: {$0.character == "ゃ" && $0.correction == .typo(weight: -3)}),
+            .init(character: "ゃ", inputElementsRange: .endIndex(3), correction: .typo(weight: -3))
         )
         XCTAssertEqual(
             inputGraph.nodes.first(where: {$0.character == "あ"}),
@@ -389,6 +389,6 @@ final class InputGraphTests: XCTestCase {
             inputGraph.nodes.first(where: {$0.character == "t"}),
             .init(character: "t", inputElementsRange: .range(0, 1), correction: .none)
         )
-        XCTAssertFalse(inputGraph.nodes.contains(.init(character: "た", inputElementsRange: .range(0, 2), correction: .typo)))
+        XCTAssertFalse(inputGraph.nodes.contains(.init(character: "た", inputElementsRange: .range(0, 2), correction: .typo(weight: -3))))
     }
 }

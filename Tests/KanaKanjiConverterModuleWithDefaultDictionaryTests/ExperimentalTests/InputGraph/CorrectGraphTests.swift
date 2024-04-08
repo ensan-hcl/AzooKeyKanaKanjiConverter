@@ -30,7 +30,7 @@ final class CorrectGraphTests: XCTestCase {
         )
         XCTAssertEqual(
             graph.nodes.first(where: {$0.value == "が"}),
-            .init(inputElementsRange: .range(0, 1), inputStyle: .systemFlickDirect, correction: .typo, value: "が")
+            .init(inputElementsRange: .range(0, 1), inputStyle: .systemFlickDirect, correction: .typo(weight: -3), value: "が")
         )
     }
     func testBuildMultipleDirectInputWithTypo() throws {
@@ -45,7 +45,7 @@ final class CorrectGraphTests: XCTestCase {
         )
         XCTAssertEqual(
             graph.nodes.first(where: {$0.value == "が"}),
-            .init(inputElementsRange: .range(1, 2), inputStyle: .systemFlickDirect, correction: .typo, value: "が")
+            .init(inputElementsRange: .range(1, 2), inputStyle: .systemFlickDirect, correction: .typo(weight: -3), value: "が")
         )
         XCTAssertEqual(
             graph.nodes.first(where: {$0.value == "う"}),
@@ -86,11 +86,11 @@ final class CorrectGraphTests: XCTestCase {
         )
         XCTAssertEqual(
             graph.nodes.first(where: {$0.value == "t" && $0.inputElementsRange == .startIndex(0)}),
-            .init(inputElementsRange: .startIndex(0), inputStyle: .systemRomanKana, correction: .typo, value: "t")
+            .init(inputElementsRange: .startIndex(0), inputStyle: .systemRomanKana, correction: .typo(weight: -3/2), value: "t")
         )
         XCTAssertEqual(
             graph.nodes.first(where: {$0.value == "a"}),
-            .init(inputElementsRange: .endIndex(2), inputStyle: .systemRomanKana, correction: .typo, value: "a")
+            .init(inputElementsRange: .endIndex(2), inputStyle: .systemRomanKana, correction: .typo(weight: -3/2), value: "a")
         )
         if let index = graph.nodes.firstIndex(where: {$0.value == "a"}) {
             let indices = graph.allowedPrevIndex[index, default: .init()]
