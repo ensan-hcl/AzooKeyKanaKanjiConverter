@@ -18,7 +18,7 @@ extension Kana2Kanji {
         var lookupGraph: LookupGraph
         var convertGraph: ConvertGraph
     }
-    func _experimental_all(_ inputData: ComposingText, option: ConvertRequestOptions) -> Result {
+    func _experimental_all(_ inputData: ComposingTextV2, option: ConvertRequestOptions) -> Result {
         // グラフ構築
         print(#file, "start")
         let correctGraph = CorrectGraph.build(input: inputData.input)
@@ -32,7 +32,7 @@ extension Kana2Kanji {
     }
 
     func _experimental_additional(
-        composingText: ComposingText,
+        composingText: ComposingTextV2,
         additionalInputsStartIndex: Int,
         previousResult: consuming Result,
         option: ConvertRequestOptions
@@ -43,9 +43,27 @@ extension Kana2Kanji {
         for i in additionalInputsStartIndex ..< composingText.input.endIndex {
             insertedIndexSet.formUnion(previousResult.correctGraph.update(with: composingText.input[i], index: i, input: composingText.input))
         }
-        // FIXME: inputGraphの差分ベースの構築は困難なため、普通に構築し直す
+        // MARK: inputGraphの差分ベースの構築は困難なため、普通に構築し直す
         let inputGraph = InputGraph.build(input: previousResult.correctGraph)
-        // 辞書ルックアップによりconvertGraphを構築
+        // MARK: ここは差分ベース
+        print(#file, "lookup", previousResult.inputGraph)
+        var (lookupGraph, convertGraph, matchInfo) = self.dicdataStore.buildConvertGraphDifferential(inputGraph: inputGraph, cacheLookupGraph: previousResult.lookupGraph, option: option)
+        print(#file, "convert")
+        let result = convertGraph.convertAllDifferential(cacheConvertGraph: previousResult.convertGraph, option: option, dicdataStore: self.dicdataStore, lookupGraphMatchInfo: matchInfo)
+        return Result(endNode: result, correctGraph: previousResult.correctGraph, inputGraph: inputGraph, lookupGraph: lookupGraph, convertGraph: convertGraph)
+    }
+
+    func _experimental_delete(
+        composingText: ComposingTextV2,
+        previousResult: consuming Result,
+        option: ConvertRequestOptions
+    ) -> Result {
+        // グラフ構築
+        print(#file, "start")
+        // MARK: この部分の差分ベースの構築は困難なため、普通に構築し直す
+        let correctGraph = CorrectGraph.build(input: composingText.input)
+        let inputGraph = InputGraph.build(input: correctGraph)
+        // MARK: ここから差分ベースにする
         print(#file, "lookup", previousResult.inputGraph)
         var (lookupGraph, convertGraph, matchInfo) = self.dicdataStore.buildConvertGraphDifferential(inputGraph: inputGraph, cacheLookupGraph: previousResult.lookupGraph, option: option)
         print(#file, "convert")
@@ -77,8 +95,8 @@ final class ExperimentalConversionTests: XCTestCase {
 
     func testBuildConvertGraph_たいかく() throws {
         let dicdataStore = DicdataStore(requestOptions: requestOptions())
-        var c = ComposingText()
-        c.insertAtCursorPosition("たいかく", inputStyle: .direct)
+        var c = ComposingTextV2()
+        c.append("たいかく", inputStyle: .systemFlickDirect)
         let correctGraph = CorrectGraph.build(input: c.input)
         let inputGraph = InputGraph.build(input: consume correctGraph)
         let (_, convertGraph) = dicdataStore.buildConvertGraph(inputGraph: inputGraph, option: requestOptions())
@@ -94,8 +112,8 @@ final class ExperimentalConversionTests: XCTestCase {
     func testConversion_たい() throws {
         let dicdataStore = DicdataStore(requestOptions: requestOptions())
         let kana2kanji = Kana2Kanji(dicdataStore: dicdataStore)
-        var c = ComposingText()
-        c.insertAtCursorPosition("たい", inputStyle: .direct)
+        var c = ComposingTextV2()
+        c.append("たい", inputStyle: .systemFlickDirect)
         let result = kana2kanji._experimental_all(c, option: requestOptions())
         XCTAssertTrue(result.endNode.joinedPrevs().contains("タイ")) // たい
         XCTAssertTrue(result.endNode.joinedPrevs().contains("台")) // たい
@@ -104,8 +122,8 @@ final class ExperimentalConversionTests: XCTestCase {
     func testConversion_いか() throws {
         let dicdataStore = DicdataStore(requestOptions: requestOptions())
         let kana2kanji = Kana2Kanji(dicdataStore: dicdataStore)
-        var c = ComposingText()
-        c.insertAtCursorPosition("いか", inputStyle: .direct)
+        var c = ComposingTextV2()
+        c.append("いか", inputStyle: .systemFlickDirect)
         let result = kana2kanji._experimental_all(c, option: requestOptions())
         XCTAssertTrue(result.endNode.joinedPrevs().contains("以下")) // いか
         XCTAssertTrue(result.endNode.joinedPrevs().contains("伊賀")) // いが
@@ -114,8 +132,8 @@ final class ExperimentalConversionTests: XCTestCase {
     func testConversion_かかく() throws {
         let dicdataStore = DicdataStore(requestOptions: requestOptions())
         let kana2kanji = Kana2Kanji(dicdataStore: dicdataStore)
-        var c = ComposingText()
-        c.insertAtCursorPosition("かかく", inputStyle: .direct)
+        var c = ComposingTextV2()
+        c.append("かかく", inputStyle: .systemFlickDirect)
         let result = kana2kanji._experimental_all(c, option: requestOptions())
         XCTAssertTrue(result.endNode.joinedPrevs().contains("価格")) // かかく
         XCTAssertTrue(result.endNode.joinedPrevs().contains("科学")) // かがく
@@ -126,8 +144,8 @@ final class ExperimentalConversionTests: XCTestCase {
     func testConversion_たいか() throws {
         let dicdataStore = DicdataStore(requestOptions: requestOptions())
         let kana2kanji = Kana2Kanji(dicdataStore: dicdataStore)
-        var c = ComposingText()
-        c.insertAtCursorPosition("たいか", inputStyle: .direct)
+        var c = ComposingTextV2()
+        c.append("たいか", inputStyle: .systemFlickDirect)
         let result = kana2kanji._experimental_all(c, option: requestOptions())
         XCTAssertTrue(result.endNode.joinedPrevs().contains("対価")) // たいか
         XCTAssertTrue(result.endNode.joinedPrevs().contains("大河")) // たいが
@@ -136,8 +154,8 @@ final class ExperimentalConversionTests: XCTestCase {
     func testConversion_たいかく() throws {
         let dicdataStore = DicdataStore(requestOptions: requestOptions())
         let kana2kanji = Kana2Kanji(dicdataStore: dicdataStore)
-        var c = ComposingText()
-        c.insertAtCursorPosition("たいかく", inputStyle: .direct)
+        var c = ComposingTextV2()
+        c.append("たいかく", inputStyle: .systemFlickDirect)
         let result = kana2kanji._experimental_all(c, option: requestOptions())
         XCTAssertTrue(result.endNode.joinedPrevs().contains("体格")) // たいかく
         XCTAssertTrue(result.endNode.joinedPrevs().contains("退学")) // たいがく
@@ -146,16 +164,16 @@ final class ExperimentalConversionTests: XCTestCase {
     func testConversion_むらさき() throws {
         let dicdataStore = DicdataStore(requestOptions: requestOptions())
         let kana2kanji = Kana2Kanji(dicdataStore: dicdataStore)
-        var c = ComposingText()
-        c.insertAtCursorPosition("むらさき", inputStyle: .direct)
+        var c = ComposingTextV2()
+        c.append("むらさき", inputStyle: .systemFlickDirect)
         let result = kana2kanji._experimental_all(c, option: requestOptions())
         XCTAssertTrue(result.endNode.joinedPrevs().contains("紫")) // むらさき
     }
 
     func testBuildConvertGraph_youshouki() throws {
         let dicdataStore = DicdataStore(requestOptions: requestOptions())
-        var c = ComposingText()
-        c.insertAtCursorPosition("youshouki", inputStyle: .roman2kana)
+        var c = ComposingTextV2()
+        c.append("youshouki", inputStyle: .systemRomanKana)
         let correctGraph = CorrectGraph.build(input: c.input)
         let inputGraph = InputGraph.build(input: consume correctGraph)
         let (_, convertGraph) = dicdataStore.buildConvertGraph(inputGraph: inputGraph, option: requestOptions())
@@ -171,8 +189,8 @@ final class ExperimentalConversionTests: XCTestCase {
     func testConversion_youshouki() throws {
         let dicdataStore = DicdataStore(requestOptions: requestOptions())
         let kana2kanji = Kana2Kanji(dicdataStore: dicdataStore)
-        var c = ComposingText()
-        c.insertAtCursorPosition("youshouki", inputStyle: .roman2kana)
+        var c = ComposingTextV2()
+        c.append("youshouki", inputStyle: .systemRomanKana)
         let result = kana2kanji._experimental_all(c, option: requestOptions())
         XCTAssertTrue(result.endNode.joinedPrevs().contains("幼少期")) // ようしょうき
     }
@@ -181,14 +199,14 @@ final class ExperimentalConversionTests: XCTestCase {
         let dicdataStore = DicdataStore(requestOptions: requestOptions())
         let kana2kanji = Kana2Kanji(dicdataStore: dicdataStore)
         do {
-            var c = ComposingText()
-            c.insertAtCursorPosition("みらいえいが", inputStyle: .direct)
+            var c = ComposingTextV2()
+            c.append("みらいえいが", inputStyle: .systemFlickDirect)
             let result = kana2kanji._experimental_all(c, option: requestOptions())
             XCTAssertTrue(result.endNode.joinedPrevs().contains("未来映画"))
         }
         do {
-            var c = ComposingText()
-            c.insertAtCursorPosition("miraieiga", inputStyle: .roman2kana)
+            var c = ComposingTextV2()
+            c.append("miraieiga", inputStyle: .systemRomanKana)
             let result = kana2kanji._experimental_all(c, option: requestOptions())
             XCTAssertTrue(result.endNode.joinedPrevs().contains("未来映画"))
         }
@@ -198,32 +216,32 @@ final class ExperimentalConversionTests: XCTestCase {
         let dicdataStore = DicdataStore(requestOptions: requestOptions())
         let kana2kanji = Kana2Kanji(dicdataStore: dicdataStore)
         do {
-            var c = ComposingText()
-            c.insertAtCursorPosition("sitta", inputStyle: .roman2kana)
+            var c = ComposingTextV2()
+            c.append("sitta", inputStyle: .systemRomanKana)
             let result = kana2kanji._experimental_all(c, option: requestOptions())
             XCTAssertTrue(result.endNode.joinedPrevs().contains("知った"))
         }
         do {
-            var c = ComposingText()
-            c.insertAtCursorPosition("unda", inputStyle: .roman2kana)
+            var c = ComposingTextV2()
+            c.append("unda", inputStyle: .systemRomanKana)
             let result = kana2kanji._experimental_all(c, option: requestOptions())
             XCTAssertTrue(result.endNode.joinedPrevs().contains("産んだ"))
         }
         do {
-            var c = ComposingText()
-            c.insertAtCursorPosition("ixtsuta", inputStyle: .roman2kana)
+            var c = ComposingTextV2()
+            c.append("ixtsuta", inputStyle: .systemRomanKana)
             let result = kana2kanji._experimental_all(c, option: requestOptions())
             XCTAssertTrue(result.endNode.joinedPrevs().contains("言った"))
         }
         do {
-            var c = ComposingText()
-            c.insertAtCursorPosition("its", inputStyle: .roman2kana)
+            var c = ComposingTextV2()
+            c.append("its", inputStyle: .systemRomanKana)
             let result = kana2kanji._experimental_all(c, option: requestOptions())
             XCTAssertTrue(result.endNode.joinedPrevs().contains("いた"))
         }
         do {
-            var c = ComposingText()
-            c.insertAtCursorPosition("itsi", inputStyle: .roman2kana)
+            var c = ComposingTextV2()
+            c.append("itsi", inputStyle: .systemRomanKana)
             let result = kana2kanji._experimental_all(c, option: requestOptions())
             XCTAssertTrue(result.endNode.joinedPrevs().contains("痛い"))
         }
@@ -232,12 +250,12 @@ final class ExperimentalConversionTests: XCTestCase {
     func testConversion_incremental_たい() throws {
         let dicdataStore = DicdataStore(requestOptions: requestOptions())
         let kana2kanji = Kana2Kanji(dicdataStore: dicdataStore)
-        var c = ComposingText()
-        c.insertAtCursorPosition("たい", inputStyle: .direct)
+        var c = ComposingTextV2()
+        c.append("たい", inputStyle: .systemFlickDirect)
         let firstResult = kana2kanji._experimental_all(c, option: requestOptions())
         XCTAssertTrue(firstResult.endNode.joinedPrevs().contains("タイ")) // たい
         XCTAssertTrue(firstResult.endNode.joinedPrevs().contains("台")) // たい
-        c.insertAtCursorPosition("こ", inputStyle: .direct)
+        c.append("こ", inputStyle: .systemFlickDirect)
         let secondResult = kana2kanji._experimental_additional(
             composingText: c,
             additionalInputsStartIndex: 2,
@@ -246,7 +264,7 @@ final class ExperimentalConversionTests: XCTestCase {
         )
         XCTAssertTrue(secondResult.endNode.joinedPrevs().contains("太鼓")) // たいこ
         XCTAssertTrue(secondResult.endNode.joinedPrevs().contains("太古")) // たいこ
-        c.insertAtCursorPosition("く", inputStyle: .direct)
+        c.append("く", inputStyle: .systemFlickDirect)
         let thirdResult = kana2kanji._experimental_additional(
             composingText: c,
             additionalInputsStartIndex: 3,
@@ -254,16 +272,25 @@ final class ExperimentalConversionTests: XCTestCase {
             option: requestOptions()
         )
         XCTAssertTrue(thirdResult.endNode.joinedPrevs().contains("大国")) // たいこく
+        c.removeLast()
+        let forthResult = kana2kanji._experimental_delete(
+            composingText: c,
+            previousResult: thirdResult,
+            option: requestOptions()
+        )
+        XCTAssertTrue(secondResult.endNode.joinedPrevs().contains("太鼓")) // たいこ
+        XCTAssertTrue(secondResult.endNode.joinedPrevs().contains("太古")) // たいこ
+        XCTAssertFalse(forthResult.endNode.joinedPrevs().contains("大国")) // たいこく
     }
 
     func testConversion_incremental_intai() throws {
         let dicdataStore = DicdataStore(requestOptions: requestOptions())
         let kana2kanji = Kana2Kanji(dicdataStore: dicdataStore)
-        var c = ComposingText()
-        c.insertAtCursorPosition("i", inputStyle: .roman2kana)
+        var c = ComposingTextV2()
+        c.append("i", inputStyle: .systemRomanKana)
         let firstResult = kana2kanji._experimental_all(c, option: requestOptions())
         XCTAssertTrue(firstResult.endNode.joinedPrevs().contains("胃")) // い
-        c.insertAtCursorPosition("n", inputStyle: .roman2kana)
+        c.append("n", inputStyle: .systemRomanKana)
         let secondResult = kana2kanji._experimental_additional(
             composingText: c,
             additionalInputsStartIndex: 1,
@@ -271,7 +298,7 @@ final class ExperimentalConversionTests: XCTestCase {
             option: requestOptions()
         )
         print(secondResult.endNode.joinedPrevs())
-        c.insertAtCursorPosition("t", inputStyle: .roman2kana)
+        c.append("t", inputStyle: .systemRomanKana)
         let thirdResult = kana2kanji._experimental_additional(
             composingText: c,
             additionalInputsStartIndex: 2,
@@ -279,7 +306,7 @@ final class ExperimentalConversionTests: XCTestCase {
             option: requestOptions()
         )
         print(thirdResult.endNode.joinedPrevs())
-        c.insertAtCursorPosition("a", inputStyle: .roman2kana)
+        c.append("a", inputStyle: .systemRomanKana)
         let forthResult = kana2kanji._experimental_additional(
             composingText: c,
             additionalInputsStartIndex: 3,
@@ -287,7 +314,7 @@ final class ExperimentalConversionTests: XCTestCase {
             option: requestOptions()
         )
         XCTAssertTrue(forthResult.endNode.joinedPrevs().contains("インタ")) // インタ
-        c.insertAtCursorPosition("i", inputStyle: .roman2kana)
+        c.append("i", inputStyle: .systemRomanKana)
         let fifthResult = kana2kanji._experimental_additional(
             composingText: c,
             additionalInputsStartIndex: 4,
@@ -300,11 +327,11 @@ final class ExperimentalConversionTests: XCTestCase {
     func testConversion_incremental_intsi() throws {
         let dicdataStore = DicdataStore(requestOptions: requestOptions())
         let kana2kanji = Kana2Kanji(dicdataStore: dicdataStore)
-        var c = ComposingText()
-        c.insertAtCursorPosition("i", inputStyle: .roman2kana)
+        var c = ComposingTextV2()
+        c.append("i", inputStyle: .systemRomanKana)
         let firstResult = kana2kanji._experimental_all(c, option: requestOptions())
         XCTAssertTrue(firstResult.endNode.joinedPrevs().contains("胃")) // い
-        c.insertAtCursorPosition("n", inputStyle: .roman2kana)
+        c.append("n", inputStyle: .systemRomanKana)
         let secondResult = kana2kanji._experimental_additional(
             composingText: c,
             additionalInputsStartIndex: 1,
@@ -312,7 +339,7 @@ final class ExperimentalConversionTests: XCTestCase {
             option: requestOptions()
         )
         //        XCTAssertTrue(secondResult.endNode.joinedPrevs().contains("胃n")) // in
-        c.insertAtCursorPosition("t", inputStyle: .roman2kana)
+        c.append("t", inputStyle: .systemRomanKana)
         let thirdResult = kana2kanji._experimental_additional(
             composingText: c,
             additionalInputsStartIndex: 2,
@@ -320,7 +347,7 @@ final class ExperimentalConversionTests: XCTestCase {
             option: requestOptions()
         )
         //        XCTAssertTrue(thirdResult.endNode.joinedPrevs().contains("インt")) // int
-        c.insertAtCursorPosition("s", inputStyle: .roman2kana)
+        c.append("s", inputStyle: .systemRomanKana)
         let forthResult = kana2kanji._experimental_additional(
             composingText: c,
             additionalInputsStartIndex: 3,
@@ -328,7 +355,7 @@ final class ExperimentalConversionTests: XCTestCase {
             option: requestOptions()
         )
         XCTAssertTrue(forthResult.endNode.joinedPrevs().contains("インタ")) // インタ
-        c.insertAtCursorPosition("i", inputStyle: .roman2kana)
+        c.append("i", inputStyle: .systemRomanKana)
         let fifthResult = kana2kanji._experimental_additional(
             composingText: c,
             additionalInputsStartIndex: 4,

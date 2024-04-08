@@ -13,7 +13,7 @@ import XCTest
 final class CorrectGraphTests: XCTestCase {
     func testBuildSimpleDirectInput() throws {
         let graph = CorrectGraph.build(input: [
-            .init(character: "あ", inputStyle: .direct)
+            .init(value: "あ", inputStyle: .systemFlickDirect)
         ])
         XCTAssertEqual(
             graph.nodes.first(where: {$0.value == "あ"}),
@@ -22,7 +22,7 @@ final class CorrectGraphTests: XCTestCase {
     }
     func testBuildSimpleDirectInputWithTypo() throws {
         let graph = CorrectGraph.build(input: [
-            .init(character: "か", inputStyle: .direct)
+            .init(value: "か", inputStyle: .systemFlickDirect)
         ])
         XCTAssertEqual(
             graph.nodes.first(where: {$0.value == "か"}),
@@ -35,9 +35,9 @@ final class CorrectGraphTests: XCTestCase {
     }
     func testBuildMultipleDirectInputWithTypo() throws {
         let graph = CorrectGraph.build(input: [
-            .init(character: "あ", inputStyle: .direct),
-            .init(character: "か", inputStyle: .direct),
-            .init(character: "う", inputStyle: .direct)
+            .init(value: "あ", inputStyle: .systemFlickDirect),
+            .init(value: "か", inputStyle: .systemFlickDirect),
+            .init(value: "う", inputStyle: .systemFlickDirect)
         ])
         XCTAssertEqual(
             graph.nodes.first(where: {$0.value == "か"}),
@@ -59,8 +59,8 @@ final class CorrectGraphTests: XCTestCase {
     }
     func testBuildSimpleRomanInput() throws {
         let graph = CorrectGraph.build(input: [
-            .init(character: "k", inputStyle: .roman2kana),
-            .init(character: "a", inputStyle: .roman2kana)
+            .init(value: "k", inputStyle: .systemRomanKana),
+            .init(value: "a", inputStyle: .systemRomanKana)
         ])
         XCTAssertEqual(
             graph.nodes.first(where: {$0.value == "k"}),
@@ -73,8 +73,8 @@ final class CorrectGraphTests: XCTestCase {
     }
     func testBuildSimpleRomanInputWithTypo() throws {
         let graph = CorrectGraph.build(input: [
-            .init(character: "t", inputStyle: .roman2kana),
-            .init(character: "s", inputStyle: .roman2kana)
+            .init(value: "t", inputStyle: .systemRomanKana),
+            .init(value: "s", inputStyle: .systemRomanKana)
         ])
         XCTAssertEqual(
             graph.nodes.first(where: {$0.value == "t" && $0.inputElementsRange == .range(0, 1)}),
