@@ -43,9 +43,27 @@ extension Kana2Kanji {
         for i in additionalInputsStartIndex ..< composingText.input.endIndex {
             insertedIndexSet.formUnion(previousResult.correctGraph.update(with: composingText.input[i], index: i, input: composingText.input))
         }
-        // FIXME: inputGraphの差分ベースの構築は困難なため、普通に構築し直す
+        // MARK: inputGraphの差分ベースの構築は困難なため、普通に構築し直す
         let inputGraph = InputGraph.build(input: previousResult.correctGraph)
-        // 辞書ルックアップによりconvertGraphを構築
+        // MARK: ここは差分ベース
+        print(#file, "lookup", previousResult.inputGraph)
+        var (lookupGraph, convertGraph, matchInfo) = self.dicdataStore.buildConvertGraphDifferential(inputGraph: inputGraph, cacheLookupGraph: previousResult.lookupGraph, option: option)
+        print(#file, "convert")
+        let result = convertGraph.convertAllDifferential(cacheConvertGraph: previousResult.convertGraph, option: option, dicdataStore: self.dicdataStore, lookupGraphMatchInfo: matchInfo)
+        return Result(endNode: result, correctGraph: previousResult.correctGraph, inputGraph: inputGraph, lookupGraph: lookupGraph, convertGraph: convertGraph)
+    }
+
+    func _experimental_delete(
+        composingText: ComposingTextV2,
+        previousResult: consuming Result,
+        option: ConvertRequestOptions
+    ) -> Result {
+        // グラフ構築
+        print(#file, "start")
+        // MARK: この部分の差分ベースの構築は困難なため、普通に構築し直す
+        let correctGraph = CorrectGraph.build(input: composingText.input)
+        let inputGraph = InputGraph.build(input: correctGraph)
+        // MARK: ここから差分ベースにする
         print(#file, "lookup", previousResult.inputGraph)
         var (lookupGraph, convertGraph, matchInfo) = self.dicdataStore.buildConvertGraphDifferential(inputGraph: inputGraph, cacheLookupGraph: previousResult.lookupGraph, option: option)
         print(#file, "convert")
@@ -254,6 +272,15 @@ final class ExperimentalConversionTests: XCTestCase {
             option: requestOptions()
         )
         XCTAssertTrue(thirdResult.endNode.joinedPrevs().contains("大国")) // たいこく
+        c.removeLast()
+        let forthResult = kana2kanji._experimental_delete(
+            composingText: c,
+            previousResult: thirdResult,
+            option: requestOptions()
+        )
+        XCTAssertTrue(secondResult.endNode.joinedPrevs().contains("太鼓")) // たいこ
+        XCTAssertTrue(secondResult.endNode.joinedPrevs().contains("太古")) // たいこ
+        XCTAssertFalse(forthResult.endNode.joinedPrevs().contains("大国")) // たいこく
     }
 
     func testConversion_incremental_intai() throws {
