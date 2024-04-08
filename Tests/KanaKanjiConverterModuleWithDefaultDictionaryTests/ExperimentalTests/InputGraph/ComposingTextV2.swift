@@ -13,7 +13,7 @@ struct ComposingTextV2: Hashable, Sendable {
         self.convertTarget = ""
         self.cursorPosition = 0
     }
-    
+
     var input: [InputElement]
     var convertTarget: String
     var cursorPosition: Int
@@ -114,7 +114,6 @@ struct ComposingTextV2: Hashable, Sendable {
         return result.reduce(into: "") { $0.append(contentsOf: $1.value) }
     }
 }
-
 
 import XCTest
 

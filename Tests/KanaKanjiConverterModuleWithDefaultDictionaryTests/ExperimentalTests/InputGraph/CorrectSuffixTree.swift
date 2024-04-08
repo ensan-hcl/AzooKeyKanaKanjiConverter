@@ -18,7 +18,7 @@ enum CorrectSuffixTree {
                 self.replace = replace
                 self.weight = weight
             }
-            
+
             var replace: String
             var weight: PValue
         }
