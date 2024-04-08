@@ -86,16 +86,16 @@ struct CorrectGraph {
     }
 
     @discardableResult
-    mutating func update(with item: ComposingText.InputElement, index: Int, input: [ComposingText.InputElement]) -> IndexSet {
+    mutating func update(with item: ComposingTextV2.InputElement, index: Int, input: [ComposingTextV2.InputElement]) -> IndexSet {
         var insertedIndexSet = IndexSet()
         // 訂正のない候補を追加
         do {
             let nodeIndex = self.insert(
                 Node(
                     inputElementsRange: .range(index, index + 1),
-                    inputStyle: InputGraphInputStyle(from: input[index].inputStyle).id,
+                    inputStyle: input[index].inputStyle,
                     correction: .none,
-                    value: item.character
+                    value: item.value
                 ),
                 nextTo: self.inputIndexToEndNodeIndices[index, default: IndexSet()]
             )
@@ -123,7 +123,7 @@ struct CorrectGraph {
             guard cInputStyleId.isCompatible(with: inputStyleId) else {
                 continue
             }
-            if let nNode = cNode.find(key: input[cIndex].character) {
+            if let nNode = cNode.find(key: input[cIndex].value) {
                 stack.append((nNode, cIndex - 1, cRouteCount + 1, inputStyleId))
                 for value in nNode.value {
                     if value.isEmpty {
@@ -157,7 +157,7 @@ struct CorrectGraph {
         return insertedIndexSet
     }
 
-    static func build(input: [ComposingText.InputElement]) -> Self {
+    static func build(input: [ComposingTextV2.InputElement]) -> Self {
         var correctGraph = Self()
         for (index, item) in zip(input.indices, input) {
             correctGraph.update(with: item, index: index, input: input)

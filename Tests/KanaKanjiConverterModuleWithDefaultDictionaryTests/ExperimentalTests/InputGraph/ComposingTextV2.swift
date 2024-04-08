@@ -28,6 +28,11 @@ struct ComposingTextV2: Hashable, Sendable {
         self.convertTarget = Self.buildConvertTarget(input)
     }
 
+    mutating func append(_ string: String, inputStyle: InputGraphInputStyle.ID) {
+        self.input.append(contentsOf: string.map {.init(value: $0, inputStyle: inputStyle)})
+        self.convertTarget = Self.buildConvertTarget(input)
+    }
+
     mutating func removeLast(_ k: Int = 1) {
         let rest = self.convertTarget.dropLast(k)
         typealias Item = (value: String, inputStyle: InputGraphInputStyle.ID)

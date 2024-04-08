@@ -13,18 +13,18 @@ import XCTest
 final class InputGraphTests: XCTestCase {
     func testBuildSimpleDirectInput() throws {
         let correctGraph = CorrectGraph.build(input: [
-            .init(character: "あ", inputStyle: .direct),
-            .init(character: "い", inputStyle: .direct),
-            .init(character: "う", inputStyle: .direct)
+            .init(value: "あ", inputStyle: .systemFlickDirect),
+            .init(value: "い", inputStyle: .systemFlickDirect),
+            .init(value: "う", inputStyle: .systemFlickDirect)
         ])
         let inputGraph = InputGraph.build(input: correctGraph).clean()
         XCTAssertEqual(inputGraph.nodes.count, 4) // Root nodes
     }
     func testBuildSimpleDirectInput_あかう() throws {
         let correctGraph = CorrectGraph.build(input: [
-            .init(character: "あ", inputStyle: .direct),
-            .init(character: "か", inputStyle: .direct),
-            .init(character: "う", inputStyle: .direct)
+            .init(value: "あ", inputStyle: .systemFlickDirect),
+            .init(value: "か", inputStyle: .systemFlickDirect),
+            .init(value: "う", inputStyle: .systemFlickDirect)
         ])
         let inputGraph = InputGraph.build(input: correctGraph).clean()
         XCTAssertEqual(inputGraph.nodes.count, 5) // Root nodes
@@ -32,9 +32,9 @@ final class InputGraphTests: XCTestCase {
 
     func testBuildSimpleDirectInput_たいか() throws {
         let correctGraph = CorrectGraph.build(input: [
-            .init(character: "た", inputStyle: .direct),
-            .init(character: "い", inputStyle: .direct),
-            .init(character: "か", inputStyle: .direct)
+            .init(value: "た", inputStyle: .systemFlickDirect),
+            .init(value: "い", inputStyle: .systemFlickDirect),
+            .init(value: "か", inputStyle: .systemFlickDirect)
         ])
         let inputGraph = InputGraph.build(input: correctGraph).clean()
         XCTAssertEqual(
@@ -49,7 +49,7 @@ final class InputGraphTests: XCTestCase {
 
     func testBuildSimpleRoman2KanaInput_1文字だけ() throws {
         let correctGraph = CorrectGraph.build(input: [
-            .init(character: "i", inputStyle: .roman2kana)
+            .init(value: "i", inputStyle: .systemRomanKana)
         ])
         let inputGraph = InputGraph.build(input: correctGraph).clean()
         XCTAssertEqual(
@@ -59,8 +59,8 @@ final class InputGraphTests: XCTestCase {
     }
     func testBuildSimpleRoman2KanaInput_2文字_it() throws {
         let correctGraph = CorrectGraph.build(input: [
-            .init(character: "i", inputStyle: .roman2kana),
-            .init(character: "t", inputStyle: .roman2kana)
+            .init(value: "i", inputStyle: .systemRomanKana),
+            .init(value: "t", inputStyle: .systemRomanKana)
         ])
         let inputGraph = InputGraph.build(input: correctGraph).clean()
         XCTAssertEqual(
@@ -74,9 +74,9 @@ final class InputGraphTests: XCTestCase {
     }
     func testBuildSimpleRoman2KanaInput_3文字_ita() throws {
         let correctGraph = CorrectGraph.build(input: [
-            .init(character: "i", inputStyle: .roman2kana),
-            .init(character: "t", inputStyle: .roman2kana),
-            .init(character: "a", inputStyle: .roman2kana)
+            .init(value: "i", inputStyle: .systemRomanKana),
+            .init(value: "t", inputStyle: .systemRomanKana),
+            .init(value: "a", inputStyle: .systemRomanKana)
         ])
         let inputGraph = InputGraph.build(input: correctGraph).clean()
         XCTAssertEqual(
@@ -90,10 +90,10 @@ final class InputGraphTests: XCTestCase {
     }
     func testBuildSimpleRoman2KanaInput_4文字_sits() throws {
         let correctGraph = CorrectGraph.build(input: [
-            .init(character: "s", inputStyle: .roman2kana),
-            .init(character: "i", inputStyle: .roman2kana),
-            .init(character: "t", inputStyle: .roman2kana),
-            .init(character: "s", inputStyle: .roman2kana)
+            .init(value: "s", inputStyle: .systemRomanKana),
+            .init(value: "i", inputStyle: .systemRomanKana),
+            .init(value: "t", inputStyle: .systemRomanKana),
+            .init(value: "s", inputStyle: .systemRomanKana)
         ])
         let inputGraph = InputGraph.build(input: correctGraph).clean()
         XCTAssertEqual(
@@ -111,9 +111,9 @@ final class InputGraphTests: XCTestCase {
     }
     func testBuildSimpleRoman2KanaInput_3文字_its() throws {
         let correctGraph = CorrectGraph.build(input: [
-            .init(character: "i", inputStyle: .roman2kana),
-            .init(character: "t", inputStyle: .roman2kana),
-            .init(character: "s", inputStyle: .roman2kana)
+            .init(value: "i", inputStyle: .systemRomanKana),
+            .init(value: "t", inputStyle: .systemRomanKana),
+            .init(value: "s", inputStyle: .systemRomanKana)
         ])
         let inputGraph = InputGraph.build(input: correctGraph).clean()
         XCTAssertEqual(
@@ -139,10 +139,10 @@ final class InputGraphTests: XCTestCase {
     }
     func testBuildSimpleRoman2KanaInput_4文字_itsa() throws {
         let correctGraph = CorrectGraph.build(input: [
-            .init(character: "i", inputStyle: .roman2kana),
-            .init(character: "t", inputStyle: .roman2kana),
-            .init(character: "s", inputStyle: .roman2kana),
-            .init(character: "a", inputStyle: .roman2kana)
+            .init(value: "i", inputStyle: .systemRomanKana),
+            .init(value: "t", inputStyle: .systemRomanKana),
+            .init(value: "s", inputStyle: .systemRomanKana),
+            .init(value: "a", inputStyle: .systemRomanKana)
         ])
         let inputGraph = InputGraph.build(input: correctGraph).clean()
         XCTAssertEqual(
@@ -183,13 +183,13 @@ final class InputGraphTests: XCTestCase {
 
     func testBuildSimpleRoman2KanaInput_7文字_youshou() throws {
         let correctGraph = CorrectGraph.build(input: [
-            .init(character: "y", inputStyle: .roman2kana),
-            .init(character: "o", inputStyle: .roman2kana),
-            .init(character: "u", inputStyle: .roman2kana),
-            .init(character: "s", inputStyle: .roman2kana),
-            .init(character: "h", inputStyle: .roman2kana),
-            .init(character: "o", inputStyle: .roman2kana),
-            .init(character: "u", inputStyle: .roman2kana)
+            .init(value: "y", inputStyle: .systemRomanKana),
+            .init(value: "o", inputStyle: .systemRomanKana),
+            .init(value: "u", inputStyle: .systemRomanKana),
+            .init(value: "s", inputStyle: .systemRomanKana),
+            .init(value: "h", inputStyle: .systemRomanKana),
+            .init(value: "o", inputStyle: .systemRomanKana),
+            .init(value: "u", inputStyle: .systemRomanKana)
         ])
         let inputGraph = InputGraph.build(input: correctGraph).clean()
         XCTAssertEqual(
@@ -217,8 +217,8 @@ final class InputGraphTests: XCTestCase {
 
     func testBuildSimpleRoman2KanaInput_2文字_tt() throws {
         let correctGraph = CorrectGraph.build(input: [
-            .init(character: "t", inputStyle: .roman2kana),
-            .init(character: "t", inputStyle: .roman2kana)
+            .init(value: "t", inputStyle: .systemRomanKana),
+            .init(value: "t", inputStyle: .systemRomanKana)
         ])
         let inputGraph = InputGraph.build(input: correctGraph).clean()
         XCTAssertEqual(
@@ -240,9 +240,9 @@ final class InputGraphTests: XCTestCase {
     }
     func testBuildSimpleRoman2KanaInput_3文字_tta() throws {
         let correctGraph = CorrectGraph.build(input: [
-            .init(character: "t", inputStyle: .roman2kana),
-            .init(character: "t", inputStyle: .roman2kana),
-            .init(character: "a", inputStyle: .roman2kana)
+            .init(value: "t", inputStyle: .systemRomanKana),
+            .init(value: "t", inputStyle: .systemRomanKana),
+            .init(value: "a", inputStyle: .systemRomanKana)
         ])
         let inputGraph = InputGraph.build(input: correctGraph).clean()
         XCTAssertEqual(
@@ -258,9 +258,9 @@ final class InputGraphTests: XCTestCase {
     }
     func testBuildSimpleRoman2KanaInput_3文字_nta() throws {
         let correctGraph = CorrectGraph.build(input: [
-            .init(character: "n", inputStyle: .roman2kana),
-            .init(character: "t", inputStyle: .roman2kana),
-            .init(character: "a", inputStyle: .roman2kana)
+            .init(value: "n", inputStyle: .systemRomanKana),
+            .init(value: "t", inputStyle: .systemRomanKana),
+            .init(value: "a", inputStyle: .systemRomanKana)
         ])
         let inputGraph = InputGraph.build(input: correctGraph).clean()
         XCTAssertEqual(
@@ -274,10 +274,10 @@ final class InputGraphTests: XCTestCase {
     }
     func testBuildSimpleRoman2KanaInput_4文字_itta() throws {
         let correctGraph = CorrectGraph.build(input: [
-            .init(character: "i", inputStyle: .roman2kana),
-            .init(character: "t", inputStyle: .roman2kana),
-            .init(character: "t", inputStyle: .roman2kana),
-            .init(character: "a", inputStyle: .roman2kana)
+            .init(value: "i", inputStyle: .systemRomanKana),
+            .init(value: "t", inputStyle: .systemRomanKana),
+            .init(value: "t", inputStyle: .systemRomanKana),
+            .init(value: "a", inputStyle: .systemRomanKana)
         ])
         let inputGraph = InputGraph.build(input: correctGraph).clean()
         XCTAssertEqual(
@@ -296,11 +296,11 @@ final class InputGraphTests: XCTestCase {
 
     func testBuildSimpleRoman2KanaInput_5文字_sitsi() throws {
         let correctGraph = CorrectGraph.build(input: [
-            .init(character: "s", inputStyle: .roman2kana),
-            .init(character: "i", inputStyle: .roman2kana),
-            .init(character: "t", inputStyle: .roman2kana),
-            .init(character: "s", inputStyle: .roman2kana),
-            .init(character: "i", inputStyle: .roman2kana)
+            .init(value: "s", inputStyle: .systemRomanKana),
+            .init(value: "i", inputStyle: .systemRomanKana),
+            .init(value: "t", inputStyle: .systemRomanKana),
+            .init(value: "s", inputStyle: .systemRomanKana),
+            .init(value: "i", inputStyle: .systemRomanKana)
         ])
         let inputGraph = InputGraph.build(input: correctGraph).clean()
         XCTAssertEqual(
@@ -320,9 +320,9 @@ final class InputGraphTests: XCTestCase {
 
     func testBuildSimpleRoman2KanaInput_3文字_tts() throws {
         let correctGraph = CorrectGraph.build(input: [
-            .init(character: "t", inputStyle: .roman2kana),
-            .init(character: "t", inputStyle: .roman2kana),
-            .init(character: "s", inputStyle: .roman2kana)
+            .init(value: "t", inputStyle: .systemRomanKana),
+            .init(value: "t", inputStyle: .systemRomanKana),
+            .init(value: "s", inputStyle: .systemRomanKana)
         ])
         let inputGraph = InputGraph.build(input: correctGraph).clean()
         XCTAssertEqual(
@@ -346,10 +346,10 @@ final class InputGraphTests: XCTestCase {
     func testBuildSimpleRoman2KanaInput_4文字_tysa() throws {
         // ちゃあ/tyさ
         let correctGraph = CorrectGraph.build(input: [
-            .init(character: "t", inputStyle: .roman2kana),
-            .init(character: "y", inputStyle: .roman2kana),
-            .init(character: "s", inputStyle: .roman2kana),
-            .init(character: "a", inputStyle: .roman2kana)
+            .init(value: "t", inputStyle: .systemRomanKana),
+            .init(value: "y", inputStyle: .systemRomanKana),
+            .init(value: "s", inputStyle: .systemRomanKana),
+            .init(value: "a", inputStyle: .systemRomanKana)
         ])
         // cleanで壊れる
         let inputGraph = InputGraph.build(input: correctGraph).clean()
@@ -381,8 +381,8 @@ final class InputGraphTests: XCTestCase {
 
     func testBuildMixedInput_2文字_ts() throws {
         let correctGraph = CorrectGraph.build(input: [
-            .init(character: "t", inputStyle: .roman2kana),
-            .init(character: "s", inputStyle: .direct)
+            .init(value: "t", inputStyle: .systemRomanKana),
+            .init(value: "s", inputStyle: .systemFlickDirect)
         ])
         let inputGraph = InputGraph.build(input: correctGraph).clean()
         XCTAssertEqual(

@@ -27,9 +27,9 @@ final class LookupGraphTests: XCTestCase {
             return
         }
         let correctGraph = CorrectGraph.build(input: [
-            .init(character: "し", inputStyle: .direct),
-            .init(character: "か", inputStyle: .direct),
-            .init(character: "い", inputStyle: .direct)
+            .init(value: "し", inputStyle: .systemFlickDirect),
+            .init(value: "か", inputStyle: .systemFlickDirect),
+            .init(value: "い", inputStyle: .systemFlickDirect)
         ])
         let inputGraph = InputGraph.build(input: correctGraph)
         var lookupGraph = LookupGraph.build(input: inputGraph, character2CharId: values.character2CharId)
@@ -68,9 +68,9 @@ final class LookupGraphTests: XCTestCase {
             return
         }
         let correctGraph = CorrectGraph.build(input: [
-            .init(character: "み", inputStyle: .direct),
-            .init(character: "ら", inputStyle: .direct),
-            .init(character: "い", inputStyle: .direct)
+            .init(value: "み", inputStyle: .systemFlickDirect),
+            .init(value: "ら", inputStyle: .systemFlickDirect),
+            .init(value: "い", inputStyle: .systemFlickDirect)
         ])
         let inputGraph = InputGraph.build(input: correctGraph)
         var lookupGraph = LookupGraph.build(input: inputGraph, character2CharId: values.character2CharId)
@@ -100,10 +100,10 @@ final class LookupGraphTests: XCTestCase {
             return
         }
         let correctGraph = CorrectGraph.build(input: [
-            .init(character: "た", inputStyle: .direct),
-            .init(character: "い", inputStyle: .direct),
-            .init(character: "か", inputStyle: .direct),
-            .init(character: "く", inputStyle: .direct)
+            .init(value: "た", inputStyle: .systemFlickDirect),
+            .init(value: "い", inputStyle: .systemFlickDirect),
+            .init(value: "か", inputStyle: .systemFlickDirect),
+            .init(value: "く", inputStyle: .systemFlickDirect)
         ])
         let inputGraph = InputGraph.build(input: correctGraph)
         var lookupGraph = LookupGraph.build(input: inputGraph, character2CharId: values.character2CharId)
@@ -140,12 +140,12 @@ final class LookupGraphTests: XCTestCase {
         }
         // 「しっ」の候補が存在するかどうかを確認
         let correctGraph = CorrectGraph.build(input: [
-            .init(character: "s", inputStyle: .roman2kana),
-            .init(character: "i", inputStyle: .roman2kana),
-            .init(character: "t", inputStyle: .roman2kana),
-            .init(character: "t", inputStyle: .roman2kana),
-            .init(character: "a", inputStyle: .roman2kana),
-            .init(character: "i", inputStyle: .roman2kana)
+            .init(value: "s", inputStyle: .systemRomanKana),
+            .init(value: "i", inputStyle: .systemRomanKana),
+            .init(value: "t", inputStyle: .systemRomanKana),
+            .init(value: "t", inputStyle: .systemRomanKana),
+            .init(value: "a", inputStyle: .systemRomanKana),
+            .init(value: "i", inputStyle: .systemRomanKana)
         ])
         let inputGraph = InputGraph.build(input: correctGraph)
         var lookupGraph = LookupGraph.build(input: inputGraph, character2CharId: values.character2CharId)
@@ -178,11 +178,11 @@ final class LookupGraphTests: XCTestCase {
         }
         // ts -> ta
         let correctGraph = CorrectGraph.build(input: [
-            .init(character: "s", inputStyle: .roman2kana),
-            .init(character: "i", inputStyle: .roman2kana),
-            .init(character: "t", inputStyle: .roman2kana),
-            .init(character: "s", inputStyle: .roman2kana),
-            .init(character: "i", inputStyle: .roman2kana)
+            .init(value: "s", inputStyle: .systemRomanKana),
+            .init(value: "i", inputStyle: .systemRomanKana),
+            .init(value: "t", inputStyle: .systemRomanKana),
+            .init(value: "s", inputStyle: .systemRomanKana),
+            .init(value: "i", inputStyle: .systemRomanKana)
         ])
         let inputGraph = InputGraph.build(input: correctGraph)
         var lookupGraph = LookupGraph.build(input: inputGraph, character2CharId: values.character2CharId)
@@ -216,9 +216,9 @@ final class LookupGraphTests: XCTestCase {
             return
         }
         let correctGraph1 = CorrectGraph.build(input: [
-            .init(character: "た", inputStyle: .direct),
-            .init(character: "い", inputStyle: .direct),
-            .init(character: "か", inputStyle: .direct)
+            .init(value: "た", inputStyle: .systemFlickDirect),
+            .init(value: "い", inputStyle: .systemFlickDirect),
+            .init(value: "か", inputStyle: .systemFlickDirect)
         ])
         let inputGraph1 = InputGraph.build(input: correctGraph1)
         var lookupGraph1 = LookupGraph.build(input: inputGraph1, character2CharId: values.character2CharId)
@@ -227,10 +227,10 @@ final class LookupGraphTests: XCTestCase {
         _ = lookupGraph1.byfixNodeIndices(in: louds, startGraphNodeIndex: startNodeIndex1 ?? 0)
 
         let correctGraph2 = CorrectGraph.build(input: [
-            .init(character: "た", inputStyle: .direct),
-            .init(character: "い", inputStyle: .direct),
-            .init(character: "か", inputStyle: .direct),
-            .init(character: "く", inputStyle: .direct) // added
+            .init(value: "た", inputStyle: .systemFlickDirect),
+            .init(value: "い", inputStyle: .systemFlickDirect),
+            .init(value: "か", inputStyle: .systemFlickDirect),
+            .init(value: "く", inputStyle: .systemFlickDirect) // added
         ])
         let inputGraph2 = InputGraph.build(input: correctGraph2)
         var lookupGraph2 = LookupGraph.build(input: inputGraph2, character2CharId: values.character2CharId)
@@ -267,9 +267,9 @@ final class LookupGraphTests: XCTestCase {
             return
         }
         let correctGraph1 = CorrectGraph.build(input: [
-            .init(character: "た", inputStyle: .direct),
-            .init(character: "い", inputStyle: .direct),
-            .init(character: "か", inputStyle: .direct)
+            .init(value: "た", inputStyle: .systemFlickDirect),
+            .init(value: "い", inputStyle: .systemFlickDirect),
+            .init(value: "か", inputStyle: .systemFlickDirect)
         ])
         let inputGraph1 = InputGraph.build(input: correctGraph1)
         var lookupGraph1 = LookupGraph.build(input: inputGraph1, character2CharId: values.character2CharId)
@@ -278,8 +278,8 @@ final class LookupGraphTests: XCTestCase {
         _ = lookupGraph1.byfixNodeIndices(in: louds, startGraphNodeIndex: startNodeIndex1 ?? 0)
 
         let correctGraph2 = CorrectGraph.build(input: [
-            .init(character: "た", inputStyle: .direct),
-            .init(character: "い", inputStyle: .direct)
+            .init(value: "た", inputStyle: .systemFlickDirect),
+            .init(value: "い", inputStyle: .systemFlickDirect)
         ])
         let inputGraph2 = InputGraph.build(input: correctGraph2)
         var lookupGraph2 = LookupGraph.build(input: inputGraph2, character2CharId: values.character2CharId)
