@@ -15,7 +15,7 @@ class LlamaState {
     private var llamaContext: LlamaContext?
     private var modelUrl: URL? {
 #if os(macOS)
-        Bundle.module.url(forResource: "llama_models/naoki_Q2_K", withExtension: "gguf")
+        Bundle.module.url(forResource: "llama_models/char-small-Q8_0", withExtension: "gguf")
 #elseif os(iOS)
         Bundle.module.url(forResource: "llama_models/rinna", withExtension: "gguf")
 #endif

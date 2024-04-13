@@ -440,7 +440,7 @@ import SwiftUtils
             let evaluation: [Float] = await self.gpt2Model.evaluate(input: sentence_candidates.map{$0.text})
             for (candidateIndex, value) in zip(sentence_candidates.indices, evaluation) {
                 print(sentence_candidates[candidateIndex].text, "lm eval \(value)", "azooKey eval \(sentence_candidates[candidateIndex].value)")
-                sentence_candidates[candidateIndex].value += value / 3
+                sentence_candidates[candidateIndex].value += value / 3.5
             }
         }
 
@@ -458,7 +458,7 @@ import SwiftUtils
         }
 
         // 文全体変換5件と予測変換3件を混ぜてベスト8を出す
-        let best8 = getUniqueCandidate(sentence_candidates.chained(prediction_candidates)).sorted {$0.value > $1.value}
+        let best8 = getUniqueCandidate(sentence_candidates.prefix(5).chained(prediction_candidates)).sorted {$0.value > $1.value}
         // その他のトップレベル変換（先頭に表示されうる変換候補）
         let toplevel_additional_candidate = self.getTopLevelAdditionalCandidate(inputData, options: options)
         // best8、foreign_candidates、zeroHintPrediction_candidates、toplevel_additional_candidateを混ぜて上位5件を取得する
