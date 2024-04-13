@@ -17,7 +17,7 @@ class LlamaState {
     init(resourceURL: URL) throws {
         self.resourceURL = resourceURL
         do {
-            self.llamaContext = try LlamaContext.createContext(path: resourceURL.path())
+            self.llamaContext = try LlamaContext.createContext(path: resourceURL.path(percentEncoded: false))
             debug("Loaded model \(resourceURL.lastPathComponent)")
         } catch {
             throw error
