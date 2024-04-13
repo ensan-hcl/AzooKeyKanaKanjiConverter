@@ -11,6 +11,9 @@ extension Subcommands {
         var configNBest: Int = 10
         @Option(name: [.customShort("n"), .customLong("top_n")], help: "Display top n candidates.")
         var displayTopN: Int = 1
+        @Option(name: [.customLong("gpt2")], help: "ggml format model weight for gpt2.")
+        var gpt2ModelWeightPath: String = ""
+
 
         @Flag(name: [.customLong("disable_prediction")], help: "Disable producing prediction candidates.")
         var disablePrediction = false
@@ -43,6 +46,7 @@ extension Subcommands {
                 shouldResetMemory: false,
                 memoryDirectoryURL: URL(fileURLWithPath: ""),
                 sharedContainerURL: URL(fileURLWithPath: ""),
+                gpt2WeightURL: self.gpt2ModelWeightPath.isEmpty ? nil : URL(string: self.gpt2ModelWeightPath),
                 metadata: .init(appVersionString: "anco")
             )
         }

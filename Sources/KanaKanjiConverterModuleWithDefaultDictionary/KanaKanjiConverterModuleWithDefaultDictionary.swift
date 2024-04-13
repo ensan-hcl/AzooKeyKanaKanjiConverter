@@ -17,6 +17,7 @@ public extension ConvertRequestOptions {
         shouldResetMemory: Bool = false,
         memoryDirectoryURL: URL,
         sharedContainerURL: URL,
+        gpt2WeightURL: URL? = nil,
         textReplacer: TextReplacer = TextReplacer(),
         metadata: ConvertRequestOptions.Metadata
     ) -> Self {
@@ -44,6 +45,7 @@ public extension ConvertRequestOptions {
             memoryDirectoryURL: memoryDirectoryURL,
             sharedContainerURL: sharedContainerURL,
             textReplacer: textReplacer,
+            gpt2WeightURL: gpt2WeightURL,
             metadata: metadata
         )
     }

@@ -12,22 +12,13 @@ import class UIKit.UIDevice
 #endif
 @MainActor
 class LlamaState {
+    package var resourceURL: URL
     private var llamaContext: LlamaContext?
-    private var modelUrl: URL? {
-#if os(macOS)
-        Bundle.module.url(forResource: "llama_models/char-small-Q8_0", withExtension: "gguf")
-#elseif os(iOS)
-        Bundle.module.url(forResource: "llama_models/rinna", withExtension: "gguf")
-#endif
-    }
-    init() {
+    init(resourceURL: URL) {
+        self.resourceURL = resourceURL
         do {
-            if let modelUrl {
-                self.llamaContext = try LlamaContext.createContext(path: modelUrl.path())
-                debug("Loaded model \(modelUrl.lastPathComponent)")
-            } else {
-                debug("Could not find model of specified url in bundle \(Bundle.module.bundleURL)")
-            }
+            self.llamaContext = try LlamaContext.createContext(path: resourceURL.path())
+            debug("Loaded model \(resourceURL.lastPathComponent)")
         } catch {
             debug(error)
         }
