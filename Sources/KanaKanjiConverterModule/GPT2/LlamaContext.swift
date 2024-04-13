@@ -8,8 +8,16 @@ import llama
 import SwiftUtils
 import Foundation
 
-enum LlamaError: Error {
-    case couldNotInitializeContext
+enum LlamaError: LocalizedError {
+    case couldNotLoadModel(path: String)
+    case couldNotLoadContext
+
+    var errorDescription: String? {
+        switch self {
+        case .couldNotLoadContext: "failed to load context"
+        case .couldNotLoadModel(path: let path): "could not load model weight at \(path)"
+        }
+    }
 }
 
 class LlamaContext {
@@ -56,13 +64,13 @@ class LlamaContext {
         let model = llama_load_model_from_file(path, model_params)
         guard let model else {
             debug("Could not load model at \(path)")
-            throw LlamaError.couldNotInitializeContext
+            throw LlamaError.couldNotLoadModel(path: path)
         }
 
         let context = llama_new_context_with_model(model, ctx_params)
         guard let context else {
             debug("Could not load context!")
-            throw LlamaError.couldNotInitializeContext
+            throw LlamaError.couldNotLoadContext
         }
 
         return LlamaContext(model: model, context: context)
@@ -73,7 +81,7 @@ class LlamaContext {
         let context = llama_new_context_with_model(self.model, Self.ctx_params)
         guard let context else {
             debug("Could not load context!")
-            throw LlamaError.couldNotInitializeContext
+            throw LlamaError.couldNotLoadContext
         }
         self.context = context
     }
