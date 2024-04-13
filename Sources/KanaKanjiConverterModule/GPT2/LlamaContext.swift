@@ -12,7 +12,7 @@ enum LlamaError: Error {
     case couldNotInitializeContext
 }
 
-actor LlamaContext {
+class LlamaContext {
     private var model: OpaquePointer
     private var context: OpaquePointer
     private var batch: llama_batch

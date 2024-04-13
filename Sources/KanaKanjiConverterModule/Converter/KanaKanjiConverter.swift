@@ -36,13 +36,13 @@ import SwiftUtils
         self.lastData = nil
     }
 
-    package func _gpt2_evaluate(input: consuming [String], modelURL: URL) async -> [Float] {
+    package func _gpt2_evaluate(input: consuming [String], modelURL: URL) -> [Float] {
         if let gpt2Model, gpt2Model.resourceURL == modelURL {
-            return await gpt2Model.evaluate(input: consume input)
+            return gpt2Model.evaluate(input: consume input)
         } else {
             let model = LlamaState(resourceURL: modelURL)
             self.gpt2Model = model
-            return await model.evaluate(input: consume input)
+            return model.evaluate(input: consume input)
         }
     }
 
@@ -408,7 +408,7 @@ import SwiftUtils
     ///   重複のない変換候補。
     /// - Note:
     ///   現在の実装は非常に複雑な方法で候補の順序を決定している。
-    private func processResult(inputData: ComposingText, result: (result: LatticeNode, nodes: [[LatticeNode]]), options: ConvertRequestOptions) async -> ConversionResult {
+    private func processResult(inputData: ComposingText, result: (result: LatticeNode, nodes: [[LatticeNode]]), options: ConvertRequestOptions) -> ConversionResult {
         self.previousInputData = inputData
         self.nodes = result.nodes
         let clauseResult = result.result.getCandidateData()
@@ -452,7 +452,7 @@ import SwiftUtils
                 self.gpt2Model = newModel
                 model = newModel
             }
-            let evaluation: [Float] = await model.evaluate(input: sentence_candidates.map{$0.text})
+            let evaluation: [Float] = model.evaluate(input: sentence_candidates.map{$0.text})
             for (candidateIndex, value) in zip(sentence_candidates.indices, evaluation) {
                 print(sentence_candidates[candidateIndex].text, "lm eval \(value)", "azooKey eval \(sentence_candidates[candidateIndex].value)")
                 sentence_candidates[candidateIndex].value += value / 3.5
@@ -637,7 +637,7 @@ import SwiftUtils
     ///   - inputData: 変換対象のInputData。
     ///   - options: リクエストにかかるパラメータ。
     /// - Returns: `ConversionResult`
-    public func requestCandidates(_ inputData: ComposingText, options: ConvertRequestOptions) async -> ConversionResult {
+    public func requestCandidates(_ inputData: ComposingText, options: ConvertRequestOptions) -> ConversionResult {
         debug("requestCandidates 入力は", inputData)
         // 変換対象が無の場合
         if inputData.convertTarget.isEmpty {
@@ -651,7 +651,7 @@ import SwiftUtils
             return ConversionResult(mainResults: [], firstClauseResults: [])
         }
 
-        return await self.processResult(inputData: inputData, result: result, options: options)
+        return self.processResult(inputData: inputData, result: result, options: options)
     }
 
     /// 変換確定後の予測変換候補を要求する関数

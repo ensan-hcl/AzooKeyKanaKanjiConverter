@@ -30,17 +30,17 @@ class LlamaState {
     @MainActor
     func refreshContext() {
         Task {
-            try await self.llamaContext?.reset_context()
+            try self.llamaContext?.reset_context()
         }
     }
 
-    func evaluate(input: [String]) async -> [Float] {
+    func evaluate(input: [String]) -> [Float] {
         guard let llamaContext else {
             return []
         }
         var result: [Float] = []
         for text in input {
-            let score = await llamaContext.evaluate(text: text)
+            let score = llamaContext.evaluate(text: text)
             result.append(score)
         }
         return result
