@@ -48,7 +48,7 @@ extension KanaKanjiConverter {
         }
         var string = string[...]
         // ネンをdropする
-        guard "ネン" == string.suffix(2) else {
+        guard string.hasSuffix("ネン") else {
             return nil
         }
         string = string.dropLast(2)
