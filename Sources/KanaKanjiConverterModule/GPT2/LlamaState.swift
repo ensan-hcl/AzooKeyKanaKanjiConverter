@@ -14,13 +14,13 @@ import class UIKit.UIDevice
 class LlamaState {
     package var resourceURL: URL
     private var llamaContext: LlamaContext?
-    init(resourceURL: URL) {
+    init(resourceURL: URL) throws {
         self.resourceURL = resourceURL
         do {
             self.llamaContext = try LlamaContext.createContext(path: resourceURL.path())
             debug("Loaded model \(resourceURL.lastPathComponent)")
         } catch {
-            debug(error)
+            throw error
         }
     }
 

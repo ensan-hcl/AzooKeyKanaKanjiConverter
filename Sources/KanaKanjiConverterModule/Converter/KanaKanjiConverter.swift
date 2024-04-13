@@ -36,13 +36,29 @@ import SwiftUtils
         self.lastData = nil
     }
 
-    package func _gpt2_evaluate(input: consuming [String], modelURL: URL) -> [Float] {
-        if let gpt2Model, gpt2Model.resourceURL == modelURL {
-            return gpt2Model.evaluate(input: consume input)
+    public private(set) var llamaStatus: String = ""
+    // LMによるevaluationを反映する
+    func getModel(modelURL: URL) -> LlamaState? {
+        if let model = self.gpt2Model, model.resourceURL == modelURL {
+            self.llamaStatus = "load \(modelURL.absoluteString)"
+            return model
         } else {
-            let model = LlamaState(resourceURL: modelURL)
-            self.gpt2Model = model
-            return model.evaluate(input: consume input)
+            do {
+                self.gpt2Model = try LlamaState(resourceURL: modelURL)
+                self.llamaStatus = "load \(modelURL.absoluteString)"
+                return self.gpt2Model
+            } catch {
+                self.llamaStatus = "load \(modelURL.absoluteString)    " + error.localizedDescription
+                return nil
+            }
+        }
+    }
+
+    package func _gpt2_evaluate(input: consuming [String], modelURL: URL) -> [Float] {
+        if let gpt2Model = self.getModel(modelURL: modelURL) {
+            gpt2Model.evaluate(input: consume input)
+        } else {
+            []
         }
     }
 
@@ -441,17 +457,8 @@ import SwiftUtils
         // 文章全体を変換した場合の候補上位5件を作る
         let whole_sentence_unique_candidates = self.getUniqueCandidate(sums.map {$0.1})
         var sentence_candidates = whole_sentence_unique_candidates.min(count: 10, sortedBy: {$0.value > $1.value})
-        // LMによるevaluationを反映する
-        if let modelURL = options.gpt2WeightURL {
-            let model: LlamaState
-            // 必要な場合はモデルの読み込みを行う
-            if let currentModel = self.gpt2Model, currentModel.resourceURL == modelURL {
-                model = currentModel
-            } else {
-                let newModel = LlamaState(resourceURL: modelURL)
-                self.gpt2Model = newModel
-                model = newModel
-            }
+
+        if let modelURL = options.gpt2WeightURL, let model = getModel(modelURL: modelURL) {
             let evaluation: [Float] = model.evaluate(input: sentence_candidates.map{$0.text})
             for (candidateIndex, value) in zip(sentence_candidates.indices, evaluation) {
                 print(sentence_candidates[candidateIndex].text, "lm eval \(value)", "azooKey eval \(sentence_candidates[candidateIndex].value)")
