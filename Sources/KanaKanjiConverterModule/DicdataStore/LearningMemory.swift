@@ -503,7 +503,7 @@ struct TemporalLearningMemoryTrie {
     }
 
     /// ルビが同じだとわかっている場合に2つのDicdataElementが同じものか判定する関数
-    private static func sameDicdataIfRubyIsEqual(left: borrowing DicdataElement, right: borrowing DicdataElement) -> Bool {
+    private static func sameDicdataIfRubyIsEqual(left: DicdataElement, right: DicdataElement) -> Bool {
         left.lcid == right.lcid && left.rcid == right.rcid && left.word == right.word
     }
 
