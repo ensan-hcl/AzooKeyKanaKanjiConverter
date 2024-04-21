@@ -16,7 +16,7 @@ AzooKeyKanaKanjiConverterの開発については[開発ガイド](Docs/developm
 * Swift Packageの場合、Package.swiftの`Package`の引数に`dependencies`以下の記述を追加してください。
   ```swift
   dependencies: [
-      .package(url: "https://github.com/ensan-hcl/AzooKeyKanaKanjiConverter", .upToNextMinor(from: "0.6.0"))
+      .package(url: "https://github.com/ensan-hcl/AzooKeyKanaKanjiConverter", .upToNextMinor(from: "0.7.0"))
   ],
   ```
   また、ターゲットの`dependencies`にも同様に追加してください。
@@ -30,7 +30,7 @@ AzooKeyKanaKanjiConverterの開発については[開発ガイド](Docs/developm
   ```
 
 > [!IMPORTANT]  
-> AzooKeyKanaKanjiConverterはバージョン1.0のリリースまで開発版として運用するため、マイナーバージョンの変更で破壊的変更を実施する可能性があります。バージョンを指定する際にはマイナーバージョンが上がらないよう、`.upToNextMinor(from: "0.6.0")`のように指定することを推奨します。
+> AzooKeyKanaKanjiConverterはバージョン1.0のリリースまで開発版として運用するため、マイナーバージョンの変更で破壊的変更を実施する可能性があります。バージョンを指定する際にはマイナーバージョンが上がらないよう、`.upToNextMinor(from: "0.7.0")`のように指定することを推奨します。
 
 
 ### 使い方
