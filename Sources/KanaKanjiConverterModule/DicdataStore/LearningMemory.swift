@@ -524,14 +524,16 @@ struct TemporalLearningMemoryTrie {
         if let dataIndex = nodes[index].dataIndices.first(where: {Self.sameDicdataIfRubyIsEqual(left: self.dicdata[$0], right: dicdataElement)}) {
             withMutableValue(&self.metadata[dataIndex]) {
                 $0.count += min(.max - $0.count, 1)
-                // 雑な設定だが200年くらいは持つのでヨシ。
                 $0.lastUsedDay = day
             }
+            // adjustを更新する
+            self.dicdata[dataIndex].adjust = LongTermLearningMemory.valueForData(metadata: self.metadata[dataIndex], dicdata: dicdataElement) - dicdataElement.baseValue
         } else {
             let dataIndex = self.dicdata.endIndex
             var dicdataElement = dicdataElement
             let metadataElement = MetadataElement(day: day, count: 1)
-            dicdataElement.baseValue = LongTermLearningMemory.valueForData(metadata: metadataElement, dicdata: dicdataElement)
+            // adjustを更新する
+            dicdataElement.adjust = LongTermLearningMemory.valueForData(metadata: metadataElement, dicdata: dicdataElement) - dicdataElement.baseValue
             self.dicdata.append(dicdataElement)
             self.metadata.append(metadataElement)
             nodes[index].dataIndices.append(dataIndex)
@@ -723,6 +725,10 @@ final class LearningManager {
                 if var newFirstClause = firstClause {
                     if var newSecondClause = secondClause {
                         if DicdataStore.isClause(newFirstClause.rcid, datum.lcid) {
+                            // 更新対象のindexでなければcontinueする
+                            guard data.endIndex <= index else {
+                                continue
+                            }
                             // firstClauseとsecondClauseがあって文節境界である場合, bigramを作って学習に入れる
                             let element = DicdataElement(
                                 word: newFirstClause.word + newSecondClause.word,
@@ -735,10 +741,6 @@ final class LearningManager {
                             // firstClauseを押し出す
                             firstClause = secondClause
                             secondClause = datum
-                            // 更新対象のindexでなければcontinueする
-                            guard data.endIndex <= index else {
-                                continue
-                            }
                             guard let chars = Self.keyToChars(element.ruby, char2UInt8: char2UInt8) else {
                                 continue
                             }
