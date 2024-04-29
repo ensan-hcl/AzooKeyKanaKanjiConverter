@@ -429,7 +429,9 @@ public final class DicdataStore {
         let first = String(key.first!)
         let charIDs = key.map(self.character2charId)
         // 1, 2文字に対する予測変換は候補数が大きいので、depth（〜文字数）を制限する
-        let depth = if count == 1 || count == 2 {
+        let depth = if count == 1 {
+            3
+        } else if count == 2 {
             5
         } else {
             Int.max
