@@ -260,18 +260,22 @@ struct LongTermLearningMemory {
                     debug("LongTermLearningMemory merge trial \(i)", dicdataElement)
                     // 忘却対象である場合は弾く
                     if forgetTargets.contains(dicdataElement) {
+                        debug("LongTermLearningMemory merge stopped because it is a forget target", dicdataElement)
                         continue
                     }
                     if ruby != dicdataElement.ruby {
+                        debug("LongTermLearningMemory merge stopped because dicdataElement has different ruby", dicdataElement, ruby)
                         continue
                     }
                     guard today >= metadataElement.lastUpdatedDay,
                           today >= metadataElement.lastUsedDay else {
                         // 変なデータが入っているとアンダーフローが起こるため、事前にガードする
+                        debug("LongTermLearningMemory merge stopped because metadata is strange", dicdataElement, metadataElement, today)
                         continue
                     }
                     guard today - metadataElement.lastUsedDay < 128 else {
                         // 128日以上使っていない単語は除外
+                        debug("LongTermLearningMemory merge stopped because metadata is strange", dicdataElement, metadataElement, today)
                         continue
                     }
                     var dicdataElement = dicdataElement
@@ -283,6 +287,7 @@ struct LongTermLearningMemory {
                     }
                     // カウントがゼロになる場合除外
                     guard metadataElement.count > 0 else {
+                        debug("LongTermLearningMemory merge stopped because count is zero", dicdataElement, metadataElement)
                         continue
                     }
                     dicdataElement.baseValue = valueForData(metadata: metadataElement, dicdata: dicdataElement)
