@@ -54,7 +54,7 @@ extension LOUDS {
     /// LOUDSをファイルから読み込む関数
     /// - Parameter identifier: ファイル名
     /// - Returns: 存在すればLOUDSデータを返し、存在しなければ`nil`を返す。
-    static func load(_ identifier: String, option: ConvertRequestOptions) -> LOUDS? {
+    package static func load(_ identifier: String, option: ConvertRequestOptions) -> LOUDS? {
         let (charsURL, loudsURL) = getLOUDSURL(identifier, option: option)
         let nodeIndex2ID: [UInt8]
         do {
