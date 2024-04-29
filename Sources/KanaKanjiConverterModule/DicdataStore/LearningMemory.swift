@@ -484,6 +484,7 @@ struct TemporalLearningMemoryTrie {
             }
         }
         debug("TemporalLearningMemoryTrie.append before", nodes[index].dataIndices.map {self.dicdata[$0]})
+        debug("TemporalLearningMemoryTrie.append want to append", dicdata)
         for (dicdataElement, metadataElement) in zip(dicdata, metadata) {
             if let dataIndex = nodes[index].dataIndices.first(where: {Self.sameDicdataIfRubyIsEqual(left: self.dicdata[$0], right: dicdataElement)}) {
                 // すでにnodes[index]に同じデータが存在している場合、カウントを加算し、最後に使った日を後の方に変更する
