@@ -111,10 +111,10 @@ struct LongTermLearningMemory {
 
         func makeBinary() -> Data {
             var data = Data()
-            // エントリのカウントを1byteでエンコード
-            var count = UInt8(self.metadata.count)
-            data.append(contentsOf: Data(bytes: &count, count: MemoryLayout<UInt8>.size))
             var metadata = self.metadata.map {MetadataElement(day: $0.lastUsedDay, count: $0.count)}
+            // エントリのカウントを1byteでエンコード
+            var count = UInt8(metadata.count)
+            data.append(contentsOf: Data(bytes: &count, count: MemoryLayout<UInt8>.size))
             data.append(contentsOf: Data(bytes: &metadata, count: MemoryLayout<MetadataElement>.size * metadata.count))
             return data
         }
@@ -362,14 +362,19 @@ struct LongTermLearningMemory {
         while !currentNodes.isEmpty {
             currentNodes.forEach {char, nodeIndex in
                 nodes2Characters.append(char)
-                let dicdataBlock = DataBlock(dicdata: trie.nodes[nodeIndex].dataIndices.map {trie.dicdata[$0]})
-                dicdata.append(dicdataBlock)
+                dicdata.append(DataBlock(dicdata: trie.nodes[nodeIndex].dataIndices.map {trie.dicdata[$0]}))
                 metadata.append(MetadataBlock(metadata: trie.nodes[nodeIndex].dataIndices.map {trie.metadata[$0]}))
 
                 bits += [Bool](repeating: true, count: trie.nodes[nodeIndex].children.count) + [false]
             }
             currentNodes = currentNodes.flatMap {(_, nodeIndex) in trie.nodes[nodeIndex].children.sorted(by: {$0.key < $1.key})}
         }
+
+        // デバッグ用に出来上がったメタデータを全てプリントする
+        for (d, m) in zip(dicdata, metadata) {
+            debug("LongTermLearningMemory", d, m)
+        }
+
 
         let bytes = Self.BoolToUInt64(bits)
         let loudsFileTemp = loudsFileURL(asTemporaryFile: true, directoryURL: directoryURL)
@@ -387,9 +392,24 @@ struct LongTermLearningMemory {
         do {
             let binary = Data(bytes: [UInt32(metadata.count)], count: 4) // エントリ数をUInt32でマップ
             let result = metadata.reduce(into: binary) {
-                $0.append($1.makeBinary())
+                $0.append(contentsOf: $1.makeBinary())
             }
             try result.write(to: metadataFileTemp)
+
+            do {
+                var metadataOffset = 0
+                // 最初の4byteはentry countに対応する
+                let entryCount = result[metadataOffset ..< metadataOffset + 4].toArray(of: UInt32.self)[0]
+                metadataOffset += 4
+
+                while metadataOffset < result.endIndex {
+                    let itemCount = result[metadataOffset ..< metadataOffset + 1].toArray(of: UInt8.self)[0]
+                    metadataOffset += 1
+                    debug("LongTermLearningMemory", result[metadataOffset ..< metadataOffset + MemoryLayout<MetadataElement>.size * Int(itemCount)].toArray(of: MetadataElement.self))
+                    metadataOffset += MemoryLayout<MetadataElement>.size * Int(itemCount)
+                }
+
+            }
         }
 
         let loudsTxt3FileCount: Int
@@ -488,7 +508,7 @@ struct TemporalLearningMemoryTrie {
                 index = nextIndex
             }
         }
-        debug("TemporalLearningMemoryTrie.append after", nodes[index].dataIndices.map {(self.dicdata[$0], self.metadata[$0])})
+        debug("TemporalLearningMemoryTrie.append before", nodes[index].dataIndices.map {(self.dicdata[$0], self.metadata[$0])})
         debug("TemporalLearningMemoryTrie.append want to append", dicdata)
         for (dicdataElement, metadataElement) in zip(dicdata, metadata) {
             if let dataIndex = nodes[index].dataIndices.first(where: {Self.sameDicdataIfRubyIsEqual(left: self.dicdata[$0], right: dicdataElement)}) {
