@@ -135,7 +135,7 @@ struct LongTermLearningMemory {
                 if self.ruby.isEmpty {
                     self.ruby = element.ruby
                 }
-                self.data.append((element.word, element.lcid, element.rcid, element.mid, element.baseValue))
+                self.data.append((element.word, element.lcid, element.rcid, element.mid, element.value()))
             }
         }
 
@@ -195,7 +195,7 @@ struct LongTermLearningMemory {
     }
 
     /// 一時記憶と長期記憶の学習データをマージする
-    static func merge(tempTrie: TemporalLearningMemoryTrie, forgetTargets: [DicdataElement] = [], directoryURL: URL, maxMemoryCount: Int, char2UInt8: [Character: UInt8]) throws {
+    static func merge(tempTrie: consuming TemporalLearningMemoryTrie, forgetTargets: [DicdataElement] = [], directoryURL: URL, maxMemoryCount: Int, char2UInt8: [Character: UInt8]) throws {
         // MARK: `.pause`ファイルが存在する場合、`merge`を行う前に`.2`ファイルの復活を試み、失敗した場合は`merge`を諦める。
         if fileExist(pauseFileURL(directoryURL: directoryURL)) {
             debug("LongTermLearningMemory merge collapsion detected, trying recovery...")
@@ -212,13 +212,13 @@ struct LongTermLearningMemory {
         // MARK: ここで、前回のファイルの更新は問題なく成功していることが確認できる
         let startTime = Date()
         let today = LearningManager.today
-        var newTrie = tempTrie
+        var newTrie = consume tempTrie
         // 構造:
         // dataCount(UInt32), count, data*count, count, data*count, ...
         // MARK: 読み出しは、`metadataFile`が存在しなかった場合（学習が一切ない場合）に失敗する。
         let ltMetadata = (try? Data(contentsOf: metadataFileURL(asTemporaryFile: false, directoryURL: directoryURL))) ?? Data([.zero, .zero, .zero, .zero])
-        // 最初の4byteはentry countに対応する
         var metadataOffset = 0
+        // 最初の4byteはentry countに対応する
         let entryCount = ltMetadata[metadataOffset ..< metadataOffset + 4].toArray(of: UInt32.self)[0]
         metadataOffset += 4
 
@@ -226,7 +226,6 @@ struct LongTermLearningMemory {
 
         // それぞれのloudstxt3ファイルに対して処理を行う
         for loudstxtIndex in 0 ..< Int(entryCount) / txtFileSplit + 1 {
-            // loudstxt3の数
             let loudstxtData: Data
             do {
                 loudstxtData = try Data(contentsOf: loudsTxt3FileURL("\(loudstxtIndex)", asTemporaryFile: false, directoryURL: directoryURL))
@@ -234,6 +233,7 @@ struct LongTermLearningMemory {
                 debug("LongTermLearningMemory merge failed to read \(loudstxtIndex)", error)
                 continue
             }
+            // loudstxt3の数
             let count = Int(loudstxtData[0 ..< 2].toArray(of: UInt16.self)[0])
             let indices = loudstxtData[2 ..< 2 + 4 * count].toArray(of: UInt32.self)
             for i in 0 ..< count {
@@ -249,11 +249,13 @@ struct LongTermLearningMemory {
                 let endIndex = i == (indices.endIndex - 1) ? loudstxtData.endIndex : Int(indices[i + 1])
                 let elements = LOUDS.parseBinary(binary: loudstxtData[startIndex ..< endIndex])
                 // 該当部分を取り出してメタデータに従ってフィルター、trieに追加
-                guard let ruby = elements.first?.ruby else {
+                guard let ruby = elements.first?.ruby,
+                      let chars = LearningManager.keyToChars(ruby, char2UInt8: char2UInt8) else {
                     continue
                 }
                 var newDicdata: [DicdataElement] = []
                 var newMetadata: [MetadataElement] = []
+                assert(elements.count == metadata.count, "elements count and metadata count must be equal.")
                 for (dicdataElement, metadataElement) in zip(elements, metadata) {
                     // 忘却対象である場合は弾く
                     if forgetTargets.contains(dicdataElement) {
@@ -265,8 +267,7 @@ struct LongTermLearningMemory {
                     var dicdataElement = dicdataElement
                     var metadataElement = metadataElement
                     guard today >= metadataElement.lastUpdatedDay else {
-                        // 異常対応
-                        // 変なデータが入っているとオーバーフローが起こるのでフェイルセーフにする
+                        // 変なデータが入っているとアンダーフローが起こるため、事前にガードする
                         continue
                     }
                     // 32日ごとにカウントを半減させる
@@ -281,9 +282,6 @@ struct LongTermLearningMemory {
                     dicdataElement.baseValue = valueForData(metadata: metadataElement, dicdata: dicdataElement)
                     newDicdata.append(dicdataElement)
                     newMetadata.append(metadataElement)
-                }
-                guard let chars = LearningManager.keyToChars(ruby, char2UInt8: char2UInt8) else {
-                    continue
                 }
                 newTrie.append(dicdata: newDicdata, chars: chars, metadata: newMetadata)
             }
@@ -468,10 +466,7 @@ struct TemporalLearningMemoryTrie {
     /// 同じノードにあることがわかっているデータを一括で追加する場面で利用する関数
     /// 主にマージ時の利用を想定
     fileprivate mutating func append(dicdata: [DicdataElement], chars: [UInt8], metadata: [MetadataElement]) {
-        if dicdata.count != metadata.count {
-            debug("TemporalLearningMemoryTrie append: count of dicdata and metadata do not match")
-            return
-        }
+        assert(dicdata.count == metadata.count, "count of dicdata and metadata do not match")
         var index = 0
         for char in chars {
             if let nextIndex = nodes[index].children[char] {
