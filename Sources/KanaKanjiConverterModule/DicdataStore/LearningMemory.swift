@@ -257,6 +257,7 @@ struct LongTermLearningMemory {
                 var newMetadata: [MetadataElement] = []
                 assert(elements.count == metadata.count, "elements count and metadata count must be equal.")
                 for (dicdataElement, metadataElement) in zip(elements, metadata) {
+                    debug("LongTermLearningMemory merge trial \(i)", dicdataElement)
                     // 忘却対象である場合は弾く
                     if forgetTargets.contains(dicdataElement) {
                         continue
