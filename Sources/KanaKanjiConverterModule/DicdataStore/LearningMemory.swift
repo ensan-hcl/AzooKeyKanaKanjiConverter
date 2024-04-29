@@ -492,6 +492,8 @@ struct TemporalLearningMemoryTrie {
                     currentMetadata.count += min(.max - currentMetadata.count, metadataElement.count)
                 }
                 self.dicdata[dataIndex] = dicdataElement
+                // valueを更新する
+                self.dicdata[dataIndex].baseValue = LongTermLearningMemory.valueForData(metadata: self.metadata[dataIndex], dicdata: dicdataElement)
             } else {
                 // まだnodes[index]に同じデータが存在していない場合、data末尾に新しい要素を追加してnodes[index]を更新する
                 let dataIndex = self.dicdata.endIndex
