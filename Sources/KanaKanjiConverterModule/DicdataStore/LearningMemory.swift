@@ -264,19 +264,24 @@ struct LongTermLearningMemory {
                     if ruby != dicdataElement.ruby {
                         continue
                     }
-                    var dicdataElement = dicdataElement
-                    var metadataElement = metadataElement
-                    guard today >= metadataElement.lastUpdatedDay else {
+                    guard today >= metadataElement.lastUpdatedDay,
+                          today >= metadataElement.lastUsedDay else {
                         // 変なデータが入っているとアンダーフローが起こるため、事前にガードする
                         continue
                     }
+                    guard today - metadataElement.lastUsedDay < 128 else {
+                        // 128日以上使っていない単語は除外
+                        continue
+                    }
+                    var dicdataElement = dicdataElement
+                    var metadataElement = metadataElement
                     // 32日ごとにカウントを半減させる
                     while today - metadataElement.lastUpdatedDay > 32 {
                         metadataElement.count >>= 1
                         metadataElement.lastUpdatedDay += 32
                     }
-                    // カウントがゼロになるか128日以上使っていない単語は除外
-                    if metadataElement.count == 0 || today - metadataElement.lastUsedDay >= 128 {
+                    // カウントがゼロになる場合除外
+                    guard metadataElement.count > 0 else {
                         continue
                     }
                     dicdataElement.baseValue = valueForData(metadata: metadataElement, dicdata: dicdataElement)
