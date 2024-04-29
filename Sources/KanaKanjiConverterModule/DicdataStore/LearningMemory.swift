@@ -488,7 +488,7 @@ struct TemporalLearningMemoryTrie {
                 index = nextIndex
             }
         }
-        debug("TemporalLearningMemoryTrie.append before", nodes[index].dataIndices.map {self.dicdata[$0]})
+        debug("TemporalLearningMemoryTrie.append after", nodes[index].dataIndices.map {(self.dicdata[$0], self.metadata[$0])})
         debug("TemporalLearningMemoryTrie.append want to append", dicdata)
         for (dicdataElement, metadataElement) in zip(dicdata, metadata) {
             if let dataIndex = nodes[index].dataIndices.first(where: {Self.sameDicdataIfRubyIsEqual(left: self.dicdata[$0], right: dicdataElement)}) {
@@ -509,7 +509,7 @@ struct TemporalLearningMemoryTrie {
                 nodes[index].dataIndices.append(dataIndex)
             }
         }
-        debug("TemporalLearningMemoryTrie.append after", nodes[index].dataIndices.map {self.dicdata[$0]})
+        debug("TemporalLearningMemoryTrie.append after", nodes[index].dataIndices.map {(self.dicdata[$0], self.metadata[$0])})
     }
 
     /// ルビが同じだとわかっている場合に2つのDicdataElementが同じものか判定する関数
