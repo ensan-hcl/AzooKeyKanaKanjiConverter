@@ -241,8 +241,8 @@ struct LongTermLearningMemory {
                 // 1byteで項目数
                 let itemCount = Int(ltMetadata[metadataOffset ..< metadataOffset + 1].toArray(of: UInt8.self)[0])
                 metadataOffset += 1
-                let metadata = ltMetadata[metadataOffset ..< metadataOffset + itemCount * 5].toArray(of: MetadataElement.self)
-                metadataOffset += itemCount * 5
+                let metadata = ltMetadata[metadataOffset ..< metadataOffset + itemCount * MemoryLayout<MetadataElement>.size].toArray(of: MetadataElement.self)
+                metadataOffset += itemCount * MemoryLayout<MetadataElement>.size
 
                 // バイナリ内部でのindex
                 let startIndex = Int(indices[i])
@@ -257,7 +257,7 @@ struct LongTermLearningMemory {
                 var newMetadata: [MetadataElement] = []
                 assert(elements.count == metadata.count, "elements count and metadata count must be equal.")
                 for (dicdataElement, metadataElement) in zip(elements, metadata) {
-                    debug("LongTermLearningMemory merge trial \(i)", dicdataElement)
+                    debug("LongTermLearningMemory merge trial \(i)", dicdataElement, metadataElement)
                     // 忘却対象である場合は弾く
                     if forgetTargets.contains(dicdataElement) {
                         debug("LongTermLearningMemory merge stopped because it is a forget target", dicdataElement)
@@ -385,8 +385,7 @@ struct LongTermLearningMemory {
         }
         let metadataFileTemp = metadataFileURL(asTemporaryFile: true, directoryURL: directoryURL)
         do {
-            var binary = Data()
-            binary += Data(bytes: [UInt32(metadata.count)], count: 4) // エントリ数をUInt32でマップ
+            let binary = Data(bytes: [UInt32(metadata.count)], count: 4) // エントリ数をUInt32でマップ
             let result = metadata.reduce(into: binary) {
                 $0.append($1.makeBinary())
             }
