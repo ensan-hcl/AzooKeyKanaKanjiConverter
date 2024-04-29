@@ -111,11 +111,11 @@ struct LongTermLearningMemory {
 
         func makeBinary() -> Data {
             var data = Data()
-            var metadata = self.metadata.map {MetadataElement(day: $0.lastUsedDay, count: $0.count)}
+            var metadata: [(UInt16, UInt16, UInt8)] = self.metadata.map {($0.lastUsedDay, $0.lastUsedDay, $0.count)}
             // エントリのカウントを1byteでエンコード
             var count = UInt8(metadata.count)
-            data.append(contentsOf: Data(bytes: &count, count: MemoryLayout<UInt8>.size))
-            data.append(contentsOf: Data(bytes: &metadata, count: MemoryLayout<MetadataElement>.size * metadata.count))
+            data.append(contentsOf: Data(bytes: &count, count: MemoryLayout<UInt8>.stride))
+            data.append(contentsOf: Data(bytes: &metadata, count: MemoryLayout<MetadataElement>.stride * metadata.count))
             return data
         }
     }
@@ -241,8 +241,8 @@ struct LongTermLearningMemory {
                 // 1byteで項目数
                 let itemCount = Int(ltMetadata[metadataOffset ..< metadataOffset + 1].toArray(of: UInt8.self)[0])
                 metadataOffset += 1
-                let metadata = ltMetadata[metadataOffset ..< metadataOffset + itemCount * MemoryLayout<MetadataElement>.size].toArray(of: MetadataElement.self)
-                metadataOffset += itemCount * MemoryLayout<MetadataElement>.size
+                let metadata = ltMetadata[metadataOffset ..< metadataOffset + itemCount * MemoryLayout<MetadataElement>.stride].toArray(of: MetadataElement.self)
+                metadataOffset += itemCount * MemoryLayout<MetadataElement>.stride
 
                 // バイナリ内部でのindex
                 let startIndex = Int(indices[i])
@@ -405,8 +405,8 @@ struct LongTermLearningMemory {
                 while metadataOffset < result.endIndex {
                     let itemCount = result[metadataOffset ..< metadataOffset + 1].toArray(of: UInt8.self)[0]
                     metadataOffset += 1
-                    debug("LongTermLearningMemory", result[metadataOffset ..< metadataOffset + MemoryLayout<MetadataElement>.size * Int(itemCount)].toArray(of: MetadataElement.self))
-                    metadataOffset += MemoryLayout<MetadataElement>.size * Int(itemCount)
+                    debug("LongTermLearningMemory", result[metadataOffset ..< metadataOffset + MemoryLayout<MetadataElement>.stride * Int(itemCount)].toArray(of: MetadataElement.self))
+                    metadataOffset += MemoryLayout<MetadataElement>.stride * Int(itemCount)
                 }
 
             }
