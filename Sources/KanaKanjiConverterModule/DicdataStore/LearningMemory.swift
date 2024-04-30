@@ -111,11 +111,13 @@ struct LongTermLearningMemory {
 
         func makeBinary() -> Data {
             var data = Data()
-            var metadata: [(UInt16, UInt16, UInt8)] = self.metadata.map {($0.lastUsedDay, $0.lastUsedDay, $0.count)}
+            var metadata: [MetadataElement] = self.metadata.map { MetadataElement(day: $0.lastUsedDay, count: $0.count) }
             // エントリのカウントを1byteでエンコード
             var count = UInt8(metadata.count)
-            data.append(contentsOf: Data(bytes: &count, count: MemoryLayout<UInt8>.stride))
-            data.append(contentsOf: Data(bytes: &metadata, count: MemoryLayout<MetadataElement>.stride * metadata.count))
+            data.append(contentsOf: Data(bytes: &count, count: MemoryLayout<UInt8>.size))
+            for i in metadata.indices {
+                data.append(contentsOf: Data(bytes: &metadata[i], count: MemoryLayout<MetadataElement>.size))
+            }
             return data
         }
     }
@@ -241,8 +243,11 @@ struct LongTermLearningMemory {
                 // 1byteで項目数
                 let itemCount = Int(ltMetadata[metadataOffset ..< metadataOffset + 1].toArray(of: UInt8.self)[0])
                 metadataOffset += 1
-                let metadata = ltMetadata[metadataOffset ..< metadataOffset + itemCount * MemoryLayout<MetadataElement>.stride].toArray(of: MetadataElement.self)
-                metadataOffset += itemCount * MemoryLayout<MetadataElement>.stride
+                let metadata = (0 ..< itemCount).map {
+                    let range = metadataOffset + $0 * MemoryLayout<MetadataElement>.size ..< metadataOffset + ($0 + 1) * MemoryLayout<MetadataElement>.size
+                    return ltMetadata[range].toArray(of: MetadataElement.self)[0]
+                }
+                metadataOffset += itemCount * MemoryLayout<MetadataElement>.size
 
                 // バイナリ内部でのindex
                 let startIndex = Int(indices[i])
@@ -267,11 +272,10 @@ struct LongTermLearningMemory {
                         debug("LongTermLearningMemory merge stopped because dicdataElement has different ruby", dicdataElement, ruby)
                         continue
                     }
-                    guard today >= metadataElement.lastUpdatedDay,
-                          today >= metadataElement.lastUsedDay else {
-                        // 変なデータが入っているとアンダーフローが起こるため、事前にガードする
-                        debug("LongTermLearningMemory merge stopped because metadata is strange", dicdataElement, metadataElement, today)
-                        continue
+                    var metadataElement = metadataElement
+                    if today < metadataElement.lastUpdatedDay || today < metadataElement.lastUsedDay {
+                        // 変なデータが入っているとアンダーフローが起こるため、明示的に新しいデータを入れ直す
+                        metadataElement = MetadataElement(day: today, count: 1)
                     }
                     guard today - metadataElement.lastUsedDay < 128 else {
                         // 128日以上使っていない単語は除外
@@ -279,7 +283,6 @@ struct LongTermLearningMemory {
                         continue
                     }
                     var dicdataElement = dicdataElement
-                    var metadataElement = metadataElement
                     // 32日ごとにカウントを半減させる
                     while today - metadataElement.lastUpdatedDay > 32 {
                         metadataElement.count >>= 1
