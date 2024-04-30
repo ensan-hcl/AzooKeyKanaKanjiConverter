@@ -90,7 +90,7 @@ extension LOUDS {
             debug("getDataForLoudstxt3: failed to parse", dicdata)
             return []
         }
-        for (index, substring) in substrings[1...].enumerated() {
+        for (index, substring) in zip(dicdata.indices, substrings[1...]) {
             guard let word = String(data: substring, encoding: .utf8) else {
                 debug("getDataForLoudstxt3: failed to parse", ruby)
                 continue
