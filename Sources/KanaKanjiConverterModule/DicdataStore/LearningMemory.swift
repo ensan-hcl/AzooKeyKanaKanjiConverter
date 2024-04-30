@@ -408,8 +408,12 @@ struct LongTermLearningMemory {
                 while metadataOffset < result.endIndex {
                     let itemCount = result[metadataOffset ..< metadataOffset + 1].toArray(of: UInt8.self)[0]
                     metadataOffset += 1
-                    debug("LongTermLearningMemory", result[metadataOffset ..< metadataOffset + MemoryLayout<MetadataElement>.stride * Int(itemCount)].toArray(of: MetadataElement.self))
-                    metadataOffset += MemoryLayout<MetadataElement>.stride * Int(itemCount)
+                    let metadata: [MetadataElement] = (0 ..< Int(itemCount)).map {
+                        let range = metadataOffset + $0 * MemoryLayout<MetadataElement>.size ..< metadataOffset + ($0 + 1) * MemoryLayout<MetadataElement>.size
+                        return result[range].toArray(of: MetadataElement.self)[0]
+                    }
+                    metadataOffset += MemoryLayout<MetadataElement>.size * Int(itemCount)
+                    debug("LongTermLearningMemory", metadata)
                 }
 
             }
