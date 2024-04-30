@@ -262,7 +262,6 @@ struct LongTermLearningMemory {
                 var newMetadata: [MetadataElement] = []
                 assert(elements.count == metadata.count, "elements count and metadata count must be equal.")
                 for (dicdataElement, metadataElement) in zip(elements, metadata) {
-                    debug("LongTermLearningMemory merge trial \(i)", dicdataElement, metadataElement)
                     // 忘却対象である場合は弾く
                     if forgetTargets.contains(dicdataElement) {
                         debug("LongTermLearningMemory merge stopped because it is a forget target", dicdataElement)
@@ -373,12 +372,6 @@ struct LongTermLearningMemory {
             currentNodes = currentNodes.flatMap {(_, nodeIndex) in trie.nodes[nodeIndex].children.sorted(by: {$0.key < $1.key})}
         }
 
-        // デバッグ用に出来上がったメタデータを全てプリントする
-        for (d, m) in zip(dicdata, metadata) {
-            debug("LongTermLearningMemory", d, m)
-        }
-
-
         let bytes = Self.BoolToUInt64(bits)
         let loudsFileTemp = loudsFileURL(asTemporaryFile: true, directoryURL: directoryURL)
         do {
@@ -398,25 +391,6 @@ struct LongTermLearningMemory {
                 $0.append(contentsOf: $1.makeBinary())
             }
             try result.write(to: metadataFileTemp)
-
-            do {
-                var metadataOffset = 0
-                // 最初の4byteはentry countに対応する
-                let entryCount = result[metadataOffset ..< metadataOffset + 4].toArray(of: UInt32.self)[0]
-                metadataOffset += 4
-
-                while metadataOffset < result.endIndex {
-                    let itemCount = result[metadataOffset ..< metadataOffset + 1].toArray(of: UInt8.self)[0]
-                    metadataOffset += 1
-                    let metadata: [MetadataElement] = (0 ..< Int(itemCount)).map {
-                        let range = metadataOffset + $0 * MemoryLayout<MetadataElement>.size ..< metadataOffset + ($0 + 1) * MemoryLayout<MetadataElement>.size
-                        return result[range].toArray(of: MetadataElement.self)[0]
-                    }
-                    metadataOffset += MemoryLayout<MetadataElement>.size * Int(itemCount)
-                    debug("LongTermLearningMemory", metadata)
-                }
-
-            }
         }
 
         let loudsTxt3FileCount: Int
@@ -515,8 +489,6 @@ struct TemporalLearningMemoryTrie {
                 index = nextIndex
             }
         }
-        debug("TemporalLearningMemoryTrie.append before", nodes[index].dataIndices.map {(self.dicdata[$0], self.metadata[$0])})
-        debug("TemporalLearningMemoryTrie.append want to append", dicdata)
         for (dicdataElement, metadataElement) in zip(dicdata, metadata) {
             if let dataIndex = nodes[index].dataIndices.first(where: {Self.sameDicdataIfRubyIsEqual(left: self.dicdata[$0], right: dicdataElement)}) {
                 // すでにnodes[index]に同じデータが存在している場合、カウントを加算し、最後に使った日を後の方に変更する
@@ -536,7 +508,6 @@ struct TemporalLearningMemoryTrie {
                 nodes[index].dataIndices.append(dataIndex)
             }
         }
-        debug("TemporalLearningMemoryTrie.append after", nodes[index].dataIndices.map {(self.dicdata[$0], self.metadata[$0])})
     }
 
     /// ルビが同じだとわかっている場合に2つのDicdataElementが同じものか判定する関数
