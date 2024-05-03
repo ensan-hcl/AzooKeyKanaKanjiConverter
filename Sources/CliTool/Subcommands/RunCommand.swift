@@ -15,6 +15,9 @@ extension Subcommands {
         @Flag(name: [.customLong("disable_prediction")], help: "Disable producing prediction candidates.")
         var disablePrediction = false
 
+        @Flag(name: [.customLong("report_score")], help: "Show internal score for the candidate.")
+        var reportScore = false
+
         static var configuration = CommandConfiguration(commandName: "run", abstract: "Show help for this utility.")
 
         @MainActor mutating func run() {
@@ -23,7 +26,11 @@ extension Subcommands {
             composingText.insertAtCursorPosition(input, inputStyle: .direct)
             let result = converter.requestCandidates(composingText, options: requestOptions())
             for candidate in result.mainResults.prefix(self.displayTopN) {
-                print(candidate.text)
+                if self.reportScore {
+                    print("\(candidate.text) \(bold: "score:") \(candidate.value)")
+                } else {
+                    print(candidate.text)
+                }
             }
         }
 
