@@ -49,6 +49,26 @@ public struct ConvertRequestOptions: Sendable {
         self.dictionaryResourceURL = dictionaryResourceURL
     }
 
+    package init(N_best: Int = 10, requireJapanesePrediction: Bool, requireEnglishPrediction: Bool, keyboardLanguage: KeyboardLanguage, typographyLetterCandidate: Bool = false, unicodeCandidate: Bool = true, englishCandidateInRoman2KanaInput: Bool = false, fullWidthRomanCandidate: Bool = false, halfWidthKanaCandidate: Bool = false, learningType: LearningType, maxMemoryCount: Int = 65536, shouldResetMemory: Bool = false, dictionaryResourceURL: URL, memoryDirectoryURL: URL, sharedContainerURL: URL, textReplacer: TextReplacer = TextReplacer(), metadata: ConvertRequestOptions.Metadata, requestQuery: RequestQuery) {
+        self.N_best = N_best
+        self.requireJapanesePrediction = requireJapanesePrediction
+        self.requireEnglishPrediction = requireEnglishPrediction
+        self.keyboardLanguage = keyboardLanguage
+        self.typographyLetterCandidate = typographyLetterCandidate
+        self.unicodeCandidate = unicodeCandidate
+        self.englishCandidateInRoman2KanaInput = englishCandidateInRoman2KanaInput
+        self.fullWidthRomanCandidate = fullWidthRomanCandidate
+        self.halfWidthKanaCandidate = halfWidthKanaCandidate
+        self.learningType = learningType
+        self.maxMemoryCount = maxMemoryCount
+        self.shouldResetMemory = shouldResetMemory
+        self.memoryDirectoryURL = memoryDirectoryURL
+        self.sharedContainerURL = sharedContainerURL
+        self.metadata = metadata
+        self.textReplacer = textReplacer
+        self.dictionaryResourceURL = dictionaryResourceURL
+    }
+
     public var N_best: Int
     public var requireJapanesePrediction: Bool
     public var requireEnglishPrediction: Bool
@@ -70,6 +90,9 @@ public struct ConvertRequestOptions: Sendable {
     public var dictionaryResourceURL: URL
     // メタデータ
     public var metadata: Metadata
+
+    // MARK: プライベートAPI
+    package var requestQuery: RequestQuery = .default
 
     static var `default`: Self {
         Self(
@@ -102,5 +125,10 @@ public struct ConvertRequestOptions: Sendable {
             self.appVersionString = appVersionString
         }
         var appVersionString: String
+    }
+
+    package enum RequestQuery: Sendable {
+        case `default`
+        case 完全一致
     }
 }
