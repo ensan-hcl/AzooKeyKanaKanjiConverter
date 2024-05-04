@@ -29,7 +29,7 @@ public struct ConvertRequestOptions: Sendable {
     ///   - sharedContainerURL: ユーザ辞書など、キーボード外で書き込んだ設定データの保存されているディレクトリを指定します。
     ///   - textReplacer: 予測変換のための置換機を指定します。
     ///   - metadata: メタデータを指定します。詳しくは`ConvertRequestOptions.Metadata`を参照してください。
-    public init(N_best: Int = 10, requireJapanesePrediction: Bool, requireEnglishPrediction: Bool, keyboardLanguage: KeyboardLanguage, typographyLetterCandidate: Bool = false, unicodeCandidate: Bool = true, englishCandidateInRoman2KanaInput: Bool = false, fullWidthRomanCandidate: Bool = false, halfWidthKanaCandidate: Bool = false, learningType: LearningType, maxMemoryCount: Int = 65536, shouldResetMemory: Bool = false, dictionaryResourceURL: URL, memoryDirectoryURL: URL, sharedContainerURL: URL, textReplacer: TextReplacer = TextReplacer(), metadata: ConvertRequestOptions.Metadata) {
+    public init(N_best: Int = 10, requireJapanesePrediction: Bool, requireEnglishPrediction: Bool, keyboardLanguage: KeyboardLanguage, typographyLetterCandidate: Bool = false, unicodeCandidate: Bool = true, englishCandidateInRoman2KanaInput: Bool = false, fullWidthRomanCandidate: Bool = false, halfWidthKanaCandidate: Bool = false, learningType: LearningType, maxMemoryCount: Int = 65536, shouldResetMemory: Bool = false, dictionaryResourceURL: URL, memoryDirectoryURL: URL, sharedContainerURL: URL, textReplacer: TextReplacer = TextReplacer(), metadata: ConvertRequestOptions.Metadata?) {
         self.N_best = N_best
         self.requireJapanesePrediction = requireJapanesePrediction
         self.requireEnglishPrediction = requireEnglishPrediction
@@ -49,7 +49,7 @@ public struct ConvertRequestOptions: Sendable {
         self.dictionaryResourceURL = dictionaryResourceURL
     }
 
-    package init(N_best: Int = 10, requireJapanesePrediction: Bool, requireEnglishPrediction: Bool, keyboardLanguage: KeyboardLanguage, typographyLetterCandidate: Bool = false, unicodeCandidate: Bool = true, englishCandidateInRoman2KanaInput: Bool = false, fullWidthRomanCandidate: Bool = false, halfWidthKanaCandidate: Bool = false, learningType: LearningType, maxMemoryCount: Int = 65536, shouldResetMemory: Bool = false, dictionaryResourceURL: URL, memoryDirectoryURL: URL, sharedContainerURL: URL, textReplacer: TextReplacer = TextReplacer(), metadata: ConvertRequestOptions.Metadata, requestQuery: RequestQuery) {
+    package init(N_best: Int = 10, requireJapanesePrediction: Bool, requireEnglishPrediction: Bool, keyboardLanguage: KeyboardLanguage, typographyLetterCandidate: Bool = false, unicodeCandidate: Bool = true, englishCandidateInRoman2KanaInput: Bool = false, fullWidthRomanCandidate: Bool = false, halfWidthKanaCandidate: Bool = false, learningType: LearningType, maxMemoryCount: Int = 65536, shouldResetMemory: Bool = false, dictionaryResourceURL: URL, memoryDirectoryURL: URL, sharedContainerURL: URL, textReplacer: TextReplacer = TextReplacer(), metadata: ConvertRequestOptions.Metadata?, requestQuery: RequestQuery) {
         self.N_best = N_best
         self.requireJapanesePrediction = requireJapanesePrediction
         self.requireEnglishPrediction = requireEnglishPrediction
@@ -89,7 +89,7 @@ public struct ConvertRequestOptions: Sendable {
     public var sharedContainerURL: URL
     public var dictionaryResourceURL: URL
     // メタデータ
-    public var metadata: Metadata
+    public var metadata: Metadata?
 
     // MARK: プライベートAPI
     package var requestQuery: RequestQuery = .default
@@ -114,17 +114,24 @@ public struct ConvertRequestOptions: Sendable {
             memoryDirectoryURL: (try? FileManager.default.url(for: .libraryDirectory, in: .userDomainMask, appropriateFor: nil, create: false)) ?? Bundle.main.bundleURL,
             // dummy data, won't work
             sharedContainerURL: Bundle.main.bundleURL,
-            metadata: Metadata(appVersionString: "Unknown")
+            metadata: nil
         )
     }
 
     public struct Metadata: Sendable {
         /// - parameters:
         ///   - appVersionString: アプリのバージョンを指定します。このデータは`KanaKanjiCovnerter.toVersionCandidate(_:)`などで用いられます。
+        @available(*, deprecated, renamed: "init(versionString:)", message: "it be removed in AzooKeyKanaKanjiConverter v1.0")
         public init(appVersionString: String) {
-            self.appVersionString = appVersionString
+            self.versionString = "azooKey Version " + appVersionString
         }
-        var appVersionString: String
+
+        /// - parameters:
+        ///   - versionString: アプリのバージョンを示す文字列全体を`"MyIME Version 0.7.1"`のように指定します。このデータは`KanaKanjiCovnerter.toVersionCandidate(_:)`などで用いられます。
+        public init(versionString: String = "Powererd by AzooKeyKanaKanjiConverter") {
+            self.versionString = versionString
+        }
+        var versionString: String
     }
 
     package enum RequestQuery: Sendable {

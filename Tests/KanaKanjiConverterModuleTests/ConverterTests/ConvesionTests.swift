@@ -26,7 +26,7 @@ final class ConverterTests: XCTestCase {
             dictionaryResourceURL: Bundle(for: type(of: self)).bundleURL.appendingPathComponent("DictionaryMock", isDirectory: true),
             memoryDirectoryURL: URL(fileURLWithPath: ""),
             sharedContainerURL: URL(fileURLWithPath: ""),
-            metadata: .init(appVersionString: "Tests")
+            metadata: nil
         )
     }
 
