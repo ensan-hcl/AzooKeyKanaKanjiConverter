@@ -65,7 +65,7 @@ extension Subcommands {
                 shouldResetMemory: false,
                 memoryDirectoryURL: URL(fileURLWithPath: ""),
                 sharedContainerURL: URL(fileURLWithPath: ""),
-                metadata: .init(appVersionString: "anco")
+                metadata: .init(versionString: "anco for debugging")
             )
             if self.onlyWholeConversion {
                 option.requestQuery = .完全一致

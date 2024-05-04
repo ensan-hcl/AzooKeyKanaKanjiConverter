@@ -18,7 +18,7 @@ public extension ConvertRequestOptions {
         memoryDirectoryURL: URL,
         sharedContainerURL: URL,
         textReplacer: TextReplacer = TextReplacer(),
-        metadata: ConvertRequestOptions.Metadata
+        metadata: ConvertRequestOptions.Metadata?
     ) -> Self {
         #if os(iOS) || os(watchOS) || os(tvOS) || os(visionOS)
         let dictionaryDirectory = Bundle.module.bundleURL.appendingPathComponent("Dictionary", isDirectory: true)
