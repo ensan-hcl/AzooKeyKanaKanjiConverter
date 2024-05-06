@@ -151,12 +151,12 @@ extension Subcommands {
             self.outputs = outputs
             do {
                 // entropyを示す
-                let expValues = outputs.map { exp(Double($0.score)) }
+                let mean = outputs.reduce(into: 0) { $0 += Double($1.score) } / Double(outputs.count)
+                let expValues = outputs.map { exp(Double($0.score) - mean) }
                 let sumOfExpValues = expValues.reduce(into: 0, +=)
                 // 確率値に補正
-                let probs = expValues.map { $0 / sumOfExpValues }
-                let entropy = -probs.reduce(into: 0) { $0 += $1 * log($1) }
-                self.entropy = entropy
+                let probs = outputs.map { exp(Double($0.score) - mean) / sumOfExpValues }
+                self.entropy = -probs.reduce(into: 0) { $0 += $1 * log($1) }
             }
             do {
                 self.max_rank = outputs.firstIndex {

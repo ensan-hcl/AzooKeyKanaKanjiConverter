@@ -40,10 +40,11 @@ extension Subcommands {
             }
             if self.onlyWholeConversion {
                 // entropyを示す
-                let expValues = mainResults.map { exp(Double($0.value)) }
+                let mean = mainResults.reduce(into: 0) { $0 += Double($1.value) } / Double(mainResults.count)
+                let expValues = mainResults.map { exp(Double($0.value) - mean) }
                 let sumOfExpValues = expValues.reduce(into: 0, +=)
                 // 確率値に補正
-                let probs = expValues.map { $0 / sumOfExpValues }
+                let probs = mainResults.map { exp(Double($0.value) - mean) / sumOfExpValues }
                 let entropy = -probs.reduce(into: 0) { $0 += $1 * log($1) }
                 print("\(bold: "Entropy:") \(entropy)")
             }
