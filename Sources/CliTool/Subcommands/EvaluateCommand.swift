@@ -66,7 +66,9 @@ extension Subcommands {
                     }
                 }
             }
-            let json = try JSONEncoder().encode(result)
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            let json = try encoder.encode(result)
 
             if let outputFilePath {
                 try json.write(to: URL(fileURLWithPath: outputFilePath))
