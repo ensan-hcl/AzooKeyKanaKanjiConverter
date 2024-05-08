@@ -54,7 +54,7 @@ extension LOUDS {
     /// LOUDSをファイルから読み込む関数
     /// - Parameter identifier: ファイル名
     /// - Returns: 存在すればLOUDSデータを返し、存在しなければ`nil`を返す。
-    static func load(_ identifier: String, option: ConvertRequestOptions) -> LOUDS? {
+    package static func load(_ identifier: String, option: ConvertRequestOptions) -> LOUDS? {
         let (charsURL, loudsURL) = getLOUDSURL(identifier, option: option)
         let nodeIndex2ID: [UInt8]
         do {
@@ -90,7 +90,7 @@ extension LOUDS {
             debug("getDataForLoudstxt3: failed to parse", dicdata)
             return []
         }
-        for (index, substring) in substrings[1...].enumerated() {
+        for (index, substring) in zip(dicdata.indices, substrings[1...]) {
             guard let word = String(data: substring, encoding: .utf8) else {
                 debug("getDataForLoudstxt3: failed to parse", ruby)
                 continue

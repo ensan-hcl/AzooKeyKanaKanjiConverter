@@ -9,7 +9,7 @@
 import Foundation
 
 /// LOUDS
-struct LOUDS: Sendable {
+package struct LOUDS: Sendable {
     private typealias Unit = UInt64
     private static let unit = 64
     private static let uExp = 6
@@ -182,7 +182,7 @@ struct LOUDS: Sendable {
     /// - Parameter chars: CharIDに変換した文字列
     /// - Parameter maxDepth: 先に進む深さの最大値
     /// - Returns: 対応するloudstxt3ファイル内のインデックスのリスト
-    @inlinable func prefixNodeIndices(chars: [UInt8], maxDepth: Int) -> [Int] {
+    @inlinable package func prefixNodeIndices(chars: [UInt8], maxDepth: Int) -> [Int] {
         guard let nodeIndex = self.searchNodeIndex(chars: chars) else {
             return []
         }

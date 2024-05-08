@@ -189,7 +189,7 @@ public final class DicdataStore {
         return louds.prefixNodeIndices(chars: charIDs, maxDepth: depth)
     }
 
-    func getDicdataFromLoudstxt3(identifier: String, indices: some Sequence<Int>) -> [DicdataElement] {
+    package func getDicdataFromLoudstxt3(identifier: String, indices: some Sequence<Int>) -> [DicdataElement] {
         debug("getDicdataFromLoudstxt3", identifier, indices)
         // split = 2048
         let dict = [Int: [Int]].init(grouping: indices, by: {$0 >> 11})
@@ -429,7 +429,9 @@ public final class DicdataStore {
         let first = String(key.first!)
         let charIDs = key.map(self.character2charId)
         // 1, 2文字に対する予測変換は候補数が大きいので、depth（〜文字数）を制限する
-        let depth = if count == 1 || count == 2 {
+        let depth = if count == 1 {
+            3
+        } else if count == 2 {
             5
         } else {
             Int.max
@@ -725,12 +727,8 @@ public final class DicdataStore {
     /// wordTypesの初期化時に使うのみ。
     private static let PREPOSITION_wordIDs: Set<Int> = [1315, 6, 557, 558, 559, 560]
     /// wordTypesの初期化時に使うのみ。
-    private static let INPOSITION_wordIDs: Set<Int> = Set<Int>(Array(561..<868)
-                                                                + Array(1283..<1297)
-                                                                + Array(1306..<1310)
-                                                                + Array(11..<53)
-                                                                + Array(555..<557)
-                                                                + Array(1281..<1283)
+    private static let INPOSITION_wordIDs: Set<Int> = Set<Int>(
+        Array(561..<868).chained(1283..<1297).chained(1306..<1310).chained(11..<53).chained(555..<557).chained(1281..<1283)
     ).union([1314, 3, 2, 4, 5, 1, 9])
 
     /*

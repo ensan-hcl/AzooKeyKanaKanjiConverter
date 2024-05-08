@@ -91,9 +91,6 @@ let package = Package(
                 "SwiftUtils",
                 .product(name: "llama", package: "llama.cpp")
             ],
-            resources: [
-                .copy("llama_models"),
-            ],
             swiftSettings: swiftSettings
         ),
         .target(

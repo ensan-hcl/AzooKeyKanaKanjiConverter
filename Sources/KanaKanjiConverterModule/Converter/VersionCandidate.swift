@@ -15,9 +15,7 @@ extension KanaKanjiConverter {
     /// - parameters:
     ///  - inputData: 入力情報。
     func toVersionCandidate(_ inputData: ComposingText, options: ConvertRequestOptions) -> [Candidate] {
-
-        if inputData.convertTarget.toKatakana() == "バージョン" {
-            let versionString = "azooKey Version \(options.metadata.appVersionString)"
+        if inputData.convertTarget.toKatakana() == "バージョン", let versionString = options.metadata?.versionString {
             return [Candidate(
                 text: versionString,
                 value: -30,

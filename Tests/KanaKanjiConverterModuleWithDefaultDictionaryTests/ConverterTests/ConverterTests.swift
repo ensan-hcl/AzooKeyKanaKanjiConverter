@@ -33,7 +33,7 @@ final class ConverterTests: XCTestCase {
             shouldResetMemory: false,
             memoryDirectoryURL: URL(fileURLWithPath: ""),
             sharedContainerURL: URL(fileURLWithPath: ""),
-            metadata: .init(appVersionString: "Tests")
+            metadata: nil
         )
     }
 

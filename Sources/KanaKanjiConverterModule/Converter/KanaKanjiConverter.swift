@@ -456,8 +456,12 @@ import SwiftUtils
         let sums: [(CandidateData, Candidate)] = clauseResult.map {($0, converter.processClauseCandidate($0))}
         // 文章全体を変換した場合の候補上位5件を作る
         let whole_sentence_unique_candidates = self.getUniqueCandidate(sums.map {$0.1})
+        if case .完全一致 = options.requestQuery {
+            // 完全一致候補のみが要求されている場合、ここで全てのデータを返してreturnする
+            return ConversionResult(mainResults: whole_sentence_unique_candidates.sorted(by: {$0.value > $1.value}), firstClauseResults: [])
+        }
+        // モデル重みを統合
         var sentence_candidates = whole_sentence_unique_candidates.min(count: 10, sortedBy: {$0.value > $1.value})
-
         if let modelURL = options.gpt2WeightURL, let model = getModel(modelURL: modelURL) {
             let evaluation: [Float] = model.evaluate(input: sentence_candidates.map{$0.text})
             for (candidateIndex, value) in zip(sentence_candidates.indices, evaluation) {
@@ -465,7 +469,6 @@ import SwiftUtils
                 sentence_candidates[candidateIndex].value += value / 3.5
             }
         }
-
         // 予測変換を最大3件作成する
         let prediction_candidates: [Candidate] = options.requireJapanesePrediction ? Array(self.getUniqueCandidate(self.getPredictionCandidate(sums, composingText: inputData, options: options)).min(count: 3, sortedBy: {$0.value > $1.value})) : []
 
