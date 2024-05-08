@@ -86,9 +86,9 @@ class LlamaContext {
         self.context = context
     }
 
-    func evaluate(text: String) -> Float {
+    func evaluate(text: String, ignorePrompt: String = "") -> Float {
         debug("attempting to complete \"\(text)\"")
-
+        let tokenizedPromptCount = ignorePrompt.isEmpty ? 1 : tokenize(text: ignorePrompt, add_bos: true, add_eos: false).count
         tokens_list = tokenize(text: text, add_bos: true, add_eos: true)
 
         let n_ctx = llama_n_ctx(context)
@@ -125,8 +125,8 @@ class LlamaContext {
         }
         var sum: Float = 0
         // 流石にもう少しマシな方法で計算したいが、一旦
-        // 最初の一トークンはBOSで無駄なので無視して良い
-        for (i, token_id) in tokens_list.indexed().dropFirst() {
+        // 最初のプロンプト部分は無視する
+        for (i, token_id) in tokens_list.indexed().dropFirst(tokenizedPromptCount) {
             var log_prob: Float = 0
             for index in ((i - 1) * Int(n_vocab)) ..< (i * Int(n_vocab)) {
                 log_prob += exp(logits[index])

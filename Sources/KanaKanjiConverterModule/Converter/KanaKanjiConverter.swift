@@ -458,15 +458,22 @@ import SwiftUtils
         let whole_sentence_unique_candidates = self.getUniqueCandidate(sums.map {$0.1})
         if case .完全一致 = options.requestQuery {
             // 完全一致候補のみが要求されている場合、ここで全てのデータを返してreturnする
-            return ConversionResult(mainResults: whole_sentence_unique_candidates.sorted(by: {$0.value > $1.value}), firstClauseResults: [])
+            var n_best = whole_sentence_unique_candidates.min(count: options.N_best, sortedBy: {$0.value > $1.value})
+            if let modelURL = options.gpt2WeightURL, let model = getModel(modelURL: modelURL) {
+                let evaluation: [Float] = model.k2kEvaluate(candidates: n_best)
+                for (candidateIndex, value) in zip(n_best.indices, evaluation) {
+                    n_best[candidateIndex].value = n_best[candidateIndex].value * 0.1 + value * 0.9
+                }
+            }
+            return ConversionResult(mainResults: n_best.sorted(by: {$0.value > $1.value}), firstClauseResults: [])
         }
         // モデル重みを統合
         var sentence_candidates = whole_sentence_unique_candidates.min(count: 10, sortedBy: {$0.value > $1.value})
         if let modelURL = options.gpt2WeightURL, let model = getModel(modelURL: modelURL) {
-            let evaluation: [Float] = model.evaluate(input: sentence_candidates.map{$0.text})
+            let evaluation: [Float] = model.k2kEvaluate(candidates: sentence_candidates)
             for (candidateIndex, value) in zip(sentence_candidates.indices, evaluation) {
                 print(sentence_candidates[candidateIndex].text, "lm eval \(value)", "azooKey eval \(sentence_candidates[candidateIndex].value)")
-                sentence_candidates[candidateIndex].value += value / 3.5
+                sentence_candidates[candidateIndex].value = sentence_candidates[candidateIndex].value * 0.1 + value * 0.9
             }
         }
         // 予測変換を最大3件作成する

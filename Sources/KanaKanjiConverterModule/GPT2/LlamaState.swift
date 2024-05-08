@@ -45,4 +45,18 @@ class LlamaState {
         }
         return result
     }
+
+    func k2kEvaluate(candidates: [Candidate]) -> [Float] {
+        guard let llamaContext else {
+            return []
+        }
+        var result: [Float] = []
+        for candidate in candidates {
+            let ruby = candidate.data.reduce(into: "") { $0.append(contentsOf: $1.ruby) }
+            let prompt = "\u{EE00}\(ruby)\u{EE01}"
+            let score = llamaContext.evaluate(text: "\(prompt)\(candidate.text)", ignorePrompt: prompt)
+            result.append(score)
+        }
+        return result
+    }
 }

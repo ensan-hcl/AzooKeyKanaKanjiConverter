@@ -13,6 +13,8 @@ extension Subcommands {
         var configNBest: Int = 10
         @Flag(name: [.customLong("stable")], help: "Report only stable properties; timestamps and values will not be reported.")
         var stable: Bool = false
+        @Option(name: [.customLong("gpt2")], help: "ggml format model weight for gpt2.")
+        var gpt2ModelWeightPath: String = ""
 
         static var configuration = CommandConfiguration(commandName: "evaluate", abstract: "Evaluate quality of Conversion for input data.")
 
@@ -92,6 +94,7 @@ extension Subcommands {
                 shouldResetMemory: false,
                 memoryDirectoryURL: URL(fileURLWithPath: ""),
                 sharedContainerURL: URL(fileURLWithPath: ""),
+                gpt2WeightURL: self.gpt2ModelWeightPath.isEmpty ? nil : URL(string: self.gpt2ModelWeightPath),
                 metadata: .init(versionString: "anco for debugging")
             )
             option.requestQuery = .完全一致
