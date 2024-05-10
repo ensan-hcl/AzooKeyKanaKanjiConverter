@@ -62,6 +62,68 @@ import SwiftUtils
         }
     }
 
+
+    package func _gpt2_candidate_evaluate(input: String, candidate: String, modelURL: URL) {
+        if let gpt2Model = self.getModel(modelURL: modelURL) {
+            let res = gpt2Model.candidateEvaluate(
+                candidates: [Candidate(
+                    text: candidate,
+                    value: 0.0,
+                    correspondingCount: 0,
+                    lastMid: 0,
+                    data: [DicdataElement(word: candidate, ruby: input.toKatakana(), cid: 0, mid: 0, value: 0)]
+                )]
+            )
+            print(res)
+        } else {
+            fatalError("failed to load model")
+        }
+    }
+
+    package func _gpt2_candidate_run(input: String, modelURL: URL, options: ConvertRequestOptions) -> [Candidate] {
+        print("start conversion")
+        guard let gpt2Model = self.getModel(modelURL: modelURL) else {
+            print("failed to load")
+            return []
+        }
+        // DicdataStoreにRequestOptionを通知する
+        self.sendToDicdataStore(.setRequestOptions(options))
+        var composingText = ComposingText()
+        composingText.insertAtCursorPosition(input, inputStyle: .direct)
+        var constraint = ""
+        var results: [Candidate] = []
+    eval: while true {
+            let draftResult = self.converter.kana2lattice_all_with_prefix_constraint(composingText, N_best: 1, constraint: constraint)
+            let clauseResult = draftResult.result.getCandidateData()
+            if clauseResult.isEmpty {
+                return results
+            }
+            let sums: [Candidate] = clauseResult.map {converter.processClauseCandidate($0)}
+            if sums.isEmpty {
+                print("sums is empty")
+                return results
+            }
+            results.insert(sums[0], at: 0)
+            let reviewResult = gpt2Model.candidateEvaluate(candidates: sums)
+            switch reviewResult {
+            case .error:
+                print("error")
+                return results
+            case .pass(let score):
+                print("passed:", score)
+                break eval
+            case .fixRequired(let prefixConstraint):
+                if constraint == prefixConstraint {
+                    print("same constraint")
+                    return results
+                }
+                print("update constraint:", prefixConstraint)
+                constraint = prefixConstraint
+            }
+        }
+        return results
+    }
+
     /// 入力する言語が分かったらこの関数をなるべく早い段階で呼ぶことで、SpellCheckerの初期化が行われ、変換がスムーズになる
     public func setKeyboardLanguage(_ language: KeyboardLanguage) {
         if !checkerInitialized[language, default: false] {
@@ -462,6 +524,7 @@ import SwiftUtils
             if let modelURL = options.gpt2WeightURL, let model = getModel(modelURL: modelURL) {
                 let evaluation: [Float] = model.k2kEvaluate(candidates: n_best)
                 for (candidateIndex, value) in zip(n_best.indices, evaluation) {
+                    print(n_best[candidateIndex].text, "lm eval \(value)", "azooKey eval \(n_best[candidateIndex].value)")
                     n_best[candidateIndex].value = n_best[candidateIndex].value * 0.1 + value * 0.9
                 }
             }

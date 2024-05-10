@@ -5,7 +5,7 @@ import ArgumentParser
 public struct Anco: AsyncParsableCommand {
     public static var configuration = CommandConfiguration(
         abstract: "Anco is A(zooKey) Kana-Ka(n)ji (co)nverter",
-        subcommands: [Subcommands.Run.self, Subcommands.Dict.self, Subcommands.Evaluate.self, Subcommands.ExperimentalEvaluate.self],
+        subcommands: [Subcommands.Run.self, Subcommands.Dict.self, Subcommands.Evaluate.self, Subcommands.ExperimentalEvaluate.self, Subcommands.ExperimentalReview.self, Subcommands.ExperimentalRun.self],
         defaultSubcommand: Subcommands.Run.self
     )
 

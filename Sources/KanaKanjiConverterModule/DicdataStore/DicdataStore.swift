@@ -205,7 +205,7 @@ public final class DicdataStore {
     ///   - inputData: 入力データ
     ///   - from: 起点
     ///   - toIndexRange: `from ..< (toIndexRange)`の範囲で辞書ルックアップを行う。
-    public func getLOUDSDataInRange(inputData: ComposingText, from fromIndex: Int, toIndexRange: Range<Int>? = nil) -> [LatticeNode] {
+    public func getLOUDSDataInRange(inputData: ComposingText, from fromIndex: Int, toIndexRange: Range<Int>? = nil, frozen: Bool = false) -> [LatticeNode] {
         let toIndexLeft = toIndexRange?.startIndex ?? fromIndex
         let toIndexRight = min(toIndexRange?.endIndex ?? inputData.input.count, fromIndex + self.maxlength)
         debug("getLOUDSDataInRange", fromIndex, toIndexRange?.description ?? "nil", toIndexLeft, toIndexRight)
@@ -218,7 +218,16 @@ public final class DicdataStore {
             segments.append((segments.last ?? "") + String(inputData.input[rightIndex].character.toKatakana()))
         }
         // MARK: 誤り訂正の対象を列挙する。非常に重い処理。
-        var stringToInfo = inputData.getRangesWithTypos(fromIndex, rightIndexRange: toIndexLeft ..< toIndexRight)
+        var stringToInfo: [[Character]: (endIndex: Int, penalty: PValue)]
+        if frozen {
+            let _stringToInfo = (toIndexLeft ..< toIndexRight).map { endIndex in
+                let input = inputData.input[fromIndex ... endIndex]
+                return (input.map {$0.character}, (endIndex, PValue.zero))
+            }
+            stringToInfo = Dictionary(_stringToInfo, uniquingKeysWith: {$0.penalty < $1.penalty ? $1 : $0})
+        } else {
+            stringToInfo = inputData.getRangesWithTypos(fromIndex, rightIndexRange: toIndexLeft ..< toIndexRight)
+        }
 
         // MARK: 検索対象を列挙していく。
         let stringSet = stringToInfo.keys.map {($0, $0.map(self.character2charId))}

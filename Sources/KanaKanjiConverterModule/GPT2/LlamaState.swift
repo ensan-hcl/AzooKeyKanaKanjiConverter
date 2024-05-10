@@ -57,6 +57,22 @@ class LlamaState {
             let score = llamaContext.evaluate(text: "\(prompt)\(candidate.text)", ignorePrompt: prompt)
             result.append(score)
         }
+        try? llamaContext.reset_context()
         return result
+    }
+
+    func candidateEvaluate(candidates: [Candidate]) -> LlamaContext.CandidateEvaluationResult {
+        guard let llamaContext else {
+            return .error
+        }
+        defer {
+            try? llamaContext.reset_context()
+        }
+        for candidate in candidates {
+            let ruby = candidate.data.reduce(into: "") { $0.append(contentsOf: $1.ruby) }
+            let result = llamaContext.evaluate_candidate(input: ruby, candidate: candidate.text)
+            return result
+        }
+        return .error
     }
 }

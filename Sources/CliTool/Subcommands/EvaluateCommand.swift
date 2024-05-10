@@ -13,12 +13,14 @@ extension Subcommands {
         var configNBest: Int = 10
         @Flag(name: [.customLong("stable")], help: "Report only stable properties; timestamps and values will not be reported.")
         var stable: Bool = false
+        @Flag(name: [.customLong("zenzai")], help: "Use zenzai method for evaluation.")
+        var zenzai: Bool = false
         @Option(name: [.customLong("gpt2")], help: "ggml format model weight for gpt2.")
         var gpt2ModelWeightPath: String = ""
 
         static var configuration = CommandConfiguration(commandName: "evaluate", abstract: "Evaluate quality of Conversion for input data.")
 
-        func parseInputFile() throws -> [InputItem] {
+        private func parseInputFile() throws -> [InputItem] {
             let url = URL(fileURLWithPath: self.inputFile)
             let lines = (try String(contentsOf: url)).split(separator: "\n", omittingEmptySubsequences: false)
             return lines.enumerated().compactMap { (index, line) -> InputItem? in
@@ -35,26 +37,56 @@ extension Subcommands {
 
         @MainActor mutating func run() throws {
             let inputItems = try parseInputFile()
+            var requestOptions = requestOptions()
+            if self.zenzai {
+                guard !self.gpt2ModelWeightPath.isEmpty else {
+                    fatalError("gpt2ModelWeightPath must not be empty")
+                }
+                guard let modelURL = URL(string: self.gpt2ModelWeightPath) else {
+                    fatalError("invalid url")
+                }
+                assert(URL(string: self.gpt2ModelWeightPath) != nil, "invalid url")
+                // override
+                self.configNBest = 1
+                requestOptions.N_best = 1
+            }
 
             let converter = KanaKanjiConverter()
             let start = Date()
             var resultItems: [EvaluateItem] = []
             for item in inputItems {
-                var composingText = ComposingText()
-                composingText.insertAtCursorPosition(item.query, inputStyle: .direct)
-                let result = converter.requestCandidates(composingText, options: requestOptions())
-                let mainResults = result.mainResults.filter {
-                    $0.data.reduce(into: "", {$0.append(contentsOf: $1.ruby)}) == item.query.toKatakana()
-                }
-                resultItems.append(
-                    EvaluateItem(
-                        query: item.query,
-                        answers: item.answers,
-                        outputs: mainResults.prefix(self.configNBest).map {
-                            EvaluateItemOutput(text: $0.text, score: Double($0.value))
-                        }
+                if self.zenzai {
+                    let result = converter._gpt2_candidate_run(input: item.query.toKatakana(), modelURL: URL(string: self.gpt2ModelWeightPath)!, options: requestOptions)
+                    let mainResults = result.filter {
+                        $0.data.reduce(into: "", {$0.append(contentsOf: $1.ruby)}) == item.query.toKatakana()
+                    }
+                    resultItems.append(
+                        EvaluateItem(
+                            query: item.query,
+                            answers: item.answers,
+                            outputs: mainResults.prefix(self.configNBest).map {
+                                EvaluateItemOutput(text: $0.text, score: Double($0.value))
+                            }
+                        )
                     )
-                )
+                } else {
+                    var composingText = ComposingText()
+                    composingText.insertAtCursorPosition(item.query, inputStyle: .direct)
+
+                    let result = converter.requestCandidates(composingText, options: requestOptions)
+                    let mainResults = result.mainResults.filter {
+                        $0.data.reduce(into: "", {$0.append(contentsOf: $1.ruby)}) == item.query.toKatakana()
+                    }
+                    resultItems.append(
+                        EvaluateItem(
+                            query: item.query,
+                            answers: item.answers,
+                            outputs: mainResults.prefix(self.configNBest).map {
+                                EvaluateItemOutput(text: $0.text, score: Double($0.value))
+                            }
+                        )
+                    )
+                }
             }
             let end = Date()
             var result = EvaluateResult(n_best: self.configNBest, execution_time: end.timeIntervalSince(start), items: resultItems)
@@ -104,7 +136,7 @@ extension Subcommands {
         }
     }
 
-    struct InputItem {
+    private struct InputItem {
         /// 入力クエリ
         var query: String
 

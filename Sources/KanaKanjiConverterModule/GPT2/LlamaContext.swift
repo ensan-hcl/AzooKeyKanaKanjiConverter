@@ -23,18 +23,12 @@ enum LlamaError: LocalizedError {
 class LlamaContext {
     private var model: OpaquePointer
     private var context: OpaquePointer
-    private var batch: llama_batch
-    private var tokens_list: [llama_token]
 
-    var n_len: Int32 = 2048
-    var n_cur: Int32 = 0
-    var n_decode: Int32 = 0
+    let n_len: Int32 = 512
 
     init(model: OpaquePointer, context: OpaquePointer) {
         self.model = model
         self.context = context
-        self.tokens_list = []
-        self.batch = llama_batch_init(2048, 0, 1)
     }
 
     deinit {
@@ -86,47 +80,37 @@ class LlamaContext {
         self.context = context
     }
 
-    func evaluate(text: String, ignorePrompt: String = "") -> Float {
-        debug("attempting to complete \"\(text)\"")
-        let tokenizedPromptCount = ignorePrompt.isEmpty ? 1 : tokenize(text: ignorePrompt, add_bos: true, add_eos: false).count
-        tokens_list = tokenize(text: text, add_bos: true, add_eos: true)
-
+    func get_logits(tokens: [llama_token], logits_start_index: Int = 0) -> UnsafeMutablePointer<Float>? {
+        var batch = llama_batch_init(512, 0, 1)
         let n_ctx = llama_n_ctx(context)
-        let n_kv_req = tokens_list.count + (Int(n_len) - tokens_list.count)
-
-        debug("n_len = \(n_len), n_ctx = \(n_ctx), n_kv_req = \(n_kv_req)")
-
+        let n_kv_req = tokens.count + (Int(n_len) - tokens.count)
         if n_kv_req > n_ctx {
             debug("error: n_kv_req > n_ctx, the required KV cache size is not big enough")
         }
-
-        for id in tokens_list {
-            debug(String(cString: token_to_piece(token: id) + [0]))
-        }
-
-        llama_batch_clear(&batch)
-        for i1 in 0..<tokens_list.count {
-            let i = Int(i1)
-            llama_batch_add(&batch, tokens_list[i], Int32(i), [0], false)
-        }
-        let n_vocab = llama_n_vocab(model)
-
-        for i in 0 ..< batch.n_tokens {
-            batch.logits[Int(i)] = 1 // true
+        for i in tokens.indices {
+            llama_batch_add(&batch, tokens[i], Int32(i), [0], logits: logits_start_index <= i)
         }
         // 評価
         if llama_decode(context, batch) != 0 {
             debug("llama_decode() failed")
+            return nil
         }
+        return llama_get_logits(context)
+    }
 
-        guard let logits = llama_get_logits(context) else {
+    func evaluate(text: String, ignorePrompt: String = "") -> Float {
+        let tokens_list = self.tokenize(text: text, add_bos: true, add_eos: true)
+        guard let logits = self.get_logits(tokens: tokens_list) else {
             debug("logits unavailable")
             return .nan
         }
+        let tokenizedPromptCount = ignorePrompt.isEmpty ? 1 : tokenize(text: ignorePrompt, add_bos: true, add_eos: false).count
+        let n_vocab = llama_n_vocab(model)
+
         var sum: Float = 0
-        // 流石にもう少しマシな方法で計算したいが、一旦
         // 最初のプロンプト部分は無視する
         for (i, token_id) in tokens_list.indexed().dropFirst(tokenizedPromptCount) {
+            // FIXME: there can be more efficient implementations, poossibly using Accelerate or other frameworks.
             var log_prob: Float = 0
             for index in ((i - 1) * Int(n_vocab)) ..< (i * Int(n_vocab)) {
                 log_prob += exp(logits[index])
@@ -138,16 +122,64 @@ class LlamaContext {
         return sum
     }
 
-    func clear() {
-        self.tokens_list.removeAll()
-        try? self.reset_context()
+    enum CandidateEvaluationResult: Sendable, Equatable, Hashable {
+        case error
+        case pass(score: Float)
+        case fixRequired(prefixConstraint: String)
     }
 
-    func llama_batch_clear(_ batch: inout llama_batch) {
-        batch.n_tokens = 0
+    func evaluate_candidate(input: String, candidate: String) -> CandidateEvaluationResult {
+        let prompt = "\u{EE00}\(input)\u{EE01}"
+        // We assume \u{EE01}\(candidate) is always splitted into \u{EE01}/\(candidate)
+        // Therefore, tokens = prompt_tokens + candidate_tokens is an appropriate operation.
+        let candidate_chars = Array(candidate.unicodeScalars)
+        let prompt_tokens = self.tokenize(text: prompt, add_bos: true, add_eos: false)
+        let candidate_tokens = self.tokenize(text: candidate, add_bos: false, add_eos: false)
+        let tokens = prompt_tokens + candidate_tokens
+        // FIXME: stop calculating unused logits
+        guard let logits = self.get_logits(tokens: tokens, logits_start_index: 0) else {
+            debug("logits unavailable")
+            return .error
+        }
+        let n_vocab = llama_n_vocab(model)
+
+        // 最初のプロンプト部分は無視する
+        var score: Float = 0
+        for (i, token_id) in tokens.indexed().dropFirst(prompt_tokens.count) {
+            // それぞれのトークンが、一つ前の予測において最も確率の高いトークンであるかをチェックする
+            // softmaxはmaxなので、単にlogitsの中で最も大きいものを選べば良い
+            // 一方実用的にはlog_probも得ておきたい。このため、ここでは明示的にsoftmaxも計算している
+            var exp_sum: Float = 0
+            var max_token: llama_token = 0
+            var max_exp: Float = 0
+            let startIndex = (i - 1) * Int(n_vocab)
+            let endIndex = i * Int(n_vocab)
+            for index in startIndex ..< endIndex {
+                let v = exp(logits[index])
+                exp_sum += v
+                if max_exp < v {
+                    max_exp = v
+                    max_token = llama_token(index - startIndex)
+                }
+            }
+            // ここで最も良い候補であったかをチェックする
+            if max_token != token_id {
+                var cchars = tokens[..<i].reduce(into: []) {
+                    $0.append(contentsOf: token_to_piece(token: $1))
+                }
+                // adding "\0"
+                cchars += token_to_piece(token: max_token) + [0]
+                let string = String(cString: cchars)
+                // 要求するべき制約を記述する
+                let prefixConstraint = String(string.dropFirst(prompt.count))
+                return .fixRequired(prefixConstraint: prefixConstraint)
+            }
+            score += log(max_exp) - log(exp_sum)
+        }
+        return .pass(score: score)
     }
 
-    func llama_batch_add(_ batch: inout llama_batch, _ id: llama_token, _ pos: llama_pos, _ seq_ids: [llama_seq_id], _ logits: Bool) {
+    func llama_batch_add(_ batch: inout llama_batch, _ id: llama_token, _ pos: llama_pos, _ seq_ids: [llama_seq_id], logits: Bool) {
         batch.token   [Int(batch.n_tokens)] = id
         batch.pos     [Int(batch.n_tokens)] = pos
         batch.n_seq_id[Int(batch.n_tokens)] = Int32(seq_ids.count)
@@ -155,7 +187,6 @@ class LlamaContext {
             batch.seq_id[Int(batch.n_tokens)]![Int(i)] = seq_ids[i]
         }
         batch.logits  [Int(batch.n_tokens)] = logits ? 1 : 0
-
         batch.n_tokens += 1
     }
 
