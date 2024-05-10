@@ -49,7 +49,10 @@ extension Kana2Kanji {
                 if nextIndex == count {
                     for index in node.prevs.indices {
                         let newnode: RegisteredNode = node.getRegisteredNode(index, value: node.values[index])
-                        result.prevs.append(newnode)
+                        let text = newnode.getCandidateData().data.reduce(into: "") { $0.append(contentsOf: $1.word)} + node.data.word
+                        if text.hasPrefix(constraint) {
+                            result.prevs.append(newnode)
+                        }
                     }
                 } else {
                     let candidates = node.getCandidateData().map {
