@@ -28,6 +28,7 @@ import SwiftUtils
     /// Zenzaiのためのzenz-v1モデル
     private var zenz: Zenz? = nil
     private var zenzaiCache: Kana2Kanji.ZenzaiCache? = nil
+    public private(set) var zenzStatus: String = ""
 
     /// リセットする関数
     public func stopComposition() {
@@ -38,20 +39,18 @@ import SwiftUtils
         self.lastData = nil
     }
 
-    public private(set) var llamaStatus: String = ""
-
     /// LMによるevaluationを反映する
     private func getModel(modelURL: URL) -> Zenz? {
         if let model = self.zenz, model.resourceURL == modelURL {
-            self.llamaStatus = "load \(modelURL.absoluteString)"
+            self.zenzStatus = "load \(modelURL.absoluteString)"
             return model
         } else {
             do {
                 self.zenz = try Zenz(resourceURL: modelURL)
-                self.llamaStatus = "load \(modelURL.absoluteString)"
+                self.zenzStatus = "load \(modelURL.absoluteString)"
                 return self.zenz
             } catch {
-                self.llamaStatus = "load \(modelURL.absoluteString)    " + error.localizedDescription
+                self.zenzStatus = "load \(modelURL.absoluteString)    " + error.localizedDescription
                 return nil
             }
         }
