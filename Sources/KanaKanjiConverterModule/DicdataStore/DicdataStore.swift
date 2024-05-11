@@ -218,17 +218,7 @@ public final class DicdataStore {
             segments.append((segments.last ?? "") + String(inputData.input[rightIndex].character.toKatakana()))
         }
         // MARK: 誤り訂正の対象を列挙する。非常に重い処理。
-        var stringToInfo: [[Character]: (endIndex: Int, penalty: PValue)]
-//        if frozen {
-//            let _stringToInfo = (toIndexLeft ..< toIndexRight).map { endIndex in
-//                let input = inputData.input[fromIndex ... endIndex]
-//                return (input.map {$0.character.toKatakana()}, (endIndex, PValue.zero))
-//            }
-//            stringToInfo = Dictionary(_stringToInfo, uniquingKeysWith: {$0.penalty < $1.penalty ? $1 : $0})
-//        } else {
-            stringToInfo = inputData.getRangesWithTypos(fromIndex, rightIndexRange: toIndexLeft ..< toIndexRight, frozen: frozen)
-//        }
-
+        var stringToInfo = inputData.getRangesWithTypos(fromIndex, rightIndexRange: toIndexLeft ..< toIndexRight, frozen: frozen)
         // MARK: 検索対象を列挙していく。
         let stringSet = stringToInfo.keys.map {($0, $0.map(self.character2charId))}
         let (minCharIDsCount, maxCharIDsCount) = stringSet.lazy.map {$0.1.count}.minAndMax() ?? (0, -1)
