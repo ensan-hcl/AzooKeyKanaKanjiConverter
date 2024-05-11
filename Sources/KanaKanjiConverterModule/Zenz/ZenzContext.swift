@@ -18,7 +18,7 @@ class ZenzContext {
     private var model: OpaquePointer
     private var context: OpaquePointer
 
-    let n_len: Int32 = 512
+    private let n_len: Int32 = 512
 
     init(model: OpaquePointer, context: OpaquePointer) {
         self.model = model
@@ -39,16 +39,14 @@ class ZenzContext {
         ctx_params.n_ctx = 512
         ctx_params.n_threads       = UInt32(n_threads)
         ctx_params.n_threads_batch = UInt32(n_threads)
-        ctx_params.n_batch = 1024
-        // required to evaluate all logits
-        ctx_params.logits_all = true
+        ctx_params.n_batch = 256
         return ctx_params
     }
 
     static func createContext(path: String) throws -> ZenzContext {
         llama_backend_init()
-        let model_params = llama_model_default_params()
-
+        var model_params = llama_model_default_params()
+        model_params.use_mmap = true
         let model = llama_load_model_from_file(path, model_params)
         guard let model else {
             debug("Could not load model at \(path)")
@@ -74,7 +72,7 @@ class ZenzContext {
         self.context = context
     }
 
-    func get_logits(tokens: [llama_token], logits_start_index: Int = 0) -> UnsafeMutablePointer<Float>? {
+    private func get_logits(tokens: [llama_token], logits_start_index: Int = 0) -> UnsafeMutablePointer<Float>? {
         var batch = llama_batch_init(512, 0, 1)
         let n_ctx = llama_n_ctx(context)
         let n_kv_req = tokens.count + (Int(n_len) - tokens.count)
@@ -126,12 +124,12 @@ class ZenzContext {
         let prompt = "\u{EE00}\(input)\u{EE01}"
         // We assume \u{EE01}\(candidate) is always splitted into \u{EE01}/\(candidate)
         // Therefore, tokens = prompt_tokens + candidate_tokens is an appropriate operation.
-        let candidate_chars = Array(candidate.unicodeScalars)
         let prompt_tokens = self.tokenize(text: prompt, add_bos: true, add_eos: false)
         let candidate_tokens = self.tokenize(text: candidate, add_bos: false, add_eos: false)
         let tokens = prompt_tokens + candidate_tokens
         // FIXME: stop calculating unused logits
-        guard let logits = self.get_logits(tokens: tokens, logits_start_index: 0) else {
+        let startOffset = prompt_tokens.count - 1
+        guard let logits = self.get_logits(tokens: tokens, logits_start_index: startOffset) else {
             debug("logits unavailable")
             return .error
         }
@@ -145,9 +143,9 @@ class ZenzContext {
             // 一方実用的にはlog_probも得ておきたい。このため、ここでは明示的にsoftmaxも計算している
             var exp_sum: Float = 0
             var max_token: llama_token = 0
-            var max_exp: Float = 0
-            let startIndex = (i - 1) * Int(n_vocab)
-            let endIndex = i * Int(n_vocab)
+            var max_exp: Float = .infinity * -1
+            let startIndex = (i - 1 - startOffset) * Int(n_vocab)
+            let endIndex = (i - startOffset) * Int(n_vocab)
             for index in startIndex ..< endIndex {
                 let v = exp(logits[index])
                 exp_sum += v
@@ -173,7 +171,7 @@ class ZenzContext {
         return .pass(score: score)
     }
 
-    func llama_batch_add(_ batch: inout llama_batch, _ id: llama_token, _ pos: llama_pos, _ seq_ids: [llama_seq_id], logits: Bool) {
+    private func llama_batch_add(_ batch: inout llama_batch, _ id: llama_token, _ pos: llama_pos, _ seq_ids: [llama_seq_id], logits: Bool) {
         batch.token   [Int(batch.n_tokens)] = id
         batch.pos     [Int(batch.n_tokens)] = pos
         batch.n_seq_id[Int(batch.n_tokens)] = Int32(seq_ids.count)
