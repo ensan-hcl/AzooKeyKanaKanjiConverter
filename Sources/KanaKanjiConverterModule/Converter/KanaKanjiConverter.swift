@@ -37,6 +37,7 @@ import SwiftUtils
     }
 
     public private(set) var llamaStatus: String = ""
+
     /// LMによるevaluationを反映する
     private func getModel(modelURL: URL) -> Zenz? {
         if let model = self.zenz, model.resourceURL == modelURL {
@@ -53,33 +54,6 @@ import SwiftUtils
             }
         }
     }
-
-    package func _zenz_evaluate(input: consuming [String], modelURL: URL) -> [Float] {
-        if let zenz = self.getModel(modelURL: modelURL) {
-            zenz.evaluate(input: consume input)
-        } else {
-            []
-        }
-    }
-
-
-    package func _zenz_candidate_evaluate(input: String, candidate: String, modelURL: URL) {
-        if let zenz = self.getModel(modelURL: modelURL) {
-            let res = zenz.candidateEvaluate(
-                candidates: [Candidate(
-                    text: candidate,
-                    value: 0.0,
-                    correspondingCount: 0,
-                    lastMid: 0,
-                    data: [DicdataElement(word: candidate, ruby: input.toKatakana(), cid: 0, mid: 0, value: 0)]
-                )]
-            )
-            print(res)
-        } else {
-            fatalError("failed to load model")
-        }
-    }
-
 
     /// 入力する言語が分かったらこの関数をなるべく早い段階で呼ぶことで、SpellCheckerの初期化が行われ、変換がスムーズになる
     public func setKeyboardLanguage(_ language: KeyboardLanguage) {
