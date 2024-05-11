@@ -22,7 +22,7 @@ extension Kana2Kanji {
                     var constraint = ""
                     for item in satisfyingCandidate.data {
                         if current.hasPrefix(item.ruby) {
-                            constraint += item.ruby
+                            constraint += item.word
                             current = current.dropFirst(item.ruby.count)
                         }
                     }
