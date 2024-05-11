@@ -26,7 +26,7 @@ import SwiftUtils
     private var completedData: Candidate?
     private var lastData: DicdataElement?
     /// GPT-2統合
-    private var gpt2Model: LlamaState? = nil
+    private var zenz: Zenz? = nil
 
     /// リセットする関数
     public func stopComposition() {
@@ -38,15 +38,15 @@ import SwiftUtils
 
     public private(set) var llamaStatus: String = ""
     // LMによるevaluationを反映する
-    func getModel(modelURL: URL) -> LlamaState? {
-        if let model = self.gpt2Model, model.resourceURL == modelURL {
+    func getModel(modelURL: URL) -> Zenz? {
+        if let model = self.zenz, model.resourceURL == modelURL {
             self.llamaStatus = "load \(modelURL.absoluteString)"
             return model
         } else {
             do {
-                self.gpt2Model = try LlamaState(resourceURL: modelURL)
+                self.zenz = try Zenz(resourceURL: modelURL)
                 self.llamaStatus = "load \(modelURL.absoluteString)"
-                return self.gpt2Model
+                return self.zenz
             } catch {
                 self.llamaStatus = "load \(modelURL.absoluteString)    " + error.localizedDescription
                 return nil
@@ -54,18 +54,18 @@ import SwiftUtils
         }
     }
 
-    package func _gpt2_evaluate(input: consuming [String], modelURL: URL) -> [Float] {
-        if let gpt2Model = self.getModel(modelURL: modelURL) {
-            gpt2Model.evaluate(input: consume input)
+    package func _zenz_evaluate(input: consuming [String], modelURL: URL) -> [Float] {
+        if let zenz = self.getModel(modelURL: modelURL) {
+            zenz.evaluate(input: consume input)
         } else {
             []
         }
     }
 
 
-    package func _gpt2_candidate_evaluate(input: String, candidate: String, modelURL: URL) {
-        if let gpt2Model = self.getModel(modelURL: modelURL) {
-            let res = gpt2Model.candidateEvaluate(
+    package func _zenz_candidate_evaluate(input: String, candidate: String, modelURL: URL) {
+        if let zenz = self.getModel(modelURL: modelURL) {
+            let res = zenz.candidateEvaluate(
                 candidates: [Candidate(
                     text: candidate,
                     value: 0.0,
@@ -80,9 +80,9 @@ import SwiftUtils
         }
     }
 
-    package func _gpt2_candidate_run(input: String, modelURL: URL, options: ConvertRequestOptions) -> [Candidate] {
+    package func _zenz_candidate_run(input: String, modelURL: URL, options: ConvertRequestOptions) -> [Candidate] {
         print("start conversion")
-        guard let gpt2Model = self.getModel(modelURL: modelURL) else {
+        guard let zenz = self.getModel(modelURL: modelURL) else {
             print("failed to load")
             return []
         }
@@ -104,7 +104,7 @@ import SwiftUtils
                 return results
             }
             results.insert(sums[0], at: 0)
-            let reviewResult = gpt2Model.candidateEvaluate(candidates: sums)
+            let reviewResult = zenz.candidateEvaluate(candidates: sums)
             switch reviewResult {
             case .error:
                 print("error")
@@ -521,7 +521,7 @@ import SwiftUtils
         if case .完全一致 = options.requestQuery {
             // 完全一致候補のみが要求されている場合、ここで全てのデータを返してreturnする
             var n_best = whole_sentence_unique_candidates.min(count: options.N_best, sortedBy: {$0.value > $1.value})
-            if let modelURL = options.gpt2WeightURL, let model = getModel(modelURL: modelURL) {
+            if let modelURL = options.zenzWeightURL, let model = getModel(modelURL: modelURL) {
                 let evaluation: [Float] = model.k2kEvaluate(candidates: n_best)
                 for (candidateIndex, value) in zip(n_best.indices, evaluation) {
                     print(n_best[candidateIndex].text, "lm eval \(value)", "azooKey eval \(n_best[candidateIndex].value)")
@@ -532,7 +532,7 @@ import SwiftUtils
         }
         // モデル重みを統合
         var sentence_candidates = whole_sentence_unique_candidates.min(count: 10, sortedBy: {$0.value > $1.value})
-        if let modelURL = options.gpt2WeightURL, let model = getModel(modelURL: modelURL) {
+        if let modelURL = options.zenzWeightURL, let model = getModel(modelURL: modelURL) {
             let evaluation: [Float] = model.k2kEvaluate(candidates: sentence_candidates)
             for (candidateIndex, value) in zip(sentence_candidates.indices, evaluation) {
                 print(sentence_candidates[candidateIndex].text, "lm eval \(value)", "azooKey eval \(sentence_candidates[candidateIndex].value)")

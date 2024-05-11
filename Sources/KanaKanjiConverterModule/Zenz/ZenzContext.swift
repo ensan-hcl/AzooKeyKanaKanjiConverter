@@ -1,14 +1,8 @@
-//
-//  LlamaContext.swift
-//  SwiftLlamaApp
-//
-//  Created by miwa on 2023/12/16.
-//
 import llama
 import SwiftUtils
 import Foundation
 
-enum LlamaError: LocalizedError {
+enum ZenzError: LocalizedError {
     case couldNotLoadModel(path: String)
     case couldNotLoadContext
 
@@ -20,7 +14,7 @@ enum LlamaError: LocalizedError {
     }
 }
 
-class LlamaContext {
+class ZenzContext {
     private var model: OpaquePointer
     private var context: OpaquePointer
 
@@ -51,23 +45,23 @@ class LlamaContext {
         return ctx_params
     }
 
-    static func createContext(path: String) throws -> LlamaContext {
+    static func createContext(path: String) throws -> ZenzContext {
         llama_backend_init()
         let model_params = llama_model_default_params()
 
         let model = llama_load_model_from_file(path, model_params)
         guard let model else {
             debug("Could not load model at \(path)")
-            throw LlamaError.couldNotLoadModel(path: path)
+            throw ZenzError.couldNotLoadModel(path: path)
         }
 
         let context = llama_new_context_with_model(model, ctx_params)
         guard let context else {
             debug("Could not load context!")
-            throw LlamaError.couldNotLoadContext
+            throw ZenzError.couldNotLoadContext
         }
 
-        return LlamaContext(model: model, context: context)
+        return ZenzContext(model: model, context: context)
     }
 
     func reset_context() throws {
@@ -75,7 +69,7 @@ class LlamaContext {
         let context = llama_new_context_with_model(self.model, Self.ctx_params)
         guard let context else {
             debug("Could not load context!")
-            throw LlamaError.couldNotLoadContext
+            throw ZenzError.couldNotLoadContext
         }
         self.context = context
     }

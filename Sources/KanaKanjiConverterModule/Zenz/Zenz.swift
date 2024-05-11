@@ -11,13 +11,13 @@ import SwiftUtils
 import class UIKit.UIDevice
 #endif
 @MainActor
-class LlamaState {
+class Zenz {
     package var resourceURL: URL
-    private var llamaContext: LlamaContext?
+    private var llamaContext: ZenzContext?
     init(resourceURL: URL) throws {
         self.resourceURL = resourceURL
         do {
-            self.llamaContext = try LlamaContext.createContext(path: resourceURL.path(percentEncoded: false))
+            self.llamaContext = try ZenzContext.createContext(path: resourceURL.path(percentEncoded: false))
             debug("Loaded model \(resourceURL.lastPathComponent)")
         } catch {
             throw error
@@ -61,7 +61,7 @@ class LlamaState {
         return result
     }
 
-    func candidateEvaluate(candidates: [Candidate]) -> LlamaContext.CandidateEvaluationResult {
+    func candidateEvaluate(candidates: [Candidate]) -> ZenzContext.CandidateEvaluationResult {
         guard let llamaContext else {
             return .error
         }

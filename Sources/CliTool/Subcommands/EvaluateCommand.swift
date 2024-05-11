@@ -15,8 +15,8 @@ extension Subcommands {
         var stable: Bool = false
         @Flag(name: [.customLong("zenzai")], help: "Use zenzai method for evaluation.")
         var zenzai: Bool = false
-        @Option(name: [.customLong("gpt2")], help: "ggml format model weight for gpt2.")
-        var gpt2ModelWeightPath: String = ""
+        @Option(name: [.customLong("zenz")], help: "gguf format model weight for zenz.")
+        var zenzWeightPath: String = ""
 
         static var configuration = CommandConfiguration(commandName: "evaluate", abstract: "Evaluate quality of Conversion for input data.")
 
@@ -39,13 +39,13 @@ extension Subcommands {
             let inputItems = try parseInputFile()
             var requestOptions = requestOptions()
             if self.zenzai {
-                guard !self.gpt2ModelWeightPath.isEmpty else {
-                    fatalError("gpt2ModelWeightPath must not be empty")
+                guard !self.zenzWeightPath.isEmpty else {
+                    fatalError("zenzWeightPath must not be empty")
                 }
-                guard let modelURL = URL(string: self.gpt2ModelWeightPath) else {
+                guard let modelURL = URL(string: self.zenzWeightPath) else {
                     fatalError("invalid url")
                 }
-                assert(URL(string: self.gpt2ModelWeightPath) != nil, "invalid url")
+                assert(URL(string: self.zenzWeightPath) != nil, "invalid url")
                 // override
                 self.configNBest = 1
                 requestOptions.N_best = 1
@@ -56,7 +56,7 @@ extension Subcommands {
             var resultItems: [EvaluateItem] = []
             for item in inputItems {
                 if self.zenzai {
-                    let result = converter._gpt2_candidate_run(input: item.query.toKatakana(), modelURL: URL(string: self.gpt2ModelWeightPath)!, options: requestOptions)
+                    let result = converter._zenz_candidate_run(input: item.query.toKatakana(), modelURL: URL(string: self.zenzWeightPath)!, options: requestOptions)
                     let mainResults = result.filter {
                         $0.data.reduce(into: "", {$0.append(contentsOf: $1.ruby)}) == item.query.toKatakana()
                     }
@@ -128,7 +128,7 @@ extension Subcommands {
                 shouldResetMemory: false,
                 memoryDirectoryURL: URL(fileURLWithPath: ""),
                 sharedContainerURL: URL(fileURLWithPath: ""),
-                gpt2WeightURL: self.gpt2ModelWeightPath.isEmpty ? nil : URL(string: self.gpt2ModelWeightPath),
+                zenzWeightURL: self.zenzWeightPath.isEmpty ? nil : URL(string: self.zenzWeightPath),
                 metadata: .init(versionString: "anco for debugging")
             )
             option.requestQuery = .完全一致
