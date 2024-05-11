@@ -40,22 +40,31 @@ extension Kana2Kanji {
         let eosNode = LatticeNode.EOSNode
         var nodes: Kana2Kanji.Nodes = []
         while true {
-            let draftResult = self.kana2lattice_all_with_prefix_constraint(inputData, N_best: 1, constraint: constraint)
+            // 実験の結果、ここは2-bestを取ると平均的な速度が最良になることがわかったので、そうしている。
+            let draftResult = self.kana2lattice_all_with_prefix_constraint(inputData, N_best: 2, constraint: constraint)
             if nodes.isEmpty {
                 // 初回のみ
                 nodes = draftResult.nodes
             }
             let clauseResult = draftResult.result.getCandidateData()
-            let sums: [Candidate] = clauseResult.map {self.processClauseCandidate($0)}
-            if sums.isEmpty {
-                print("sums was empty!")
+            var best: (Int, Candidate)? = nil
+            for (i, cand) in clauseResult.enumerated() {
+                let newCandidate = self.processClauseCandidate(cand)
+                if let (_, c) = best, newCandidate.value > c.value {
+                    best = (i, self.processClauseCandidate(cand))
+                } else if best == nil {
+                    best = (i, self.processClauseCandidate(cand))
+                }
+            }
+            guard let (index, candidate) = best else {
+                print("best was not found!")
                 // Emptyの場合
                 // 制約が満たせない場合は無視する
                 return (eosNode, nodes, ZenzaiCache(inputData, constraint: "", satisfyingCandidate: nil))
             }
             // resultsを更新
-            eosNode.prevs.insert(draftResult.result.prevs[0], at: 0)
-            let reviewResult = zenz.candidateEvaluate(convertTarget: inputData.convertTarget, candidates: sums)
+            eosNode.prevs.insert(draftResult.result.prevs[index], at: 0)
+            let reviewResult = zenz.candidateEvaluate(convertTarget: inputData.convertTarget, candidates: [candidate])
             switch reviewResult {
             case .error:
                 // 何らかのエラーが発生
@@ -64,7 +73,7 @@ extension Kana2Kanji {
             case .pass(let score):
                 // 合格
                 print("passed:", score)
-                return (eosNode, nodes, ZenzaiCache(inputData, constraint: constraint, satisfyingCandidate: sums[0]))
+                return (eosNode, nodes, ZenzaiCache(inputData, constraint: constraint, satisfyingCandidate: candidate))
             case .fixRequired(let prefixConstraint):
                 // 同じ制約が2回連続で出てきたら諦める
                 if constraint == prefixConstraint {
