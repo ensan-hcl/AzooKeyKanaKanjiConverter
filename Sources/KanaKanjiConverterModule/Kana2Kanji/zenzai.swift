@@ -69,7 +69,7 @@ extension Kana2Kanji {
                 // 同じ制約が2回連続で出てきたら諦める
                 if constraint == prefixConstraint {
                     print("same constraint:", prefixConstraint)
-                    return (eosNode, nodes, ZenzaiCache(inputData, constraint: constraint, satisfyingCandidate: nil))
+                    return (eosNode, nodes, ZenzaiCache(inputData, constraint: "", satisfyingCandidate: nil))
                 }
                 // 制約が得られたので、更新する
                 print("update constraint:", prefixConstraint)
