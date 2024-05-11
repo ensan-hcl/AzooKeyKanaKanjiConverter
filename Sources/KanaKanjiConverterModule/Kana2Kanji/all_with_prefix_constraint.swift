@@ -20,7 +20,6 @@ extension Kana2Kanji {
     /// (4)ノードをアップデートした上で返却する。
     func kana2lattice_all_with_prefix_constraint(_ inputData: ComposingText, N_best: Int, constraint: String) -> (result: LatticeNode, nodes: Nodes) {
         debug("新規に計算を行います。inputされた文字列は\(inputData.input.count)文字分の\(inputData.convertTarget)。制約は\(constraint)")
-        let constraintCharacters = Array(constraint)
         let count: Int = inputData.input.count
         let result: LatticeNode = LatticeNode.EOSNode
         let nodes: [[LatticeNode]] = (.zero ..< count).map {dicdataStore.getLOUDSDataInRange(inputData: inputData, from: $0, frozen: true)}

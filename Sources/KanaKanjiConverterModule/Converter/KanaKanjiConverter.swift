@@ -37,8 +37,8 @@ import SwiftUtils
     }
 
     public private(set) var llamaStatus: String = ""
-    // LMによるevaluationを反映する
-    func getModel(modelURL: URL) -> Zenz? {
+    /// LMによるevaluationを反映する
+    private func getModel(modelURL: URL) -> Zenz? {
         if let model = self.zenz, model.resourceURL == modelURL {
             self.llamaStatus = "load \(modelURL.absoluteString)"
             return model
@@ -80,49 +80,6 @@ import SwiftUtils
         }
     }
 
-    package func _zenz_candidate_run(input: String, modelURL: URL, options: ConvertRequestOptions) -> [Candidate] {
-        print("start conversion")
-        guard let zenz = self.getModel(modelURL: modelURL) else {
-            print("failed to load")
-            return []
-        }
-        // DicdataStoreにRequestOptionを通知する
-        self.sendToDicdataStore(.setRequestOptions(options))
-        var composingText = ComposingText()
-        composingText.insertAtCursorPosition(input, inputStyle: .direct)
-        var constraint = ""
-        var results: [Candidate] = []
-    eval: while true {
-            let draftResult = self.converter.kana2lattice_all_with_prefix_constraint(composingText, N_best: 1, constraint: constraint)
-            let clauseResult = draftResult.result.getCandidateData()
-            if clauseResult.isEmpty {
-                return results
-            }
-            let sums: [Candidate] = clauseResult.map {converter.processClauseCandidate($0)}
-            if sums.isEmpty {
-                print("sums is empty")
-                return results
-            }
-            results.insert(sums[0], at: 0)
-            let reviewResult = zenz.candidateEvaluate(candidates: sums)
-            switch reviewResult {
-            case .error:
-                print("error")
-                return results
-            case .pass(let score):
-                print("passed:", score)
-                break eval
-            case .fixRequired(let prefixConstraint):
-                if constraint == prefixConstraint {
-                    print("same constraint")
-                    return results
-                }
-                print("update constraint:", prefixConstraint)
-                constraint = prefixConstraint
-            }
-        }
-        return results
-    }
 
     /// 入力する言語が分かったらこの関数をなるべく早い段階で呼ぶことで、SpellCheckerの初期化が行われ、変換がスムーズになる
     public func setKeyboardLanguage(_ language: KeyboardLanguage) {
@@ -519,25 +476,26 @@ import SwiftUtils
         // 文章全体を変換した場合の候補上位5件を作る
         let whole_sentence_unique_candidates = self.getUniqueCandidate(sums.map {$0.1})
         if case .完全一致 = options.requestQuery {
-            // 完全一致候補のみが要求されている場合、ここで全てのデータを返してreturnする
-            var n_best = whole_sentence_unique_candidates.min(count: options.N_best, sortedBy: {$0.value > $1.value})
-            if let modelURL = options.zenzWeightURL, let model = getModel(modelURL: modelURL) {
-                let evaluation: [Float] = model.k2kEvaluate(candidates: n_best)
-                for (candidateIndex, value) in zip(n_best.indices, evaluation) {
-                    print(n_best[candidateIndex].text, "lm eval \(value)", "azooKey eval \(n_best[candidateIndex].value)")
-                    n_best[candidateIndex].value = n_best[candidateIndex].value * 0.1 + value * 0.9
-                }
+            if options.zenzaiMode.enabled {
+                return ConversionResult(mainResults: whole_sentence_unique_candidates, firstClauseResults: [])
+            } else {
+                return ConversionResult(mainResults: whole_sentence_unique_candidates.sorted(by: {$0.value > $1.value}), firstClauseResults: [])
             }
-            return ConversionResult(mainResults: n_best.sorted(by: {$0.value > $1.value}), firstClauseResults: [])
         }
         // モデル重みを統合
-        var sentence_candidates = whole_sentence_unique_candidates.min(count: 10, sortedBy: {$0.value > $1.value})
-        if let modelURL = options.zenzWeightURL, let model = getModel(modelURL: modelURL) {
-            let evaluation: [Float] = model.k2kEvaluate(candidates: sentence_candidates)
-            for (candidateIndex, value) in zip(sentence_candidates.indices, evaluation) {
-                print(sentence_candidates[candidateIndex].text, "lm eval \(value)", "azooKey eval \(sentence_candidates[candidateIndex].value)")
-                sentence_candidates[candidateIndex].value = sentence_candidates[candidateIndex].value * 0.1 + value * 0.9
+        let sentence_candidates: [Candidate]
+        if options.zenzaiMode.enabled {
+            // FIXME: もう少し良い方法はありそうだけど、短期的にかなりハックな実装にした
+            // candidateのvalueをZenzaiの出力順に書き換えることで、このあとのrerank処理で騙されてくれるようになっている
+            // より根本的には、`Candidate`にAI評価値をもたせるなどの方法が必要そう
+            var first5 = Array(whole_sentence_unique_candidates.prefix(5))
+            var values = first5.map(\.value).sorted(by: >)
+            for (i, v) in zip(first5.indices, values) {
+                first5[i].value = v
             }
+            sentence_candidates = first5
+        } else {
+            sentence_candidates = whole_sentence_unique_candidates.min(count: 5, sortedBy: {$0.value > $1.value})
         }
         // 予測変換を最大3件作成する
         let prediction_candidates: [Candidate] = options.requireJapanesePrediction ? Array(self.getUniqueCandidate(self.getPredictionCandidate(sums, composingText: inputData, options: options)).min(count: 3, sortedBy: {$0.value > $1.value})) : []
@@ -628,9 +586,16 @@ import SwiftUtils
     ///   - N_best: 計算途中で保存する候補数。実際に得られる候補数とは異なる。
     /// - Returns:
     ///   結果のラティスノードと、計算済みノードの全体
-    private func convertToLattice(_ inputData: ComposingText, N_best: Int) -> (result: LatticeNode, nodes: [[LatticeNode]])? {
+    private func convertToLattice(_ inputData: ComposingText, N_best: Int, zenzaiMode: ConvertRequestOptions.ZenzaiMode) -> (result: LatticeNode, nodes: [[LatticeNode]])? {
         if inputData.convertTarget.isEmpty {
             return nil
+        }
+
+        // FIXME: enable cache based zenzai
+        if zenzaiMode.enabled, let model = self.getModel(modelURL: zenzaiMode.weightURL) {
+            let result = self.converter.all_zenzai(inputData, zenz: model)
+            self.previousInputData = inputData
+            return result
         }
 
         guard let previousInputData else {
@@ -727,7 +692,7 @@ import SwiftUtils
         // DicdataStoreにRequestOptionを通知する
         self.sendToDicdataStore(.setRequestOptions(options))
 
-        guard let result = self.convertToLattice(inputData, N_best: options.N_best) else {
+        guard let result = self.convertToLattice(inputData, N_best: options.N_best, zenzaiMode: options.zenzaiMode) else {
             return ConversionResult(mainResults: [], firstClauseResults: [])
         }
 

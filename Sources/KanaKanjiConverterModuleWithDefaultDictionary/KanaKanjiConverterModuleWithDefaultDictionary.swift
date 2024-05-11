@@ -17,7 +17,7 @@ public extension ConvertRequestOptions {
         shouldResetMemory: Bool = false,
         memoryDirectoryURL: URL,
         sharedContainerURL: URL,
-        zenzWeightURL: URL? = nil,
+        zenzaiMode: ZenzaiMode = .off,
         textReplacer: TextReplacer = TextReplacer(),
         metadata: ConvertRequestOptions.Metadata?
     ) -> Self {
@@ -45,7 +45,7 @@ public extension ConvertRequestOptions {
             memoryDirectoryURL: memoryDirectoryURL,
             sharedContainerURL: sharedContainerURL,
             textReplacer: textReplacer,
-            zenzWeightURL: zenzWeightURL,
+            zenzaiMode: zenzaiMode,
             metadata: metadata
         )
     }

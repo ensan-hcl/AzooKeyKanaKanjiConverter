@@ -69,7 +69,7 @@ extension Subcommands {
                 shouldResetMemory: false,
                 memoryDirectoryURL: URL(fileURLWithPath: ""),
                 sharedContainerURL: URL(fileURLWithPath: ""),
-                zenzWeightURL: self.zenzWeightPath.isEmpty ? nil : URL(string: self.zenzWeightPath),
+                zenzaiMode: self.zenzWeightPath.isEmpty ? .off : .on(weight: URL(string: self.zenzWeightPath)!),
                 metadata: .init(versionString: "anco for debugging")
             )
             if self.onlyWholeConversion {

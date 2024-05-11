@@ -222,7 +222,7 @@ public final class DicdataStore {
         if frozen {
             let _stringToInfo = (toIndexLeft ..< toIndexRight).map { endIndex in
                 let input = inputData.input[fromIndex ... endIndex]
-                return (input.map {$0.character}, (endIndex, PValue.zero))
+                return (input.map {$0.character.toKatakana()}, (endIndex, PValue.zero))
             }
             stringToInfo = Dictionary(_stringToInfo, uniquingKeysWith: {$0.penalty < $1.penalty ? $1 : $0})
         } else {

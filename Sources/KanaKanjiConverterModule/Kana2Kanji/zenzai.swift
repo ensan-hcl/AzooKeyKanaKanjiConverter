@@ -1,0 +1,51 @@
+import Foundation
+import SwiftUtils
+
+extension Kana2Kanji {
+    /// zenzaiシステムによる完全変換。
+    @MainActor func all_zenzai(_ inputData: ComposingText, zenz: Zenz) -> (result: LatticeNode, nodes: Nodes) {
+        var constraint = ""
+        let eosNode = LatticeNode.EOSNode
+        var nodes: Kana2Kanji.Nodes = []
+        while true {
+            let draftResult = self.kana2lattice_all_with_prefix_constraint(inputData, N_best: 1, constraint: constraint)
+            if nodes.isEmpty {
+                // 初回のみ
+                nodes = draftResult.nodes
+            }
+            let clauseResult = draftResult.result.getCandidateData()
+            if clauseResult.isEmpty {
+                print("clauseResult was empty!")
+                return (eosNode, nodes)
+            }
+            let sums: [Candidate] = clauseResult.map {self.processClauseCandidate($0)}
+            if sums.isEmpty {
+                print("sums was empty!")
+                // Emptyの場合
+                return (eosNode, nodes)
+            }
+            // resultsを更新
+            eosNode.prevs.insert(draftResult.result.prevs[0], at: 0)
+            let reviewResult = zenz.candidateEvaluate(candidates: sums)
+            switch reviewResult {
+            case .error:
+                // 何らかのエラーが発生
+                print("error")
+                return (eosNode, nodes)
+            case .pass(let score):
+                // 合格
+                print("passed:", score)
+                return (eosNode, nodes)
+            case .fixRequired(let prefixConstraint):
+                // 同じ制約が2回連続で出てきたら諦める
+                if constraint == prefixConstraint {
+                    print("same constraint:", prefixConstraint)
+                    return (eosNode, nodes)
+                }
+                // 制約が得られたので、更新する
+                print("update constraint:", prefixConstraint)
+                constraint = prefixConstraint
+            }
+        }
+    }
+}
