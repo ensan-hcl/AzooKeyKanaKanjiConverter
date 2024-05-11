@@ -25,11 +25,13 @@ import SwiftUtils
     private var nodes: [[LatticeNode]] = []
     private var completedData: Candidate?
     private var lastData: DicdataElement?
-    /// GPT-2統合
+    /// Zenzaiのためのzenz-v1モデル
     private var zenz: Zenz? = nil
+    private var zenzaiCache: Kana2Kanji.ZenzaiCache? = nil
 
     /// リセットする関数
     public func stopComposition() {
+        self.zenzaiCache = nil
         self.previousInputData = nil
         self.nodes = []
         self.completedData = nil
@@ -567,9 +569,10 @@ import SwiftUtils
 
         // FIXME: enable cache based zenzai
         if zenzaiMode.enabled, let model = self.getModel(modelURL: zenzaiMode.weightURL) {
-            let result = self.converter.all_zenzai(inputData, zenz: model)
+            let (result, nodes, cache) = self.converter.all_zenzai(inputData, zenz: model, zenzaiCache: self.zenzaiCache)
+            self.zenzaiCache = cache
             self.previousInputData = inputData
-            return result
+            return (result, nodes)
         }
 
         guard let previousInputData else {

@@ -56,6 +56,8 @@ extension Subcommands {
                         }
                     )
                 )
+                // Explictly reset state
+                converter.stopComposition()
             }
             let end = Date()
             var result = EvaluateResult(n_best: self.configNBest, execution_time: end.timeIntervalSince(start), items: resultItems)
