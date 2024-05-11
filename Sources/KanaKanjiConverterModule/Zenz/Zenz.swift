@@ -1,17 +1,7 @@
-//
-//  LlamaModel.swift
-//  SwiftLlamaApp
-//
-//  Created by miwa on 2023/11/25.
-//
-
 import Foundation
 import SwiftUtils
-#if os(iOS)
-import class UIKit.UIDevice
-#endif
-@MainActor
-class Zenz {
+
+@MainActor final class Zenz {
     package var resourceURL: URL
     private var llamaContext: ZenzContext?
     init(resourceURL: URL) throws {
@@ -21,16 +11,6 @@ class Zenz {
             debug("Loaded model \(resourceURL.lastPathComponent)")
         } catch {
             throw error
-        }
-    }
-
-    /// - parameters:
-    ///   - prompt: text to give the model
-    ///   - createNewContext: `true` if you want to clear the current context
-    @MainActor
-    func refreshContext() {
-        Task {
-            try self.llamaContext?.reset_context()
         }
     }
 
