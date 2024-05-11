@@ -55,7 +55,7 @@ extension Kana2Kanji {
             }
             // resultsを更新
             eosNode.prevs.insert(draftResult.result.prevs[0], at: 0)
-            let reviewResult = zenz.candidateEvaluate(candidates: sums)
+            let reviewResult = zenz.candidateEvaluate(convertTarget: inputData.convertTarget, candidates: sums)
             switch reviewResult {
             case .error:
                 // 何らかのエラーが発生

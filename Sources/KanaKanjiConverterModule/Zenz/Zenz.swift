@@ -14,7 +14,7 @@ import SwiftUtils
         }
     }
 
-    func candidateEvaluate(candidates: [Candidate]) -> ZenzContext.CandidateEvaluationResult {
+    func candidateEvaluate(convertTarget: String, candidates: [Candidate]) -> ZenzContext.CandidateEvaluationResult {
         guard let zenzContext else {
             return .error
         }
@@ -22,8 +22,7 @@ import SwiftUtils
             try? zenzContext.reset_context()
         }
         for candidate in candidates {
-            let ruby = candidate.data.reduce(into: "") { $0.append(contentsOf: $1.ruby) }
-            let result = zenzContext.evaluate_candidate(input: ruby, candidate: candidate.text)
+            let result = zenzContext.evaluate_candidate(input: convertTarget.toKatakana(), candidate: candidate.text)
             return result
         }
         return .error
