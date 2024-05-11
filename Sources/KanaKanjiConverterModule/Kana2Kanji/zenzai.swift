@@ -50,7 +50,8 @@ extension Kana2Kanji {
             if sums.isEmpty {
                 print("sums was empty!")
                 // Emptyの場合
-                return (eosNode, nodes, ZenzaiCache(inputData, constraint: constraint, satisfyingCandidate: nil))
+                // 制約が満たせない場合は無視する
+                return (eosNode, nodes, ZenzaiCache(inputData, constraint: "", satisfyingCandidate: nil))
             }
             // resultsを更新
             eosNode.prevs.insert(draftResult.result.prevs[0], at: 0)
