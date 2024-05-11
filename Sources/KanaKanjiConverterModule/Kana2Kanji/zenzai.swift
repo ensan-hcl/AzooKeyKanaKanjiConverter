@@ -14,8 +14,7 @@ extension Kana2Kanji {
         private var inputData: ComposingText
 
         func getNewConstraint(for newInputData: ComposingText) -> String {
-            let (del, add) = newInputData.differenceSuffix(to: self.inputData)
-            if del == 0 {
+            if newInputData.convertTarget.hasPrefix(inputData.convertTarget) {
                 return self.prefixConstraint
             } else {
                 if let satisfyingCandidate {
