@@ -40,6 +40,7 @@ extension Kana2Kanji {
         var nodes: Kana2Kanji.Nodes = []
         while true {
             // 実験の結果、ここは2-bestを取ると平均的な速度が最良になることがわかったので、そうしている。
+            let start = Date()
             let draftResult = self.kana2lattice_all_with_prefix_constraint(inputData, N_best: 2, constraint: constraint)
             if nodes.isEmpty {
                 // 初回のみ
@@ -54,35 +55,78 @@ extension Kana2Kanji {
                     best = (i, cand)
                 }
             }
-            guard let (index, candidate) = best else {
+            guard var (index, candidate) = best else {
                 print("best was not found!")
                 // Emptyの場合
                 // 制約が満たせない場合は無視する
                 return (eosNode, nodes, ZenzaiCache(inputData, constraint: "", satisfyingCandidate: nil))
             }
-            // resultsを更新
-            eosNode.prevs.insert(draftResult.result.prevs[index], at: 0)
-            let reviewResult = zenz.candidateEvaluate(convertTarget: inputData.convertTarget, candidates: [candidate])
-            switch reviewResult {
-            case .error:
-                // 何らかのエラーが発生
-                print("error")
-                return (eosNode, nodes, ZenzaiCache(inputData, constraint: constraint, satisfyingCandidate: nil))
-            case .pass(let score):
-                // 合格
-                print("passed:", score)
-                return (eosNode, nodes, ZenzaiCache(inputData, constraint: constraint, satisfyingCandidate: candidate))
-            case .fixRequired(let prefixConstraint):
-                // 同じ制約が2回連続で出てきたら諦める
-                if constraint == prefixConstraint {
-                    print("same constraint:", prefixConstraint)
-                    return (eosNode, nodes, ZenzaiCache(inputData, constraint: "", satisfyingCandidate: nil))
+            print("Constrained draft modeling", -start.timeIntervalSinceNow)
+            reviewLoop: while true {
+                // resultsを更新
+                eosNode.prevs.insert(draftResult.result.prevs[index], at: 0)
+                let reviewResult = zenz.candidateEvaluate(convertTarget: inputData.convertTarget, candidates: [candidate])
+                let nextAction = self.review(
+                    candidateIndex: index,
+                    candidates: candidates,
+                    reviewResult: reviewResult,
+                    constraint: &constraint
+                )
+                switch nextAction {
+                case .return(let constraint, let satisfied):
+                    if satisfied {
+                        return (eosNode, nodes, ZenzaiCache(inputData, constraint: constraint, satisfyingCandidate: candidate))
+                    } else {
+                        return (eosNode, nodes, ZenzaiCache(inputData, constraint: constraint, satisfyingCandidate: nil))
+                    }
+                case .continue:
+                    break reviewLoop
+                case .retry(let candidateIndex):
+                    index = candidateIndex
+                    candidate = candidates[candidateIndex]
                 }
-                // TODO: もし制約を満たす候補があるならそれを使って再レビューチャレンジを戦うことで、推論を減らせそう
-                // 制約が得られたので、更新する
-                print("update constraint:", prefixConstraint)
-                constraint = prefixConstraint
             }
+        }
+    }
+
+    private enum NextAction {
+        case `return`(constraint: String, satisfied: Bool)
+        case `continue`
+        case `retry`(candidateIndex: Int)
+    }
+
+    private func review(
+        candidateIndex: Int,
+        candidates: borrowing [Candidate],
+        reviewResult: consuming ZenzContext.CandidateEvaluationResult,
+        constraint: inout String
+    ) -> NextAction {
+        switch reviewResult {
+        case .error:
+            // 何らかのエラーが発生
+            print("error")
+            return .return(constraint: constraint, satisfied: false)
+        case .pass(let score):
+            // 合格
+            print("passed:", score)
+            return .return(constraint: constraint, satisfied: true)
+        case .fixRequired(let prefixConstraint):
+            // 同じ制約が2回連続で出てきたら諦める
+            if constraint == prefixConstraint {
+                print("same constraint:", prefixConstraint)
+                return .return(constraint: "", satisfied: false)
+            }
+            // 制約が得られたので、更新する
+            print("update constraint:", prefixConstraint)
+            constraint = prefixConstraint
+            // もし制約を満たす候補があるならそれを使って再レビューチャレンジを戦うことで、推論を減らせる
+            for i in candidates.indices where i != candidateIndex {
+                if candidates[i].text.hasPrefix(prefixConstraint) {
+                    print("found \(candidates[i].text) as another retry")
+                    return .retry(candidateIndex: i)
+                }
+            }
+            return .continue
         }
     }
 }
