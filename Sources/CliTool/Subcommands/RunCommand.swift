@@ -13,7 +13,8 @@ extension Subcommands {
         var displayTopN: Int = 1
         @Option(name: [.customLong("zenz")], help: "gguf format model weight for zenz.")
         var zenzWeightPath: String = ""
-
+        @Option(name: [.customLong("config_zenzai_inference_limit")], help: "inference limit for zenzai.")
+        var configZenzaiInferenceLimit: Int = .max
 
         @Flag(name: [.customLong("disable_prediction")], help: "Disable producing prediction candidates.")
         var disablePrediction = false
@@ -69,7 +70,7 @@ extension Subcommands {
                 shouldResetMemory: false,
                 memoryDirectoryURL: URL(fileURLWithPath: ""),
                 sharedContainerURL: URL(fileURLWithPath: ""),
-                zenzaiMode: self.zenzWeightPath.isEmpty ? .off : .on(weight: URL(string: self.zenzWeightPath)!),
+                zenzaiMode: self.zenzWeightPath.isEmpty ? .off : .on(weight: URL(string: self.zenzWeightPath)!, inferenceLimit: self.configZenzaiInferenceLimit),
                 metadata: .init(versionString: "anco for debugging")
             )
             if self.onlyWholeConversion {

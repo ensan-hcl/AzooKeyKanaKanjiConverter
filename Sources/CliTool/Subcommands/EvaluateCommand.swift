@@ -15,6 +15,8 @@ extension Subcommands {
         var stable: Bool = false
         @Option(name: [.customLong("zenz")], help: "gguf format model weight for zenz.")
         var zenzWeightPath: String = ""
+        @Option(name: [.customLong("config_zenzai_inference_limit")], help: "inference limit for zenzai.")
+        var configZenzaiInferenceLimit: Int = .max
 
         static var configuration = CommandConfiguration(commandName: "evaluate", abstract: "Evaluate quality of Conversion for input data.")
 
@@ -35,7 +37,7 @@ extension Subcommands {
 
         @MainActor mutating func run() throws {
             let inputItems = try parseInputFile()
-            var requestOptions = requestOptions()
+            let requestOptions = requestOptions()
             let converter = KanaKanjiConverter()
             let start = Date()
             var resultItems: [EvaluateItem] = []
@@ -99,7 +101,7 @@ extension Subcommands {
                 shouldResetMemory: false,
                 memoryDirectoryURL: URL(fileURLWithPath: ""),
                 sharedContainerURL: URL(fileURLWithPath: ""),
-                zenzaiMode: self.zenzWeightPath.isEmpty ? .off : .on(weight: URL(string: self.zenzWeightPath)!),
+                zenzaiMode: self.zenzWeightPath.isEmpty ? .off : .on(weight: URL(string: self.zenzWeightPath)!, inferenceLimit: self.configZenzaiInferenceLimit),
                 metadata: .init(versionString: "anco for debugging")
             )
             option.requestQuery = .完全一致

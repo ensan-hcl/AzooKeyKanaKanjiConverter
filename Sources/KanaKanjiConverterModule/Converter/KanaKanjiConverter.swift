@@ -569,7 +569,7 @@ import SwiftUtils
 
         // FIXME: enable cache based zenzai
         if zenzaiMode.enabled, let model = self.getModel(modelURL: zenzaiMode.weightURL) {
-            let (result, nodes, cache) = self.converter.all_zenzai(inputData, zenz: model, zenzaiCache: self.zenzaiCache)
+            let (result, nodes, cache) = self.converter.all_zenzai(inputData, zenz: model, zenzaiCache: self.zenzaiCache, inferenceLimit: zenzaiMode.inferenceLimit)
             self.zenzaiCache = cache
             self.previousInputData = inputData
             return (result, nodes)

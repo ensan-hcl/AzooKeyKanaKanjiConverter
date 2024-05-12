@@ -33,11 +33,12 @@ extension Kana2Kanji {
     }
 
     /// zenzaiシステムによる完全変換。
-    @MainActor func all_zenzai(_ inputData: ComposingText, zenz: Zenz, zenzaiCache: ZenzaiCache?) -> (result: LatticeNode, nodes: Nodes, cache: ZenzaiCache) {
+    @MainActor func all_zenzai(_ inputData: ComposingText, zenz: Zenz, zenzaiCache: ZenzaiCache?, inferenceLimit: Int) -> (result: LatticeNode, nodes: Nodes, cache: ZenzaiCache) {
         var constraint = zenzaiCache?.getNewConstraint(for: inputData) ?? ""
         print("initial constraint", constraint)
         let eosNode = LatticeNode.EOSNode
         var nodes: Kana2Kanji.Nodes = []
+        var inferenceLimit = inferenceLimit
         while true {
             // 実験の結果、ここは2-bestを取ると平均的な速度が最良になることがわかったので、そうしている。
             let start = Date()
@@ -65,7 +66,13 @@ extension Kana2Kanji {
             reviewLoop: while true {
                 // resultsを更新
                 eosNode.prevs.insert(draftResult.result.prevs[index], at: 0)
+                if inferenceLimit == 0 {
+                    print("inference limit! \(candidate.text) is used for excuse")
+                    // When inference occurs more than maximum times, then just return result at this point
+                    return (eosNode, nodes, ZenzaiCache(inputData, constraint: constraint, satisfyingCandidate: candidate))
+                }
                 let reviewResult = zenz.candidateEvaluate(convertTarget: inputData.convertTarget, candidates: [candidate])
+                inferenceLimit -= 1
                 let nextAction = self.review(
                     candidateIndex: index,
                     candidates: candidates,

@@ -143,11 +143,17 @@ public struct ConvertRequestOptions: Sendable {
     }
 
     public struct ZenzaiMode: Sendable, Equatable {
-        public static let off = ZenzaiMode(enabled: false, weightURL: URL(fileURLWithPath: ""))
-        public static func on(weight: URL) -> Self {
-            ZenzaiMode(enabled: true, weightURL: weight)
+        public static let off = ZenzaiMode(enabled: false, weightURL: URL(fileURLWithPath: ""), inferenceLimit: 10)
+
+        /// activate *Zenzai* - Neural Kana-Kanji Conversiion Engine
+        /// - Parameters:
+        ///    - weight: path for model weight (gguf)
+        ///    - inferenceLimit: applying inference count limitation. Smaller limit makes conversion faster but quality will be worse. (Default: 10)
+        public static func on(weight: URL, inferenceLimit: Int = 10) -> Self {
+            ZenzaiMode(enabled: true, weightURL: weight, inferenceLimit: inferenceLimit)
         }
         var enabled: Bool
         var weightURL: URL
+        var inferenceLimit: Int
     }
 }

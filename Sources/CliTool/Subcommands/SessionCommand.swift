@@ -21,6 +21,8 @@ extension Subcommands {
         var reportScore = false
         @Flag(name: [.customLong("roman2kana")], help: "Use roman2kana input.")
         var roman2kana = false
+        @Option(name: [.customLong("config_zenzai_inference_limit")], help: "inference limit for zenzai.")
+        var configZenzaiInferenceLimit: Int = .max
 
 
         static var configuration = CommandConfiguration(commandName: "session", abstract: "Start session for incremental input.")
@@ -88,7 +90,7 @@ extension Subcommands {
                 shouldResetMemory: false,
                 memoryDirectoryURL: URL(fileURLWithPath: ""),
                 sharedContainerURL: URL(fileURLWithPath: ""),
-                zenzaiMode: self.zenzWeightPath.isEmpty ? .off : .on(weight: URL(string: self.zenzWeightPath)!),
+                zenzaiMode: self.zenzWeightPath.isEmpty ? .off : .on(weight: URL(string: self.zenzWeightPath)!, inferenceLimit: self.configZenzaiInferenceLimit),
                 metadata: .init(versionString: "anco for debugging")
             )
             if self.onlyWholeConversion {
