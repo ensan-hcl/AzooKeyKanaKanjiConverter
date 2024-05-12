@@ -41,6 +41,7 @@ extension Subcommands {
                     composingText.insertAtCursorPosition(input, inputStyle: inputStyle)
                 }
                 print(composingText.convertTarget)
+                let start = Date()
                 let result = converter.requestCandidates(composingText, options: requestOptions())
                 let mainResults = result.mainResults.filter {
                     !self.onlyWholeConversion || $0.data.reduce(into: "", {$0.append(contentsOf: $1.ruby)}) == input.toKatakana()
@@ -62,6 +63,7 @@ extension Subcommands {
                     let entropy = -probs.reduce(into: 0) { $0 += $1 * log($1) }
                     print("\(bold: "Entropy:") \(entropy)")
                 }
+                print("\(bold: "Time:") \(-start.timeIntervalSinceNow)")
             }
         }
 
