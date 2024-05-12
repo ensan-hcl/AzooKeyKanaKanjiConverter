@@ -14,12 +14,15 @@ import SwiftUtils
         }
     }
 
+    func startSession() {
+        try? self.zenzContext?.reset_context()
+    }
+
+    func endSession() {}
+
     func candidateEvaluate(convertTarget: String, candidates: [Candidate]) -> ZenzContext.CandidateEvaluationResult {
         guard let zenzContext else {
             return .error
-        }
-        defer {
-            try? zenzContext.reset_context()
         }
         for candidate in candidates {
             let result = zenzContext.evaluate_candidate(input: convertTarget.toKatakana(), candidate: candidate.text)

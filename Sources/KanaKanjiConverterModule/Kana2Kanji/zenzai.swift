@@ -39,6 +39,10 @@ extension Kana2Kanji {
         var constraint = zenzaiCache?.getNewConstraint(for: inputData) ?? ""
         let eosNode = LatticeNode.EOSNode
         var nodes: Kana2Kanji.Nodes = []
+        zenz.startSession()
+        defer {
+            zenz.endSession()
+        }
         while true {
             // 実験の結果、ここは2-bestを取ると平均的な速度が最良になることがわかったので、そうしている。
             let draftResult = self.kana2lattice_all_with_prefix_constraint(inputData, N_best: 2, constraint: constraint)
@@ -46,14 +50,13 @@ extension Kana2Kanji {
                 // 初回のみ
                 nodes = draftResult.nodes
             }
-            let clauseResult = draftResult.result.getCandidateData()
+            let candidates = draftResult.result.getCandidateData().map(self.processClauseCandidate)
             var best: (Int, Candidate)? = nil
-            for (i, cand) in clauseResult.enumerated() {
-                let newCandidate = self.processClauseCandidate(cand)
-                if let (_, c) = best, newCandidate.value > c.value {
-                    best = (i, self.processClauseCandidate(cand))
+            for (i, cand) in candidates.enumerated() {
+                if let (_, c) = best, cand.value > c.value {
+                    best = (i, cand)
                 } else if best == nil {
-                    best = (i, self.processClauseCandidate(cand))
+                    best = (i, cand)
                 }
             }
             guard let (index, candidate) = best else {
@@ -80,6 +83,7 @@ extension Kana2Kanji {
                     print("same constraint:", prefixConstraint)
                     return (eosNode, nodes, ZenzaiCache(inputData, constraint: "", satisfyingCandidate: nil))
                 }
+                // TODO: もし制約を満たす候補があるならそれを使って再レビューチャレンジを戦うことで、推論を減らせそう
                 // 制約が得られたので、更新する
                 print("update constraint:", prefixConstraint)
                 constraint = prefixConstraint
