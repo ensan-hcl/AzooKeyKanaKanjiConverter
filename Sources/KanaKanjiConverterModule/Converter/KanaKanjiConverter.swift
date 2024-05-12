@@ -32,6 +32,7 @@ import SwiftUtils
 
     /// リセットする関数
     public func stopComposition() {
+        self.zenz?.endSession()
         self.zenzaiCache = nil
         self.previousInputData = nil
         self.nodes = []

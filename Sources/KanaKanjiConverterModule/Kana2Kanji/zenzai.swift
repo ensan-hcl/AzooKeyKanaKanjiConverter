@@ -38,10 +38,6 @@ extension Kana2Kanji {
         print("initial constraint", constraint)
         let eosNode = LatticeNode.EOSNode
         var nodes: Kana2Kanji.Nodes = []
-        zenz.startSession()
-        defer {
-            zenz.endSession()
-        }
         while true {
             // 実験の結果、ここは2-bestを取ると平均的な速度が最良になることがわかったので、そうしている。
             let draftResult = self.kana2lattice_all_with_prefix_constraint(inputData, N_best: 2, constraint: constraint)

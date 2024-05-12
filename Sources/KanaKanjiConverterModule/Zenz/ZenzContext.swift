@@ -17,6 +17,7 @@ enum ZenzError: LocalizedError {
 class ZenzContext {
     private var model: OpaquePointer
     private var context: OpaquePointer
+    private var prevInput: [llama_token] = []
 
     private let n_len: Int32 = 512
 
@@ -73,6 +74,11 @@ class ZenzContext {
     }
 
     private func get_logits(tokens: [llama_token], logits_start_index: Int = 0) -> UnsafeMutablePointer<Float>? {
+        // manage kv_cache
+        do {
+            let commonTokens = self.prevInput.commonPrefix(with: tokens)
+            llama_kv_cache_seq_rm(context, 0, llama_pos(commonTokens.count), -1)
+        }
         var batch = llama_batch_init(512, 0, 1)
         let n_ctx = llama_n_ctx(context)
         let n_kv_req = tokens.count + (Int(n_len) - tokens.count)
@@ -121,21 +127,22 @@ class ZenzContext {
     }
 
     func evaluate_candidate(input: String, candidate: String) -> CandidateEvaluationResult {
+        // For zenz-v1 model, \u{EE00} is a token used for 'start query', and \u{EE01} is a token used for 'start answer'
+        // We assume \u{EE01}\(candidate) is always splitted into \u{EE01}_\(candidate) by zenz-v1 tokenizer
         let prompt = "\u{EE00}\(input)\u{EE01}"
-        // We assume \u{EE01}\(candidate) is always splitted into \u{EE01}/\(candidate)
         // Therefore, tokens = prompt_tokens + candidate_tokens is an appropriate operation.
         let prompt_tokens = self.tokenize(text: prompt, add_bos: true, add_eos: false)
         let candidate_tokens = self.tokenize(text: candidate, add_bos: false, add_eos: false)
         let tokens = prompt_tokens + candidate_tokens
-        // FIXME: stop calculating unused logits
         let startOffset = prompt_tokens.count - 1
+        let pos_max = llama_kv_cache_seq_pos_max(self.context, 0)
+        print("pos max:", pos_max)
         guard let logits = self.get_logits(tokens: tokens, logits_start_index: startOffset) else {
             debug("logits unavailable")
             return .error
         }
         let n_vocab = llama_n_vocab(model)
 
-        // 最初のプロンプト部分は無視する
         var score: Float = 0
         for (i, token_id) in tokens.indexed().dropFirst(prompt_tokens.count) {
             // それぞれのトークンが、一つ前の予測において最も確率の高いトークンであるかをチェックする

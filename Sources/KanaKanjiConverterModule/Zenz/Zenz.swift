@@ -14,11 +14,11 @@ import SwiftUtils
         }
     }
 
-    func startSession() {
+    func startSession() {}
+
+    func endSession() {
         try? self.zenzContext?.reset_context()
     }
-
-    func endSession() {}
 
     func candidateEvaluate(convertTarget: String, candidates: [Candidate]) -> ZenzContext.CandidateEvaluationResult {
         guard let zenzContext else {
