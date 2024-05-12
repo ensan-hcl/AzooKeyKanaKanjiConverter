@@ -326,11 +326,17 @@ public final class DicdataStore {
         let segments = (fromIndex ..< toIndexRight).reduce(into: []) { (segments: inout [String], rightIndex: Int) in
             segments.append((segments.last ?? "") + String(inputData.input[rightIndex].character.toKatakana()))
         }
+        let character = String(inputData.input[fromIndex].character.toKatakana())
+        let characterNode = LatticeNode(data: DicdataElement(word: character, ruby: character, cid: CIDData.一般名詞.cid, mid: MIDData.一般.mid, value: -10), inputRange: fromIndex ..< fromIndex + 1)
+        if fromIndex == .zero {
+            characterNode.prevs.append(.BOSNode())
+        }
+
         // MARK: 誤り訂正なし
         var stringToEndIndex = inputData.getRanges(fromIndex, rightIndexRange: toIndexLeft ..< toIndexRight)
         // MARK: 検索対象を列挙していく。
         guard let (minString, maxString) = stringToEndIndex.keys.minAndMax(by: {$0.count < $1.count}) else {
-            return []
+            return [characterNode]
         }
         let maxIDs = maxString.map(self.character2charId)
         var keys = [String(stringToEndIndex.keys.first!.first!), "user"]
@@ -359,14 +365,14 @@ public final class DicdataStore {
                 let node = LatticeNode(data: $0, inputRange: fromIndex ..< endIndex + 1)
                 node.prevs.append(RegisteredNode.BOSNode())
                 return node
-            }
+            } + [characterNode]
         } else {
             return dicdata.compactMap {
                 guard let endIndex = stringToEndIndex[Array($0.ruby)] else {
                     return nil
                 }
                 return LatticeNode(data: $0, inputRange: fromIndex ..< endIndex + 1)
-            }
+            } + [characterNode]
         }
     }
 
