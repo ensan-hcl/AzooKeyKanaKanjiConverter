@@ -31,12 +31,17 @@ extension Subcommands {
             let inputStyle: InputStyle = self.roman2kana ? .roman2kana : .direct
             while true {
                 print()
-                print("\(bold: "== type :q to end session, type :d to delete character, type any other text to input ==")")
+                print("\(bold: "== type :q to end session, type :d to delete character, type :c to stop composition, type any other text to input ==")")
                 let input = readLine(strippingNewline: true) ?? ""
                 switch input {
                 case ":q": return
                 case ":d":
                     composingText.deleteBackwardFromCursorPosition(count: 1)
+                case ":c":
+                    composingText.stopComposition()
+                    converter.stopComposition()
+                    print("composition is stopped")
+                    continue
                 default:
                     composingText.insertAtCursorPosition(input, inputStyle: inputStyle)
                 }
