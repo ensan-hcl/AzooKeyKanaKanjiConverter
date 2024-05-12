@@ -40,7 +40,7 @@ class ZenzContext {
         ctx_params.n_ctx = 512
         ctx_params.n_threads       = UInt32(n_threads)
         ctx_params.n_threads_batch = UInt32(n_threads)
-        ctx_params.n_batch = 256
+        ctx_params.n_batch = 512
         return ctx_params
     }
 
