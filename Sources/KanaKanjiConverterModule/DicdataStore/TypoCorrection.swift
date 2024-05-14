@@ -21,7 +21,7 @@ extension ComposingText {
     /// getRangeWithTyposの複数版にあたる。`result`の計算が一回で済む分、高速になる。
     /// 例えば`left=4, rightIndexRange=6..<10`の場合、`4...6, 4...7, 4...8, 4...9`の範囲で計算する
     /// `left <= rightIndexRange.startIndex`が常に成り立つ
-    func getRangesWithTypos(_ left: Int, rightIndexRange: Range<Int>, frozen: Bool) -> [[Character]: (endIndex: Int, penalty: PValue)] {
+    func getRangesWithTypos(_ left: Int, rightIndexRange: Range<Int>) -> [[Character]: (endIndex: Int, penalty: PValue)] {
         let count = rightIndexRange.endIndex - left
         debug("getRangesWithTypos", left, rightIndexRange, count)
         let nodes = (0..<count).map {(i: Int) in
@@ -30,7 +30,7 @@ extension ComposingText {
                 if count <= j {
                     return []
                 }
-                return Self.getTypo(self.input[left + i ... left + j], frozen: frozen)
+                return Self.getTypo(self.input[left + i ... left + j])
             }
         }
 

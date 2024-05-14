@@ -40,7 +40,6 @@ import SwiftUtils
         self.lastData = nil
     }
 
-    /// LMによるevaluationを反映する
     private func getModel(modelURL: URL) -> Zenz? {
         if let model = self.zenz, model.resourceURL == modelURL {
             self.zenzStatus = "load \(modelURL.absoluteString)"
