@@ -47,7 +47,7 @@ let testTargets: [Target] = []
 
 let package = Package(
     name: "AzooKeyKanakanjiConverter",
-    platforms: [.iOS(.v14), .macOS(.v11)],
+    platforms: [.iOS(.v14), .macOS(.v12)],
     products: [
         // Products define the executables and libraries a package produces, and make them visible to other packages.
         .library(
