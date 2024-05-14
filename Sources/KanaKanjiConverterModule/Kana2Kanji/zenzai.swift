@@ -104,7 +104,7 @@ extension Kana2Kanji {
 
     private func review(
         candidateIndex: Int,
-        candidates: borrowing [Candidate],
+        candidates: [Candidate],
         reviewResult: consuming ZenzContext.CandidateEvaluationResult,
         constraint: inout String
     ) -> NextAction {
