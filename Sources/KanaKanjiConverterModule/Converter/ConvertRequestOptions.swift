@@ -149,6 +149,7 @@ public struct ConvertRequestOptions: Sendable {
         /// - Parameters:
         ///    - weight: path for model weight (gguf)
         ///    - inferenceLimit: applying inference count limitation. Smaller limit makes conversion faster but quality will be worse. (Default: 10)
+        @available(iOS 15, macOS 13, *)
         public static func on(weight: URL, inferenceLimit: Int = 10) -> Self {
             ZenzaiMode(enabled: true, weightURL: weight, inferenceLimit: inferenceLimit)
         }
