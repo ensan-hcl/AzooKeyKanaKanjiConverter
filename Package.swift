@@ -13,9 +13,10 @@ let swiftSettings: [SwiftSetting] = [
     .enableUpcomingFeature("DisableOutwardActorInference"),
     .enableUpcomingFeature("ImportObjcForwardDeclarations")
 ]
+
 let package = Package(
     name: "AzooKeyKanakanjiConverter",
-    platforms: [.iOS(.v14), .macOS(.v11)],
+    platforms: [.iOS(.v14), .macOS(.v12)],
     products: [
         // Products define the executables and libraries a package produces, and make them visible to other packages.
         .library(
@@ -39,6 +40,8 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-algorithms", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-collections", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-argument-parser", .upToNextMajor(from: "1.0.0")),
+        // local package
+        .package(url: "https://github.com/ensan-hcl/llama.cpp", branch: "9f41923"),
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
@@ -54,9 +57,9 @@ let package = Package(
         .target(
             name: "KanaKanjiConverterModule",
             dependencies: [
-                "SwiftUtils"
+                "SwiftUtils",
+                .product(name: "llama", package: "llama.cpp")
             ],
-            resources: [],
             swiftSettings: swiftSettings
         ),
         .target(

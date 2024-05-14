@@ -29,7 +29,7 @@ public struct ConvertRequestOptions: Sendable {
     ///   - sharedContainerURL: ユーザ辞書など、キーボード外で書き込んだ設定データの保存されているディレクトリを指定します。
     ///   - textReplacer: 予測変換のための置換機を指定します。
     ///   - metadata: メタデータを指定します。詳しくは`ConvertRequestOptions.Metadata`を参照してください。
-    public init(N_best: Int = 10, requireJapanesePrediction: Bool, requireEnglishPrediction: Bool, keyboardLanguage: KeyboardLanguage, typographyLetterCandidate: Bool = false, unicodeCandidate: Bool = true, englishCandidateInRoman2KanaInput: Bool = false, fullWidthRomanCandidate: Bool = false, halfWidthKanaCandidate: Bool = false, learningType: LearningType, maxMemoryCount: Int = 65536, shouldResetMemory: Bool = false, dictionaryResourceURL: URL, memoryDirectoryURL: URL, sharedContainerURL: URL, textReplacer: TextReplacer = TextReplacer(), metadata: ConvertRequestOptions.Metadata?) {
+    public init(N_best: Int = 10, requireJapanesePrediction: Bool, requireEnglishPrediction: Bool, keyboardLanguage: KeyboardLanguage, typographyLetterCandidate: Bool = false, unicodeCandidate: Bool = true, englishCandidateInRoman2KanaInput: Bool = false, fullWidthRomanCandidate: Bool = false, halfWidthKanaCandidate: Bool = false, learningType: LearningType, maxMemoryCount: Int = 65536, shouldResetMemory: Bool = false, dictionaryResourceURL: URL, memoryDirectoryURL: URL, sharedContainerURL: URL, textReplacer: TextReplacer = TextReplacer(), zenzaiMode: ZenzaiMode = .off, metadata: ConvertRequestOptions.Metadata?) {
         self.N_best = N_best
         self.requireJapanesePrediction = requireJapanesePrediction
         self.requireEnglishPrediction = requireEnglishPrediction
@@ -46,10 +46,11 @@ public struct ConvertRequestOptions: Sendable {
         self.sharedContainerURL = sharedContainerURL
         self.metadata = metadata
         self.textReplacer = textReplacer
+        self.zenzaiMode = zenzaiMode
         self.dictionaryResourceURL = dictionaryResourceURL
     }
 
-    package init(N_best: Int = 10, requireJapanesePrediction: Bool, requireEnglishPrediction: Bool, keyboardLanguage: KeyboardLanguage, typographyLetterCandidate: Bool = false, unicodeCandidate: Bool = true, englishCandidateInRoman2KanaInput: Bool = false, fullWidthRomanCandidate: Bool = false, halfWidthKanaCandidate: Bool = false, learningType: LearningType, maxMemoryCount: Int = 65536, shouldResetMemory: Bool = false, dictionaryResourceURL: URL, memoryDirectoryURL: URL, sharedContainerURL: URL, textReplacer: TextReplacer = TextReplacer(), metadata: ConvertRequestOptions.Metadata?, requestQuery: RequestQuery) {
+    package init(N_best: Int = 10, requireJapanesePrediction: Bool, requireEnglishPrediction: Bool, keyboardLanguage: KeyboardLanguage, typographyLetterCandidate: Bool = false, unicodeCandidate: Bool = true, englishCandidateInRoman2KanaInput: Bool = false, fullWidthRomanCandidate: Bool = false, halfWidthKanaCandidate: Bool = false, learningType: LearningType, maxMemoryCount: Int = 65536, shouldResetMemory: Bool = false, dictionaryResourceURL: URL, memoryDirectoryURL: URL, sharedContainerURL: URL, textReplacer: TextReplacer = TextReplacer(), zenzaiMode: ZenzaiMode = .off, metadata: ConvertRequestOptions.Metadata?, requestQuery: RequestQuery) {
         self.N_best = N_best
         self.requireJapanesePrediction = requireJapanesePrediction
         self.requireEnglishPrediction = requireEnglishPrediction
@@ -66,6 +67,7 @@ public struct ConvertRequestOptions: Sendable {
         self.sharedContainerURL = sharedContainerURL
         self.metadata = metadata
         self.textReplacer = textReplacer
+        self.zenzaiMode = zenzaiMode
         self.dictionaryResourceURL = dictionaryResourceURL
     }
 
@@ -88,6 +90,7 @@ public struct ConvertRequestOptions: Sendable {
     public var memoryDirectoryURL: URL
     public var sharedContainerURL: URL
     public var dictionaryResourceURL: URL
+    public var zenzaiMode: ZenzaiMode
     // メタデータ
     public var metadata: Metadata?
 
@@ -137,5 +140,20 @@ public struct ConvertRequestOptions: Sendable {
     package enum RequestQuery: Sendable {
         case `default`
         case 完全一致
+    }
+
+    public struct ZenzaiMode: Sendable, Equatable {
+        public static let off = ZenzaiMode(enabled: false, weightURL: URL(fileURLWithPath: ""), inferenceLimit: 10)
+
+        /// activate *Zenzai* - Neural Kana-Kanji Conversiion Engine
+        /// - Parameters:
+        ///    - weight: path for model weight (gguf)
+        ///    - inferenceLimit: applying inference count limitation. Smaller limit makes conversion faster but quality will be worse. (Default: 10)
+        public static func on(weight: URL, inferenceLimit: Int = 10) -> Self {
+            ZenzaiMode(enabled: true, weightURL: weight, inferenceLimit: inferenceLimit)
+        }
+        var enabled: Bool
+        var weightURL: URL
+        var inferenceLimit: Int
     }
 }

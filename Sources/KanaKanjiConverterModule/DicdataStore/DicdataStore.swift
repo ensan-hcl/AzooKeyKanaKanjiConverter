@@ -219,7 +219,6 @@ public final class DicdataStore {
         }
         // MARK: 誤り訂正の対象を列挙する。非常に重い処理。
         var stringToInfo = inputData.getRangesWithTypos(fromIndex, rightIndexRange: toIndexLeft ..< toIndexRight)
-
         // MARK: 検索対象を列挙していく。
         let stringSet = stringToInfo.keys.map {($0, $0.map(self.character2charId))}
         let (minCharIDsCount, maxCharIDsCount) = stringSet.lazy.map {$0.1.count}.minAndMax() ?? (0, -1)
@@ -307,6 +306,73 @@ public final class DicdataStore {
                 return LatticeNode(data: $0, inputRange: fromIndex ..< endIndex + 1)
             }
             return result
+        }
+    }
+
+    /// kana2latticeから参照する。
+    /// - Parameters:
+    ///   - inputData: 入力データ
+    ///   - from: 起点
+    ///   - toIndexRange: `from ..< (toIndexRange)`の範囲で辞書ルックアップを行う。
+    public func getFrozenLOUDSDataInRange(inputData: ComposingText, from fromIndex: Int, toIndexRange: Range<Int>? = nil) -> [LatticeNode] {
+        let toIndexLeft = toIndexRange?.startIndex ?? fromIndex
+        let toIndexRight = min(toIndexRange?.endIndex ?? inputData.input.count, fromIndex + self.maxlength)
+        debug("getLOUDSDataInRange", fromIndex, toIndexRange?.description ?? "nil", toIndexLeft, toIndexRight)
+        if fromIndex > toIndexLeft || toIndexLeft >= toIndexRight {
+            debug("getLOUDSDataInRange: index is wrong")
+            return []
+        }
+
+        let segments = (fromIndex ..< toIndexRight).reduce(into: []) { (segments: inout [String], rightIndex: Int) in
+            segments.append((segments.last ?? "") + String(inputData.input[rightIndex].character.toKatakana()))
+        }
+        let character = String(inputData.input[fromIndex].character.toKatakana())
+        let characterNode = LatticeNode(data: DicdataElement(word: character, ruby: character, cid: CIDData.一般名詞.cid, mid: MIDData.一般.mid, value: -10), inputRange: fromIndex ..< fromIndex + 1)
+        if fromIndex == .zero {
+            characterNode.prevs.append(.BOSNode())
+        }
+
+        // MARK: 誤り訂正なし
+        var stringToEndIndex = inputData.getRanges(fromIndex, rightIndexRange: toIndexLeft ..< toIndexRight)
+        // MARK: 検索対象を列挙していく。
+        guard let (minString, maxString) = stringToEndIndex.keys.minAndMax(by: {$0.count < $1.count}) else {
+            return [characterNode]
+        }
+        let maxIDs = maxString.map(self.character2charId)
+        var keys = [String(stringToEndIndex.keys.first!.first!), "user"]
+        if learningManager.enabled {
+            keys.append("memory")
+        }
+        // MARK: 検索によって得たindicesから辞書データを実際に取り出していく
+        var dicdata: [DicdataElement] = []
+        let depth = minString.count - 1 ..< maxString.count
+        for identifier in keys {
+            dicdata.append(contentsOf: self.getDicdataFromLoudstxt3(identifier: identifier, indices: self.throughMatchLOUDS(identifier: identifier, charIDs: maxIDs, depth: depth)))
+        }
+        if learningManager.enabled {
+            // temporalな学習結果にpenaltyを加えて追加する
+            dicdata.append(contentsOf: self.learningManager.temporaryThroughMatch(charIDs: consume maxIDs, depth: depth))
+        }
+        for i in toIndexLeft ..< toIndexRight {
+            dicdata.append(contentsOf: self.getWiseDicdata(convertTarget: segments[i - fromIndex], inputData: inputData, inputRange: fromIndex ..< i + 1))
+            dicdata.append(contentsOf: self.getMatchOSUserDict(segments[i - fromIndex]))
+        }
+        if fromIndex == .zero {
+            return dicdata.compactMap {
+                guard let endIndex = stringToEndIndex[Array($0.ruby)] else {
+                    return nil
+                }
+                let node = LatticeNode(data: $0, inputRange: fromIndex ..< endIndex + 1)
+                node.prevs.append(RegisteredNode.BOSNode())
+                return node
+            } + [characterNode]
+        } else {
+            return dicdata.compactMap {
+                guard let endIndex = stringToEndIndex[Array($0.ruby)] else {
+                    return nil
+                }
+                return LatticeNode(data: $0, inputRange: fromIndex ..< endIndex + 1)
+            } + [characterNode]
         }
     }
 
@@ -727,12 +793,8 @@ public final class DicdataStore {
     /// wordTypesの初期化時に使うのみ。
     private static let PREPOSITION_wordIDs: Set<Int> = [1315, 6, 557, 558, 559, 560]
     /// wordTypesの初期化時に使うのみ。
-    private static let INPOSITION_wordIDs: Set<Int> = Set<Int>(Array(561..<868)
-                                                                + Array(1283..<1297)
-                                                                + Array(1306..<1310)
-                                                                + Array(11..<53)
-                                                                + Array(555..<557)
-                                                                + Array(1281..<1283)
+    private static let INPOSITION_wordIDs: Set<Int> = Set<Int>(
+        Array(561..<868).chained(1283..<1297).chained(1306..<1310).chained(11..<53).chained(555..<557).chained(1281..<1283)
     ).union([1314, 3, 2, 4, 5, 1, 9])
 
     /*

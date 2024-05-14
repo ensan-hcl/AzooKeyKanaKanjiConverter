@@ -9,12 +9,12 @@ on:
     branches: [ "main", "develop" ]
 
 jobs:
-  build:
+  macos-build:
     name: Swift ${{ matrix.swift-version }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [macos-latest]
         swift-version: ["5.9", "5.10"]
     steps:
     - uses: swift-actions/setup-swift@v2
@@ -24,6 +24,25 @@ jobs:
       with:
         submodules: true
     - name: Build
-      run: swift build -Xswiftc -strict-concurrency=complete -v
+      run: swift build -Xswiftc -strict-concurrency=complete -Xcxx -xobjective-c++ -v
     - name: Run tests
-      run: swift test -c release -Xswiftc -strict-concurrency=complete -v
+      run: swift test -c release -Xswiftc -strict-concurrency=complete -Xcxx -xobjective-c++ -v
+  ubuntu-build:
+      name: Swift ${{ matrix.swift-version }} on ${{ matrix.os }}
+      runs-on: ${{ matrix.os }}
+      strategy:
+        matrix:
+          os: [ubuntu-latest]
+          swift-version: ["5.9", "5.10"]
+      steps:
+      - uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: ${{ matrix.swift-version }}
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Build
+        run: swift build -Xswiftc -strict-concurrency=complete -v
+      - name: Run tests
+        run: swift test -c release -Xswiftc -strict-concurrency=complete -v
+  

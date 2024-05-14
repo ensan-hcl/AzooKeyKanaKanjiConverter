@@ -3,7 +3,7 @@ import ArgumentParser
 import Foundation
 
 extension Subcommands {
-    struct Run: ParsableCommand {
+    struct Run: AsyncParsableCommand {
         @Argument(help: "ひらがなで表記された入力")
         var input: String = ""
 
@@ -11,6 +11,10 @@ extension Subcommands {
         var configNBest: Int = 10
         @Option(name: [.customShort("n"), .customLong("top_n")], help: "Display top n candidates.")
         var displayTopN: Int = 1
+        @Option(name: [.customLong("zenz")], help: "gguf format model weight for zenz.")
+        var zenzWeightPath: String = ""
+        @Option(name: [.customLong("config_zenzai_inference_limit")], help: "inference limit for zenzai.")
+        var configZenzaiInferenceLimit: Int = .max
 
         @Flag(name: [.customLong("disable_prediction")], help: "Disable producing prediction candidates.")
         var disablePrediction = false
@@ -23,7 +27,7 @@ extension Subcommands {
 
         static var configuration = CommandConfiguration(commandName: "run", abstract: "Show help for this utility.")
 
-        @MainActor mutating func run() {
+        @MainActor mutating func run() async {
             let converter = KanaKanjiConverter()
             var composingText = ComposingText()
             composingText.insertAtCursorPosition(input, inputStyle: .direct)
@@ -66,6 +70,7 @@ extension Subcommands {
                 shouldResetMemory: false,
                 memoryDirectoryURL: URL(fileURLWithPath: ""),
                 sharedContainerURL: URL(fileURLWithPath: ""),
+                zenzaiMode: self.zenzWeightPath.isEmpty ? .off : .on(weight: URL(string: self.zenzWeightPath)!, inferenceLimit: self.configZenzaiInferenceLimit),
                 metadata: .init(versionString: "anco for debugging")
             )
             if self.onlyWholeConversion {

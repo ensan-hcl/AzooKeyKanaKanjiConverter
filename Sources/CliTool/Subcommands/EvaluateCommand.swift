@@ -13,10 +13,14 @@ extension Subcommands {
         var configNBest: Int = 10
         @Flag(name: [.customLong("stable")], help: "Report only stable properties; timestamps and values will not be reported.")
         var stable: Bool = false
+        @Option(name: [.customLong("zenz")], help: "gguf format model weight for zenz.")
+        var zenzWeightPath: String = ""
+        @Option(name: [.customLong("config_zenzai_inference_limit")], help: "inference limit for zenzai.")
+        var configZenzaiInferenceLimit: Int = .max
 
         static var configuration = CommandConfiguration(commandName: "evaluate", abstract: "Evaluate quality of Conversion for input data.")
 
-        func parseInputFile() throws -> [InputItem] {
+        private func parseInputFile() throws -> [InputItem] {
             let url = URL(fileURLWithPath: self.inputFile)
             let lines = (try String(contentsOf: url)).split(separator: "\n", omittingEmptySubsequences: false)
             return lines.enumerated().compactMap { (index, line) -> InputItem? in
@@ -33,14 +37,15 @@ extension Subcommands {
 
         @MainActor mutating func run() throws {
             let inputItems = try parseInputFile()
-
+            let requestOptions = requestOptions()
             let converter = KanaKanjiConverter()
             let start = Date()
             var resultItems: [EvaluateItem] = []
             for item in inputItems {
                 var composingText = ComposingText()
                 composingText.insertAtCursorPosition(item.query, inputStyle: .direct)
-                let result = converter.requestCandidates(composingText, options: requestOptions())
+
+                let result = converter.requestCandidates(composingText, options: requestOptions)
                 let mainResults = result.mainResults.filter {
                     $0.data.reduce(into: "", {$0.append(contentsOf: $1.ruby)}) == item.query.toKatakana()
                 }
@@ -53,6 +58,8 @@ extension Subcommands {
                         }
                     )
                 )
+                // Explictly reset state
+                converter.stopComposition()
             }
             let end = Date()
             var result = EvaluateResult(n_best: self.configNBest, execution_time: end.timeIntervalSince(start), items: resultItems)
@@ -94,6 +101,7 @@ extension Subcommands {
                 shouldResetMemory: false,
                 memoryDirectoryURL: URL(fileURLWithPath: ""),
                 sharedContainerURL: URL(fileURLWithPath: ""),
+                zenzaiMode: self.zenzWeightPath.isEmpty ? .off : .on(weight: URL(string: self.zenzWeightPath)!, inferenceLimit: self.configZenzaiInferenceLimit),
                 metadata: .init(versionString: "anco for debugging")
             )
             option.requestQuery = .完全一致
@@ -101,7 +109,7 @@ extension Subcommands {
         }
     }
 
-    struct InputItem {
+    private struct InputItem {
         /// 入力クエリ
         var query: String
 
