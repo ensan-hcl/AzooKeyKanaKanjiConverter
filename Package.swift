@@ -14,37 +14,6 @@ let swiftSettings: [SwiftSetting] = [
     .enableUpcomingFeature("ImportObjcForwardDeclarations")
 ]
 
-#if DEBUG
-let testTargets = [
-
-    .testTarget(
-        name: "SwiftUtilsTests",
-        dependencies: ["SwiftUtils"],
-        resources: [],
-        swiftSettings: swiftSettings
-    ),
-    .testTarget(
-        name: "KanaKanjiConverterModuleTests",
-        dependencies: ["KanaKanjiConverterModule"],
-        resources: [
-            .copy("DictionaryMock")
-        ],
-        swiftSettings: swiftSettings
-    ),
-    .testTarget(
-        name: "KanaKanjiConverterModuleWithDefaultDictionaryTests",
-        dependencies: [
-            "KanaKanjiConverterModuleWithDefaultDictionary",
-            .product(name: "Collections", package: "swift-collections")
-        ],
-        swiftSettings: swiftSettings
-    )
-]
-#else
-let testTargets: [Target] = []
-#endif
-
-
 let package = Package(
     name: "AzooKeyKanakanjiConverter",
     platforms: [.iOS(.v14), .macOS(.v12)],
@@ -113,6 +82,28 @@ let package = Package(
                 "KanaKanjiConverterModuleWithDefaultDictionary",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ]
+        ),
+        .testTarget(
+            name: "SwiftUtilsTests",
+            dependencies: ["SwiftUtils"],
+            resources: [],
+            swiftSettings: swiftSettings
+        ),
+        .testTarget(
+            name: "KanaKanjiConverterModuleTests",
+            dependencies: ["KanaKanjiConverterModule"],
+            resources: [
+                .copy("DictionaryMock")
+            ],
+            swiftSettings: swiftSettings
+        ),
+        .testTarget(
+            name: "KanaKanjiConverterModuleWithDefaultDictionaryTests",
+            dependencies: [
+                "KanaKanjiConverterModuleWithDefaultDictionary",
+                .product(name: "Collections", package: "swift-collections")
+            ],
+            swiftSettings: swiftSettings
         )
-        ] + testTargets
+    ]
 )

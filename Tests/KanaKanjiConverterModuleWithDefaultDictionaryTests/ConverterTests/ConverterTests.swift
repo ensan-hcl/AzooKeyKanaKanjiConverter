@@ -688,7 +688,7 @@ final class ConverterTests: XCTestCase {
             c.insertAtCursorPosition(input, inputStyle: .direct)
             var options = requestOptions()
             options.requireJapanesePrediction = false
-            let results = await await converter.requestCandidates(c, options: options).mainResults
+            let results = await converter.requestCandidates(c, options: options).mainResults
             cases += 1
             let azooKeyStatus = mozcEvaluation(command: command, argument: argument, results: results)
             if azooKeyStatus {
