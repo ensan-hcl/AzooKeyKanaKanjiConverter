@@ -7,12 +7,17 @@ import SwiftUtils
     init(resourceURL: URL) throws {
         self.resourceURL = resourceURL
         do {
+            #if canImport(Darwin)
             if #available(iOS 15, macOS 13, *) {
                 self.zenzContext = try ZenzContext.createContext(path: resourceURL.path(percentEncoded: false))
             } else {
                 // this is not percent-encoded
                 self.zenzContext = try ZenzContext.createContext(path: resourceURL.path)
             }
+            #else
+            // this is not percent-encoded
+            self.zenzContext = try ZenzContext.createContext(path: resourceURL.path)
+            #endif
             debug("Loaded model \(resourceURL.lastPathComponent)")
         } catch {
             throw error
