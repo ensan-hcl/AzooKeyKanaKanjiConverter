@@ -24,6 +24,6 @@ jobs:
       with:
         submodules: true
     - name: Build
-      run: swift build -Xswiftc -strict-concurrency=complete -v
+      run: swift build -Xswiftc -strict-concurrency=complete -Xcxx -xobjective-c++ -v
     - name: Run tests
-      run: swift test -c release -Xswiftc -strict-concurrency=complete -v
+      run: swift test -c release -Xswiftc -strict-concurrency=complete -Xcxx -xobjective-c++ -v

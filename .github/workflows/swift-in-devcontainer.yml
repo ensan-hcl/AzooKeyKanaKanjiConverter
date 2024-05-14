@@ -19,5 +19,5 @@ jobs:
       with:
         push: never
         runCmd: |
-          swift build -Xswiftc -strict-concurrency=complete -v
-          swift test -c release -Xswiftc -strict-concurrency=complete -v
+          swift build -Xswiftc -strict-concurrency=complete -Xcxx -xobjective-c++ -v
+          swift test -c release -Xswiftc -strict-concurrency=complete -Xcxx -xobjective-c++ -v
