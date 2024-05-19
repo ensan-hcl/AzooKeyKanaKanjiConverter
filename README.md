@@ -80,7 +80,7 @@ let options = ConvertRequestOptions.withDefaultDictionary(
 `ComposingText`は入力管理を行いつつ変換をリクエストするためのAPIです。ローマ字入力などを適切にハンドルするために利用できます。詳しくは[ドキュメント](./Docs/composing_text.md)を参照してください。
 
 ### Zenzaiを使う
-ニューラルかな漢字変換システム「Zenzai」を利用するには、`ConvertRequestOptions`の`zenzaiMode`を指定します。詳しくは[ドキュメント](./Docs/composing_text.md)を参照してください。
+ニューラルかな漢字変換システム「Zenzai」を利用するには、`ConvertRequestOptions`の`zenzaiMode`を指定します。詳しくは[ドキュメント](./Docs/zenzai.md)を参照してください。
 ```swift
 let options = ConvertRequestOptions.withDefaultDictionary(
     // ...
