@@ -2,6 +2,8 @@
 
 AzooKeyKanaKanjiConverterは[azooKey](https://github.com/ensan-hcl/azooKey)のために開発したかな漢字変換エンジンです。数行のコードでかな漢字変換をiOS / macOS / visionOSのアプリケーションに組み込むことができます。
 
+また、AzooKeyKanaKanjiConverterはニューラルかな漢字変換システム「Zenzai」を利用した高精度な変換もサポートしています。
+
 ## 動作環境
 iOS 14以降, macOS 11以降, visionOS 1以降, Ubuntu 22.04以降で動作を確認しています。
 
@@ -76,6 +78,16 @@ let options = ConvertRequestOptions.withDefaultDictionary(
 
 ### `ComposingText`
 `ComposingText`は入力管理を行いつつ変換をリクエストするためのAPIです。ローマ字入力などを適切にハンドルするために利用できます。詳しくは[ドキュメント](./Docs/composing_text.md)を参照してください。
+
+### Zenzaiを使う
+ニューラルかな漢字変換システム「Zenzai」を利用するには、`ConvertRequestOptions`の`zenzaiMode`を指定します。詳しくは[ドキュメント](./Docs/composing_text.md)を参照してください。
+```swift
+let options = ConvertRequestOptions.withDefaultDictionary(
+    // ...
+    zenzaiMode: .on(weight: url, inferenceLimit: 10)
+    // ...
+)
+```
 
 ### 辞書データ
 AzooKeyKanaKanjiConverterのデフォルト辞書として[azooKey_dictionary_storage](https://github.com/ensan-hcl/azooKey_dictionary_storage)がサブモジュールとして指定されています。過去のバージョンの辞書データは[Google Drive](https://drive.google.com/drive/folders/1Kh7fgMFIzkpg7YwP3GhWTxFkXI-yzT9E?usp=sharing)からもダウンロードすることができます。
