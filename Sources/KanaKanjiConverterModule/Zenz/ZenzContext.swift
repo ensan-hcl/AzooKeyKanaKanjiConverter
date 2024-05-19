@@ -190,7 +190,6 @@ class ZenzContext {
     }
 
     private func tokenize(text: String, add_bos: Bool, add_eos: Bool = false) -> [llama_token] {
-        let text = text.lowercased()
         let utf8Count = text.utf8.count
         let n_tokens = utf8Count + (add_bos ? 1 : 0)
         let tokens = UnsafeMutablePointer<llama_token>.allocate(capacity: n_tokens)
