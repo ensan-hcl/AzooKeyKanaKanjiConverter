@@ -18,11 +18,11 @@ extension Kana2Kanji {
     /// (3)(1)のregisterされた結果をresultノードに追加していく。この際EOSとの連接計算を行っておく。
     ///
     /// (4)ノードをアップデートした上で返却する。
-    func kana2lattice_all_with_prefix_constraint(_ inputData: ComposingText, N_best: Int, constraint: String) -> (result: LatticeNode, nodes: Nodes) {
+    func kana2lattice_all_with_prefix_constraint(_ inputData: ComposingText, N_best: Int, constraint: PrefixConstraint) -> (result: LatticeNode, nodes: Nodes) {
         debug("新規に計算を行います。inputされた文字列は\(inputData.input.count)文字分の\(inputData.convertTarget)。制約は\(constraint)")
         let count: Int = inputData.input.count
         let result: LatticeNode = LatticeNode.EOSNode
-        let utf16Constraint = Array(constraint.utf16)
+        let utf16Constraint = Array(constraint.constraint.utf16)
         let nodes: [[LatticeNode]] = (.zero ..< count).map {dicdataStore.getFrozenLOUDSDataInRange(inputData: inputData, from: $0)}
         // 「i文字目から始まるnodes」に対して
         for (i, nodeArray) in nodes.enumerated() {
@@ -50,7 +50,8 @@ extension Kana2Kanji {
                     for index in node.prevs.indices {
                         let newnode: RegisteredNode = node.getRegisteredNode(index, value: node.values[index])
                         let text = newnode.getCandidateData().data.reduce(into: "") { $0.append(contentsOf: $1.word)} + node.data.word
-                        if Array(text.utf16).hasPrefix(utf16Constraint) {
+                        let condition = (!constraint.hasEOS && text.utf16.hasPrefix(utf16Constraint)) || (constraint.hasEOS && text == constraint.constraint)
+                        if condition {
                             result.prevs.append(newnode)
                         }
                     }
@@ -74,7 +75,8 @@ extension Kana2Kanji {
                             // 制約 AB 単語 A   (OK)
                             // 制約 AB 単語 AC  (NG)
                             let text = candidates[index] + nextnode.data.word.utf16
-                            if !text.hasPrefix(utf16Constraint) && !utf16Constraint.hasPrefix(text) {
+                            let condition = (!constraint.hasEOS && (text.hasPrefix(utf16Constraint) || utf16Constraint.hasPrefix(text))) || (constraint.hasEOS && text.count < utf16Constraint.count && utf16Constraint.hasPrefix(text))
+                            guard condition else {
                                 continue
                             }
                             let newValue: PValue = ccValue + value

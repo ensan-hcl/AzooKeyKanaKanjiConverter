@@ -124,6 +124,7 @@ class ZenzContext {
         case error
         case pass(score: Float)
         case fixRequired(prefixConstraint: String)
+        case wholeResult(String)
     }
 
     func evaluate_candidate(input: String, candidate: String) -> CandidateEvaluationResult {
@@ -163,15 +164,27 @@ class ZenzContext {
             }
             // ここで最も良い候補であったかをチェックする
             if max_token != token_id {
-                var cchars = tokens[..<i].reduce(into: []) {
-                    $0.append(contentsOf: token_to_piece(token: $1))
+                if max_token == llama_token_eos(model) {
+                    var cchars = tokens[..<i].reduce(into: []) {
+                        $0.append(contentsOf: token_to_piece(token: $1))
+                    }
+                    // adding "\0"
+                    cchars.append(0)
+                    let string = String(cString: cchars)
+                    // 要求するべき制約を記述する
+                    let wholeResult = String(string.dropFirst(prompt.count))
+                    return .wholeResult(wholeResult)
+                } else {
+                    var cchars = tokens[..<i].reduce(into: []) {
+                        $0.append(contentsOf: token_to_piece(token: $1))
+                    }
+                    // adding "\0"
+                    cchars += token_to_piece(token: max_token) + [0]
+                    let string = String(cString: cchars)
+                    // 要求するべき制約を記述する
+                    let prefixConstraint = String(string.dropFirst(prompt.count))
+                    return .fixRequired(prefixConstraint: prefixConstraint)
                 }
-                // adding "\0"
-                cchars += token_to_piece(token: max_token) + [0]
-                let string = String(cString: cchars)
-                // 要求するべき制約を記述する
-                let prefixConstraint = String(string.dropFirst(prompt.count))
-                return .fixRequired(prefixConstraint: prefixConstraint)
             }
             score += log(max_exp) - log(exp_sum)
         }
