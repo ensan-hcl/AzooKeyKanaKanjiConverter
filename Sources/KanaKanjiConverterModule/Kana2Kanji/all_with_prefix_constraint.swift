@@ -22,6 +22,7 @@ extension Kana2Kanji {
         debug("新規に計算を行います。inputされた文字列は\(inputData.input.count)文字分の\(inputData.convertTarget)。制約は\(constraint)")
         let count: Int = inputData.input.count
         let result: LatticeNode = LatticeNode.EOSNode
+        let utf16Constraint = Array(constraint.utf16)
         let nodes: [[LatticeNode]] = (.zero ..< count).map {dicdataStore.getFrozenLOUDSDataInRange(inputData: inputData, from: $0)}
         // 「i文字目から始まるnodes」に対して
         for (i, nodeArray) in nodes.enumerated() {
@@ -49,13 +50,13 @@ extension Kana2Kanji {
                     for index in node.prevs.indices {
                         let newnode: RegisteredNode = node.getRegisteredNode(index, value: node.values[index])
                         let text = newnode.getCandidateData().data.reduce(into: "") { $0.append(contentsOf: $1.word)} + node.data.word
-                        if text.hasPrefix(constraint) {
+                        if Array(text.utf16).hasPrefix(utf16Constraint) {
                             result.prevs.append(newnode)
                         }
                     }
                 } else {
-                    let candidates = node.getCandidateData().map {
-                        $0.data.reduce(into: "") { $0.append(contentsOf: $1.word)} + node.data.word
+                    let candidates: [[String.UTF16View.Element]] = node.getCandidateData().map {
+                        Array(($0.data.reduce(into: "") { $0.append(contentsOf: $1.word)} + node.data.word).utf16)
                     }
                     // nodeの繋がる次にあり得る全てのnextnodeに対して
                     for nextnode in nodes[nextIndex] {
@@ -72,8 +73,8 @@ extension Kana2Kanji {
                             // 制約 AB 単語 ABC (OK)
                             // 制約 AB 単語 A   (OK)
                             // 制約 AB 単語 AC  (NG)
-                            let text = candidates[index] + nextnode.data.word
-                            if !text.hasPrefix(constraint) && !constraint.hasPrefix(text) {
+                            let text = candidates[index] + nextnode.data.word.utf16
+                            if !text.hasPrefix(utf16Constraint) && !utf16Constraint.hasPrefix(text) {
                                 continue
                             }
                             let newValue: PValue = ccValue + value
