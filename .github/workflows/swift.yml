@@ -45,4 +45,23 @@ jobs:
         run: swift build -Xswiftc -strict-concurrency=complete -v
       - name: Run tests
         run: swift test -c release -Xswiftc -strict-concurrency=complete -v
+  windows-build:
+      name: Swift ${{ matrix.swift-version }} on ${{ matrix.os }}
+      runs-on: ${{ matrix.os }}
+      strategy:
+        matrix:
+          os: [windows-latest]
+          swift-version: ["5.9", "5.10"]
+      steps:
+      - uses: compnerd/gha-setup-swift@main
+        with:
+          branch: swift-5.9-release
+          tag: 5.9-RELEASE
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Build
+        run: swift build -Xswiftc -strict-concurrency=complete -v
+      - name: Run tests
+        run: swift test -c release -Xswiftc -strict-concurrency=complete -v
   
