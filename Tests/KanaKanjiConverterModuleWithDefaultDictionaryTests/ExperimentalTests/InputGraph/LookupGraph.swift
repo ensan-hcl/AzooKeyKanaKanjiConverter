@@ -156,7 +156,7 @@ extension DicdataStore {
                 continue
             }
             let graphNode = lookupGraph.nodes[graphNodeIndex]
-            guard let louds = self.loadLOUDS(identifier: String(graphNode.character.toKatakana())) else {
+            guard let louds = self.loadLOUDS(query: String(graphNode.character.toKatakana())) else {
                 continue
             }
             /// graphNodeIndexから始まる辞書エントリを列挙
@@ -220,7 +220,7 @@ extension DicdataStore {
                 continue
             }
             let graphNode = lookupGraph.nodes[graphNodeIndex]
-            guard let louds = self.loadLOUDS(identifier: String(graphNode.character.toKatakana())) else {
+            guard let louds = self.loadLOUDS(query: String(graphNode.character.toKatakana())) else {
                 continue
             }
             /// graphNodeIndexから始まる辞書エントリを列挙
