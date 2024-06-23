@@ -25,13 +25,35 @@ import SwiftUtils
     private var nodes: [[LatticeNode]] = []
     private var completedData: Candidate?
     private var lastData: DicdataElement?
+    /// Zenzaiのためのzenz-v1モデル
+    private var zenz: Zenz? = nil
+    private var zenzaiCache: Kana2Kanji.ZenzaiCache? = nil
+    public private(set) var zenzStatus: String = ""
 
     /// リセットする関数
     public func stopComposition() {
+        self.zenz?.endSession()
+        self.zenzaiCache = nil
         self.previousInputData = nil
         self.nodes = []
         self.completedData = nil
         self.lastData = nil
+    }
+
+    private func getModel(modelURL: URL) -> Zenz? {
+        if let model = self.zenz, model.resourceURL == modelURL {
+            self.zenzStatus = "load \(modelURL.absoluteString)"
+            return model
+        } else {
+            do {
+                self.zenz = try Zenz(resourceURL: modelURL)
+                self.zenzStatus = "load \(modelURL.absoluteString)"
+                return self.zenz
+            } catch {
+                self.zenzStatus = "load \(modelURL.absoluteString)    " + error.localizedDescription
+                return nil
+            }
+        }
     }
 
     /// 入力する言語が分かったらこの関数をなるべく早い段階で呼ぶことで、SpellCheckerの初期化が行われ、変換がスムーズになる
@@ -428,7 +450,28 @@ import SwiftUtils
         let sums: [(CandidateData, Candidate)] = clauseResult.map {($0, converter.processClauseCandidate($0))}
         // 文章全体を変換した場合の候補上位5件を作る
         let whole_sentence_unique_candidates = self.getUniqueCandidate(sums.map {$0.1})
-        let sentence_candidates = whole_sentence_unique_candidates.min(count: 5, sortedBy: {$0.value > $1.value})
+        if case .完全一致 = options.requestQuery {
+            if options.zenzaiMode.enabled {
+                return ConversionResult(mainResults: whole_sentence_unique_candidates, firstClauseResults: [])
+            } else {
+                return ConversionResult(mainResults: whole_sentence_unique_candidates.sorted(by: {$0.value > $1.value}), firstClauseResults: [])
+            }
+        }
+        // モデル重みを統合
+        let sentence_candidates: [Candidate]
+        if options.zenzaiMode.enabled {
+            // FIXME: もう少し良い方法はありそうだけど、短期的にかなりハックな実装にした
+            // candidateのvalueをZenzaiの出力順に書き換えることで、このあとのrerank処理で騙されてくれるようになっている
+            // より根本的には、`Candidate`にAI評価値をもたせるなどの方法が必要そう
+            var first5 = Array(whole_sentence_unique_candidates.prefix(5))
+            var values = first5.map(\.value).sorted(by: >)
+            for (i, v) in zip(first5.indices, values) {
+                first5[i].value = v
+            }
+            sentence_candidates = first5
+        } else {
+            sentence_candidates = whole_sentence_unique_candidates.min(count: 5, sortedBy: {$0.value > $1.value})
+        }
         // 予測変換を最大3件作成する
         let prediction_candidates: [Candidate] = options.requireJapanesePrediction ? Array(self.getUniqueCandidate(self.getPredictionCandidate(sums, composingText: inputData, options: options)).min(count: 3, sortedBy: {$0.value > $1.value})) : []
 
@@ -443,7 +486,7 @@ import SwiftUtils
         }
 
         // 文全体変換5件と予測変換3件を混ぜてベスト8を出す
-        let best8 = getUniqueCandidate(sentence_candidates.chained(prediction_candidates)).sorted {$0.value > $1.value}
+        let best8 = getUniqueCandidate(sentence_candidates.prefix(5).chained(prediction_candidates)).sorted {$0.value > $1.value}
         // その他のトップレベル変換（先頭に表示されうる変換候補）
         let toplevel_additional_candidate = self.getTopLevelAdditionalCandidate(inputData, options: options)
         // best8、foreign_candidates、zeroHintPrediction_candidates、toplevel_additional_candidateを混ぜて上位5件を取得する
@@ -518,9 +561,17 @@ import SwiftUtils
     ///   - N_best: 計算途中で保存する候補数。実際に得られる候補数とは異なる。
     /// - Returns:
     ///   結果のラティスノードと、計算済みノードの全体
-    private func convertToLattice(_ inputData: ComposingText, N_best: Int) -> (result: LatticeNode, nodes: [[LatticeNode]])? {
+    private func convertToLattice(_ inputData: ComposingText, N_best: Int, zenzaiMode: ConvertRequestOptions.ZenzaiMode) -> (result: LatticeNode, nodes: [[LatticeNode]])? {
         if inputData.convertTarget.isEmpty {
             return nil
+        }
+
+        // FIXME: enable cache based zenzai
+        if zenzaiMode.enabled, let model = self.getModel(modelURL: zenzaiMode.weightURL) {
+            let (result, nodes, cache) = self.converter.all_zenzai(inputData, zenz: model, zenzaiCache: self.zenzaiCache, inferenceLimit: zenzaiMode.inferenceLimit)
+            self.zenzaiCache = cache
+            self.previousInputData = inputData
+            return (result, nodes)
         }
 
         guard let previousInputData else {
@@ -617,7 +668,7 @@ import SwiftUtils
         // DicdataStoreにRequestOptionを通知する
         self.sendToDicdataStore(.setRequestOptions(options))
 
-        guard let result = self.convertToLattice(inputData, N_best: options.N_best) else {
+        guard let result = self.convertToLattice(inputData, N_best: options.N_best, zenzaiMode: options.zenzaiMode) else {
             return ConversionResult(mainResults: [], firstClauseResults: [])
         }
 

@@ -1,0 +1,23 @@
+name: Swift Build and Test in DevContainer
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    name: Swift on ubuntu-latest
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+
+    - name: Build and Test in DevContainer
+      uses: devcontainers/ci@v0.3
+      with:
+        push: never
+        runCmd: |
+          swift build -Xswiftc -strict-concurrency=complete -v
+          swift test -c release -Xswiftc -strict-concurrency=complete -v

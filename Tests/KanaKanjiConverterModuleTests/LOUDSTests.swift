@@ -10,7 +10,7 @@
 import XCTest
 
 final class LOUDSTests: XCTestCase {
-    static var resourceURL = Bundle.module.resourceURL!.standardizedFileURL.appendingPathComponent("DictionaryMock", isDirectory: true)
+    static let resourceURL = Bundle.module.resourceURL!.standardizedFileURL.appendingPathComponent("DictionaryMock", isDirectory: true)
     func requestOptions() -> ConvertRequestOptions {
         var options: ConvertRequestOptions = .default
         options.dictionaryResourceURL = Self.resourceURL

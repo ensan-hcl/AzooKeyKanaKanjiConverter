@@ -111,11 +111,13 @@ struct LongTermLearningMemory {
 
         func makeBinary() -> Data {
             var data = Data()
+            var metadata: [MetadataElement] = self.metadata.map { MetadataElement(day: $0.lastUsedDay, count: $0.count) }
             // エントリのカウントを1byteでエンコード
-            var count = UInt8(self.metadata.count)
+            var count = UInt8(metadata.count)
             data.append(contentsOf: Data(bytes: &count, count: MemoryLayout<UInt8>.size))
-            var metadata = self.metadata.map {MetadataElement(day: $0.lastUsedDay, count: $0.count)}
-            data.append(contentsOf: Data(bytes: &metadata, count: MemoryLayout<MetadataElement>.size * metadata.count))
+            for i in metadata.indices {
+                data.append(contentsOf: Data(bytes: &metadata[i], count: MemoryLayout<MetadataElement>.size))
+            }
             return data
         }
     }
@@ -135,7 +137,7 @@ struct LongTermLearningMemory {
                 if self.ruby.isEmpty {
                     self.ruby = element.ruby
                 }
-                self.data.append((element.word, element.lcid, element.rcid, element.mid, element.baseValue))
+                self.data.append((element.word, element.lcid, element.rcid, element.mid, element.value()))
             }
         }
 
@@ -195,7 +197,7 @@ struct LongTermLearningMemory {
     }
 
     /// 一時記憶と長期記憶の学習データをマージする
-    static func merge(tempTrie: TemporalLearningMemoryTrie, forgetTargets: [DicdataElement] = [], directoryURL: URL, maxMemoryCount: Int, char2UInt8: [Character: UInt8]) throws {
+    static func merge(tempTrie: consuming TemporalLearningMemoryTrie, forgetTargets: [DicdataElement] = [], directoryURL: URL, maxMemoryCount: Int, char2UInt8: [Character: UInt8]) throws {
         // MARK: `.pause`ファイルが存在する場合、`merge`を行う前に`.2`ファイルの復活を試み、失敗した場合は`merge`を諦める。
         if fileExist(pauseFileURL(directoryURL: directoryURL)) {
             debug("LongTermLearningMemory merge collapsion detected, trying recovery...")
@@ -212,13 +214,13 @@ struct LongTermLearningMemory {
         // MARK: ここで、前回のファイルの更新は問題なく成功していることが確認できる
         let startTime = Date()
         let today = LearningManager.today
-        var newTrie = tempTrie
+        var newTrie = consume tempTrie
         // 構造:
         // dataCount(UInt32), count, data*count, count, data*count, ...
         // MARK: 読み出しは、`metadataFile`が存在しなかった場合（学習が一切ない場合）に失敗する。
         let ltMetadata = (try? Data(contentsOf: metadataFileURL(asTemporaryFile: false, directoryURL: directoryURL))) ?? Data([.zero, .zero, .zero, .zero])
-        // 最初の4byteはentry countに対応する
         var metadataOffset = 0
+        // 最初の4byteはentry countに対応する
         let entryCount = ltMetadata[metadataOffset ..< metadataOffset + 4].toArray(of: UInt32.self)[0]
         metadataOffset += 4
 
@@ -226,7 +228,6 @@ struct LongTermLearningMemory {
 
         // それぞれのloudstxt3ファイルに対して処理を行う
         for loudstxtIndex in 0 ..< Int(entryCount) / txtFileSplit + 1 {
-            // loudstxt3の数
             let loudstxtData: Data
             do {
                 loudstxtData = try Data(contentsOf: loudsTxt3FileURL("\(loudstxtIndex)", asTemporaryFile: false, directoryURL: directoryURL))
@@ -234,6 +235,7 @@ struct LongTermLearningMemory {
                 debug("LongTermLearningMemory merge failed to read \(loudstxtIndex)", error)
                 continue
             }
+            // loudstxt3の数
             let count = Int(loudstxtData[0 ..< 2].toArray(of: UInt16.self)[0])
             let indices = loudstxtData[2 ..< 2 + 4 * count].toArray(of: UInt32.self)
             for i in 0 ..< count {
@@ -241,49 +243,58 @@ struct LongTermLearningMemory {
                 // 1byteで項目数
                 let itemCount = Int(ltMetadata[metadataOffset ..< metadataOffset + 1].toArray(of: UInt8.self)[0])
                 metadataOffset += 1
-                let metadata = ltMetadata[metadataOffset ..< metadataOffset + itemCount * 5].toArray(of: MetadataElement.self)
-                metadataOffset += itemCount * 5
+                let metadata = (0 ..< itemCount).map {
+                    let range = metadataOffset + $0 * MemoryLayout<MetadataElement>.size ..< metadataOffset + ($0 + 1) * MemoryLayout<MetadataElement>.size
+                    return ltMetadata[range].toArray(of: MetadataElement.self)[0]
+                }
+                metadataOffset += itemCount * MemoryLayout<MetadataElement>.size
 
                 // バイナリ内部でのindex
                 let startIndex = Int(indices[i])
                 let endIndex = i == (indices.endIndex - 1) ? loudstxtData.endIndex : Int(indices[i + 1])
                 let elements = LOUDS.parseBinary(binary: loudstxtData[startIndex ..< endIndex])
                 // 該当部分を取り出してメタデータに従ってフィルター、trieに追加
-                guard let ruby = elements.first?.ruby else {
+                guard let ruby = elements.first?.ruby,
+                      let chars = LearningManager.keyToChars(ruby, char2UInt8: char2UInt8) else {
                     continue
                 }
                 var newDicdata: [DicdataElement] = []
                 var newMetadata: [MetadataElement] = []
+                assert(elements.count == metadata.count, "elements count and metadata count must be equal.")
                 for (dicdataElement, metadataElement) in zip(elements, metadata) {
                     // 忘却対象である場合は弾く
                     if forgetTargets.contains(dicdataElement) {
+                        debug("LongTermLearningMemory merge stopped because it is a forget target", dicdataElement)
                         continue
                     }
                     if ruby != dicdataElement.ruby {
+                        debug("LongTermLearningMemory merge stopped because dicdataElement has different ruby", dicdataElement, ruby)
+                        continue
+                    }
+                    var metadataElement = metadataElement
+                    if today < metadataElement.lastUpdatedDay || today < metadataElement.lastUsedDay {
+                        // 変なデータが入っているとアンダーフローが起こるため、明示的に新しいデータを入れ直す
+                        metadataElement = MetadataElement(day: today, count: 1)
+                    }
+                    guard today - metadataElement.lastUsedDay < 128 else {
+                        // 128日以上使っていない単語は除外
+                        debug("LongTermLearningMemory merge stopped because metadata is strange", dicdataElement, metadataElement, today)
                         continue
                     }
                     var dicdataElement = dicdataElement
-                    var metadataElement = metadataElement
-                    guard today >= metadataElement.lastUpdatedDay else {
-                        // 異常対応
-                        // 変なデータが入っているとオーバーフローが起こるのでフェイルセーフにする
-                        continue
-                    }
                     // 32日ごとにカウントを半減させる
                     while today - metadataElement.lastUpdatedDay > 32 {
                         metadataElement.count >>= 1
                         metadataElement.lastUpdatedDay += 32
                     }
-                    // カウントがゼロになるか128日以上使っていない単語は除外
-                    if metadataElement.count == 0 || today - metadataElement.lastUsedDay >= 128 {
+                    // カウントがゼロになる場合除外
+                    guard metadataElement.count > 0 else {
+                        debug("LongTermLearningMemory merge stopped because count is zero", dicdataElement, metadataElement)
                         continue
                     }
                     dicdataElement.baseValue = valueForData(metadata: metadataElement, dicdata: dicdataElement)
                     newDicdata.append(dicdataElement)
                     newMetadata.append(metadataElement)
-                }
-                guard let chars = LearningManager.keyToChars(ruby, char2UInt8: char2UInt8) else {
-                    continue
                 }
                 newTrie.append(dicdata: newDicdata, chars: chars, metadata: newMetadata)
             }
@@ -353,8 +364,7 @@ struct LongTermLearningMemory {
         while !currentNodes.isEmpty {
             currentNodes.forEach {char, nodeIndex in
                 nodes2Characters.append(char)
-                let dicdataBlock = DataBlock(dicdata: trie.nodes[nodeIndex].dataIndices.map {trie.dicdata[$0]})
-                dicdata.append(dicdataBlock)
+                dicdata.append(DataBlock(dicdata: trie.nodes[nodeIndex].dataIndices.map {trie.dicdata[$0]}))
                 metadata.append(MetadataBlock(metadata: trie.nodes[nodeIndex].dataIndices.map {trie.metadata[$0]}))
 
                 bits += [Bool](repeating: true, count: trie.nodes[nodeIndex].children.count) + [false]
@@ -376,10 +386,9 @@ struct LongTermLearningMemory {
         }
         let metadataFileTemp = metadataFileURL(asTemporaryFile: true, directoryURL: directoryURL)
         do {
-            var binary = Data()
-            binary += Data(bytes: [UInt32(metadata.count)], count: 4) // エントリ数をUInt32でマップ
+            let binary = Data(bytes: [UInt32(metadata.count)], count: 4) // エントリ数をUInt32でマップ
             let result = metadata.reduce(into: binary) {
-                $0.append($1.makeBinary())
+                $0.append(contentsOf: $1.makeBinary())
             }
             try result.write(to: metadataFileTemp)
         }
@@ -468,10 +477,7 @@ struct TemporalLearningMemoryTrie {
     /// 同じノードにあることがわかっているデータを一括で追加する場面で利用する関数
     /// 主にマージ時の利用を想定
     fileprivate mutating func append(dicdata: [DicdataElement], chars: [UInt8], metadata: [MetadataElement]) {
-        if dicdata.count != metadata.count {
-            debug("TemporalLearningMemoryTrie append: count of dicdata and metadata do not match")
-            return
-        }
+        assert(dicdata.count == metadata.count, "count of dicdata and metadata do not match")
         var index = 0
         for char in chars {
             if let nextIndex = nodes[index].children[char] {
@@ -492,6 +498,8 @@ struct TemporalLearningMemoryTrie {
                     currentMetadata.count += min(.max - currentMetadata.count, metadataElement.count)
                 }
                 self.dicdata[dataIndex] = dicdataElement
+                // valueを更新する
+                self.dicdata[dataIndex].baseValue = LongTermLearningMemory.valueForData(metadata: self.metadata[dataIndex], dicdata: dicdataElement)
             } else {
                 // まだnodes[index]に同じデータが存在していない場合、data末尾に新しい要素を追加してnodes[index]を更新する
                 let dataIndex = self.dicdata.endIndex
@@ -524,14 +532,16 @@ struct TemporalLearningMemoryTrie {
         if let dataIndex = nodes[index].dataIndices.first(where: {Self.sameDicdataIfRubyIsEqual(left: self.dicdata[$0], right: dicdataElement)}) {
             withMutableValue(&self.metadata[dataIndex]) {
                 $0.count += min(.max - $0.count, 1)
-                // 雑な設定だが200年くらいは持つのでヨシ。
                 $0.lastUsedDay = day
             }
+            // adjustを更新する
+            self.dicdata[dataIndex].adjust = LongTermLearningMemory.valueForData(metadata: self.metadata[dataIndex], dicdata: dicdataElement) - dicdataElement.baseValue
         } else {
             let dataIndex = self.dicdata.endIndex
             var dicdataElement = dicdataElement
             let metadataElement = MetadataElement(day: day, count: 1)
-            dicdataElement.baseValue = LongTermLearningMemory.valueForData(metadata: metadataElement, dicdata: dicdataElement)
+            // adjustを更新する
+            dicdataElement.adjust = LongTermLearningMemory.valueForData(metadata: metadataElement, dicdata: dicdataElement) - dicdataElement.baseValue
             self.dicdata.append(dicdataElement)
             self.metadata.append(metadataElement)
             nodes[index].dataIndices.append(dataIndex)
@@ -723,6 +733,10 @@ final class LearningManager {
                 if var newFirstClause = firstClause {
                     if var newSecondClause = secondClause {
                         if DicdataStore.isClause(newFirstClause.rcid, datum.lcid) {
+                            // 更新対象のindexでなければcontinueする
+                            guard data.endIndex <= index else {
+                                continue
+                            }
                             // firstClauseとsecondClauseがあって文節境界である場合, bigramを作って学習に入れる
                             let element = DicdataElement(
                                 word: newFirstClause.word + newSecondClause.word,
@@ -735,10 +749,6 @@ final class LearningManager {
                             // firstClauseを押し出す
                             firstClause = secondClause
                             secondClause = datum
-                            // 更新対象のindexでなければcontinueする
-                            guard data.endIndex <= index else {
-                                continue
-                            }
                             guard let chars = Self.keyToChars(element.ruby, char2UInt8: char2UInt8) else {
                                 continue
                             }

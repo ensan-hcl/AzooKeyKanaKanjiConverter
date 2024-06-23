@@ -6,7 +6,8 @@
 //  Copyright © 2023 ensan. All rights reserved.
 //
 
-import KanaKanjiConverterModuleWithDefaultDictionary
+@testable import KanaKanjiConverterModule
+@testable import KanaKanjiConverterModuleWithDefaultDictionary
 import XCTest
 
 final class DicdataStoreTests: XCTestCase {
@@ -32,7 +33,7 @@ final class DicdataStoreTests: XCTestCase {
             shouldResetMemory: false,
             memoryDirectoryURL: URL(fileURLWithPath: ""),
             sharedContainerURL: URL(fileURLWithPath: ""),
-            metadata: .init(appVersionString: "Tests")
+            metadata: nil
         )
     }
 
@@ -119,6 +120,17 @@ final class DicdataStoreTests: XCTestCase {
             sequentialInput(&c, sequence: "tukatt", inputStyle: .roman2kana)
             let result = dicdataStore.getLOUDSDataInRange(inputData: c, from: 0, toIndexRange: 4..<6)
             XCTAssertTrue(result.contains(where: {$0.data.word == "使っ"}))
+        }
+    }
+
+    func testWiseDicdata() throws {
+        let dicdataStore = DicdataStore(convertRequestOptions: requestOptions())
+        do {
+            var c = ComposingText()
+            c.insertAtCursorPosition("999999999999", inputStyle: .roman2kana)
+            let result = dicdataStore.getWiseDicdata(convertTarget: c.convertTarget, inputData: c, inputRange: 0..<12)
+            XCTAssertTrue(result.contains(where: {$0.word == "999999999999"}))
+            XCTAssertTrue(result.contains(where: {$0.word == "九千九百九十九億九千九百九十九万九千九百九十九"}))
         }
     }
 }

@@ -66,8 +66,8 @@ public final class DicdataStore {
                 self.mmValue = [PValue].init(repeating: .zero, count: self.midCount * self.midCount)
             }
         }
-        _ = self.loadLOUDS(identifier: "user")
-        _ = self.loadLOUDS(identifier: "memory")
+        _ = self.loadLOUDS(query: "user")
+        _ = self.loadLOUDS(query: "memory")
     }
 
     public enum Notification {
@@ -151,30 +151,46 @@ public final class DicdataStore {
         return Self.getPenalty(data: data) < -d
     }
 
-    func loadLOUDS(identifier: String) -> LOUDS? {
-        if importedLoudses.contains(identifier) {
-            return self.loudses[identifier]
+    func loadLOUDS(query: String) -> LOUDS? {
+        if importedLoudses.contains(query) {
+            return self.loudses[query]
         }
-
-        importedLoudses.insert(identifier)
+        // LOUDSが読み込めたか否かにかかわらず、importedLoudsesは更新する
+        importedLoudses.insert(query)
+        // 一部のASCII文字はエスケープする
+        let identifier = [
+            #"\n"#: "[0A]",
+            #" "#: "[20]",
+            #"""#: "[22]",
+            #"'"#: "[27]",
+            #"*"#: "[2A]",
+            #"+"#: "[2B]",
+            #"."#: "[2E]",
+            #"/"#: "[2F]",
+            #":"#: "[3A]",
+            #"<"#: "[3C]",
+            #">"#: "[3E]",
+            #"\"#: "[5C]",
+            #"|"#: "[7C]",
+        ][query, default: query]
         if let louds = LOUDS.load(identifier, option: self.requestOptions) {
-            self.loudses[identifier] = louds
+            self.loudses[query] = louds
             return louds
         } else {
-            debug("loudsの読み込みに失敗、identifierは\(identifier)")
+            debug("loudsの読み込みに失敗、identifierは\(query)(id: \(identifier))")
             return nil
         }
     }
 
-    private func perfectMatchLOUDS(identifier: String, charIDs: [UInt8]) -> [Int] {
-        guard let louds = self.loadLOUDS(identifier: identifier) else {
+    private func perfectMatchLOUDS(query: String, charIDs: [UInt8]) -> [Int] {
+        guard let louds = self.loadLOUDS(query: query) else {
             return []
         }
         return [louds.searchNodeIndex(chars: charIDs)].compactMap {$0}
     }
 
-    private func throughMatchLOUDS(identifier: String, charIDs: [UInt8], depth: Range<Int>) -> [Int] {
-        guard let louds = self.loadLOUDS(identifier: identifier) else {
+    private func throughMatchLOUDS(query: String, charIDs: [UInt8], depth: Range<Int>) -> [Int] {
+        guard let louds = self.loadLOUDS(query: query) else {
             return []
         }
         let result = louds.byfixNodeIndices(chars: charIDs)
@@ -182,14 +198,14 @@ public final class DicdataStore {
         return Array(result[min(depth.lowerBound + 1, result.endIndex) ..< min(depth.upperBound + 1, result.endIndex)])
     }
 
-    private func prefixMatchLOUDS(identifier: String, charIDs: [UInt8], depth: Int = .max) -> [Int] {
-        guard let louds = self.loadLOUDS(identifier: identifier) else {
+    private func prefixMatchLOUDS(query: String, charIDs: [UInt8], depth: Int = .max) -> [Int] {
+        guard let louds = self.loadLOUDS(query: query) else {
             return []
         }
         return louds.prefixNodeIndices(chars: charIDs, maxDepth: depth)
     }
 
-    func getDicdataFromLoudstxt3(identifier: String, indices: some Sequence<Int>) -> [DicdataElement] {
+    package func getDicdataFromLoudstxt3(identifier: String, indices: some Sequence<Int>) -> [DicdataElement] {
         debug("getDicdataFromLoudstxt3", identifier, indices)
         // split = 2048
         let dict = [Int: [Int]].init(grouping: indices, by: {$0 >> 11})
@@ -219,7 +235,6 @@ public final class DicdataStore {
         }
         // MARK: 誤り訂正の対象を列挙する。非常に重い処理。
         var stringToInfo = inputData.getRangesWithTypos(fromIndex, rightIndexRange: toIndexLeft ..< toIndexRight)
-
         // MARK: 検索対象を列挙していく。
         let stringSet = stringToInfo.keys.map {($0, $0.map(self.character2charId))}
         let (minCharIDsCount, maxCharIDsCount) = stringSet.lazy.map {$0.1.count}.minAndMax() ?? (0, -1)
@@ -229,12 +244,12 @@ public final class DicdataStore {
         let depth = minCharIDsCount - 1 ..< maxCharIDsCount
         var indices: [(String, Set<Int>)] = group.map {dic in
             let key = String(dic.key)
-            let set = dic.value.flatMapSet {(_, charIDs) in self.throughMatchLOUDS(identifier: key, charIDs: charIDs, depth: depth)}
+            let set = dic.value.flatMapSet {(_, charIDs) in self.throughMatchLOUDS(query: key, charIDs: charIDs, depth: depth)}
             return (key, set)
         }
-        indices.append(("user", stringSet.flatMapSet {self.throughMatchLOUDS(identifier: "user", charIDs: $0.1, depth: depth)}))
+        indices.append(("user", stringSet.flatMapSet {self.throughMatchLOUDS(query: "user", charIDs: $0.1, depth: depth)}))
         if learningManager.enabled {
-            indices.append(("memory", stringSet.flatMapSet {self.throughMatchLOUDS(identifier: "memory", charIDs: $0.1, depth: depth)}))
+            indices.append(("memory", stringSet.flatMapSet {self.throughMatchLOUDS(query: "memory", charIDs: $0.1, depth: depth)}))
         }
         // MARK: 検索によって得たindicesから辞書データを実際に取り出していく
         var dicdata: [DicdataElement] = []
@@ -310,6 +325,73 @@ public final class DicdataStore {
         }
     }
 
+    /// kana2latticeから参照する。
+    /// - Parameters:
+    ///   - inputData: 入力データ
+    ///   - from: 起点
+    ///   - toIndexRange: `from ..< (toIndexRange)`の範囲で辞書ルックアップを行う。
+    public func getFrozenLOUDSDataInRange(inputData: ComposingText, from fromIndex: Int, toIndexRange: Range<Int>? = nil) -> [LatticeNode] {
+        let toIndexLeft = toIndexRange?.startIndex ?? fromIndex
+        let toIndexRight = min(toIndexRange?.endIndex ?? inputData.input.count, fromIndex + self.maxlength)
+        debug("getLOUDSDataInRange", fromIndex, toIndexRange?.description ?? "nil", toIndexLeft, toIndexRight)
+        if fromIndex > toIndexLeft || toIndexLeft >= toIndexRight {
+            debug("getLOUDSDataInRange: index is wrong")
+            return []
+        }
+
+        let segments = (fromIndex ..< toIndexRight).reduce(into: []) { (segments: inout [String], rightIndex: Int) in
+            segments.append((segments.last ?? "") + String(inputData.input[rightIndex].character.toKatakana()))
+        }
+        let character = String(inputData.input[fromIndex].character.toKatakana())
+        let characterNode = LatticeNode(data: DicdataElement(word: character, ruby: character, cid: CIDData.一般名詞.cid, mid: MIDData.一般.mid, value: -10), inputRange: fromIndex ..< fromIndex + 1)
+        if fromIndex == .zero {
+            characterNode.prevs.append(.BOSNode())
+        }
+
+        // MARK: 誤り訂正なし
+        var stringToEndIndex = inputData.getRanges(fromIndex, rightIndexRange: toIndexLeft ..< toIndexRight)
+        // MARK: 検索対象を列挙していく。
+        guard let (minString, maxString) = stringToEndIndex.keys.minAndMax(by: {$0.count < $1.count}) else {
+            return [characterNode]
+        }
+        let maxIDs = maxString.map(self.character2charId)
+        var keys = [String(stringToEndIndex.keys.first!.first!), "user"]
+        if learningManager.enabled {
+            keys.append("memory")
+        }
+        // MARK: 検索によって得たindicesから辞書データを実際に取り出していく
+        var dicdata: [DicdataElement] = []
+        let depth = minString.count - 1 ..< maxString.count
+        for identifier in keys {
+            dicdata.append(contentsOf: self.getDicdataFromLoudstxt3(identifier: identifier, indices: self.throughMatchLOUDS(query: identifier, charIDs: maxIDs, depth: depth)))
+        }
+        if learningManager.enabled {
+            // temporalな学習結果にpenaltyを加えて追加する
+            dicdata.append(contentsOf: self.learningManager.temporaryThroughMatch(charIDs: consume maxIDs, depth: depth))
+        }
+        for i in toIndexLeft ..< toIndexRight {
+            dicdata.append(contentsOf: self.getWiseDicdata(convertTarget: segments[i - fromIndex], inputData: inputData, inputRange: fromIndex ..< i + 1))
+            dicdata.append(contentsOf: self.getMatchOSUserDict(segments[i - fromIndex]))
+        }
+        if fromIndex == .zero {
+            return dicdata.compactMap {
+                guard let endIndex = stringToEndIndex[Array($0.ruby)] else {
+                    return nil
+                }
+                let node = LatticeNode(data: $0, inputRange: fromIndex ..< endIndex + 1)
+                node.prevs.append(RegisteredNode.BOSNode())
+                return node
+            } + [characterNode]
+        } else {
+            return dicdata.compactMap {
+                guard let endIndex = stringToEndIndex[Array($0.ruby)] else {
+                    return nil
+                }
+                return LatticeNode(data: $0, inputRange: fromIndex ..< endIndex + 1)
+            } + [characterNode]
+        }
+    }
+
     /// kana2latticeから参照する。louds版。
     /// - Parameters:
     ///   - inputData: 入力データ
@@ -333,19 +415,19 @@ public final class DicdataStore {
         var indices: [(String, Set<Int>)] = group.map {dic in
             let head = String(dic.key)
             let set = dic.value.flatMapSet { (_, charIDs) in
-                self.perfectMatchLOUDS(identifier: head, charIDs: charIDs)
+                self.perfectMatchLOUDS(query: head, charIDs: charIDs)
             }
             return (head, set)
         }
         do {
             let set = strings.flatMapSet { (_, charIDs) in
-                self.perfectMatchLOUDS(identifier: "user", charIDs: charIDs)
+                self.perfectMatchLOUDS(query: "user", charIDs: charIDs)
             }
             indices.append(("user", set))
         }
         if learningManager.enabled {
             let set = strings.flatMapSet { (_, charIDs) in
-                self.perfectMatchLOUDS(identifier: "memory", charIDs: charIDs)
+                self.perfectMatchLOUDS(query: "memory", charIDs: charIDs)
             }
             indices.append(("memory", set))
         }
@@ -429,20 +511,22 @@ public final class DicdataStore {
         let first = String(key.first!)
         let charIDs = key.map(self.character2charId)
         // 1, 2文字に対する予測変換は候補数が大きいので、depth（〜文字数）を制限する
-        let depth = if count == 1 || count == 2 {
+        let depth = if count == 1 {
+            3
+        } else if count == 2 {
             5
         } else {
             Int.max
         }
-        let prefixIndices = self.prefixMatchLOUDS(identifier: first, charIDs: charIDs, depth: depth).prefix(700)
+        let prefixIndices = self.prefixMatchLOUDS(query: first, charIDs: charIDs, depth: depth).prefix(700)
         result.append(
             contentsOf: self.getDicdataFromLoudstxt3(identifier: first, indices: Set(consume prefixIndices))
                 .filter { Self.predictionUsable[$0.rcid] }
         )
-        let userDictIndices = self.prefixMatchLOUDS(identifier: "user", charIDs: charIDs, depth: depth).prefix(700)
+        let userDictIndices = self.prefixMatchLOUDS(query: "user", charIDs: charIDs, depth: depth).prefix(700)
         result.append(contentsOf: self.getDicdataFromLoudstxt3(identifier: "user", indices: Set(consume userDictIndices)))
         if learningManager.enabled {
-            let memoryDictIndices = self.prefixMatchLOUDS(identifier: "memory", charIDs: charIDs).prefix(700)
+            let memoryDictIndices = self.prefixMatchLOUDS(query: "memory", charIDs: charIDs).prefix(700)
             result.append(contentsOf: self.getDicdataFromLoudstxt3(identifier: "memory", indices: Set(consume memoryDictIndices)))
             result.append(contentsOf: self.learningManager.temporaryPrefixMatch(charIDs: charIDs))
         }
@@ -464,16 +548,13 @@ public final class DicdataStore {
     ///     - convertTarget: カタカナ変換済みの文字列
     /// - note
     ///     - 入力全体をカタカナとかひらがなに変換するやつは、Converter側でやっているので注意。
-    private func getWiseDicdata(convertTarget: String, inputData: ComposingText, inputRange: Range<Int>) -> [DicdataElement] {
+    func getWiseDicdata(convertTarget: String, inputData: ComposingText, inputRange: Range<Int>) -> [DicdataElement] {
         var result: [DicdataElement] = []
         result.append(contentsOf: self.getJapaneseNumberDicdata(head: convertTarget))
-        if inputData.input[..<inputRange.startIndex].last?.character.isNumber != true && inputData.input[inputRange.endIndex...].first?.character.isNumber != true, let number = Float(convertTarget) {
+        if inputData.input[..<inputRange.startIndex].last?.character.isNumber != true && inputData.input[inputRange.endIndex...].first?.character.isNumber != true, let number = Int(convertTarget) {
             result.append(DicdataElement(ruby: convertTarget, cid: CIDData.数.cid, mid: MIDData.小さい数字.mid, value: -14))
-            if number.truncatingRemainder(dividingBy: 1) == 0 {
-                let int = Int(number)
-                if int < Int(1E18) && -Int(1E18) < int, let kansuji = self.numberFormatter.string(from: NSNumber(value: int)) {
-                    result.append(DicdataElement(word: kansuji, ruby: convertTarget, cid: CIDData.数.cid, mid: MIDData.小さい数字.mid, value: -16))
-                }
+            if number <= Int(1E12) && -Int(1E12) <= number, let kansuji = self.numberFormatter.string(from: NSNumber(value: number)) {
+                result.append(DicdataElement(word: kansuji, ruby: convertTarget, cid: CIDData.数.cid, mid: MIDData.小さい数字.mid, value: -16))
             }
         }
 
@@ -725,12 +806,8 @@ public final class DicdataStore {
     /// wordTypesの初期化時に使うのみ。
     private static let PREPOSITION_wordIDs: Set<Int> = [1315, 6, 557, 558, 559, 560]
     /// wordTypesの初期化時に使うのみ。
-    private static let INPOSITION_wordIDs: Set<Int> = Set<Int>(Array(561..<868)
-                                                                + Array(1283..<1297)
-                                                                + Array(1306..<1310)
-                                                                + Array(11..<53)
-                                                                + Array(555..<557)
-                                                                + Array(1281..<1283)
+    private static let INPOSITION_wordIDs: Set<Int> = Set<Int>(
+        Array(561..<868).chained(1283..<1297).chained(1306..<1310).chained(11..<53).chained(555..<557).chained(1281..<1283)
     ).union([1314, 3, 2, 4, 5, 1, 9])
 
     /*

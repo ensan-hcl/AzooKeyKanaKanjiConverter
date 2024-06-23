@@ -2,6 +2,8 @@
 
 AzooKeyKanaKanjiConverterは[azooKey](https://github.com/ensan-hcl/azooKey)のために開発したかな漢字変換エンジンです。数行のコードでかな漢字変換をiOS / macOS / visionOSのアプリケーションに組み込むことができます。
 
+また、AzooKeyKanaKanjiConverterはニューラルかな漢字変換システム「Zenzai」を利用した高精度な変換もサポートしています。
+
 ## 動作環境
 iOS 14以降, macOS 11以降, visionOS 1以降, Ubuntu 22.04以降で動作を確認しています。
 
@@ -16,7 +18,7 @@ AzooKeyKanaKanjiConverterの開発については[開発ガイド](Docs/developm
 * Swift Packageの場合、Package.swiftの`Package`の引数に`dependencies`以下の記述を追加してください。
   ```swift
   dependencies: [
-      .package(url: "https://github.com/ensan-hcl/AzooKeyKanaKanjiConverter", .upToNextMinor(from: "0.6.0"))
+      .package(url: "https://github.com/ensan-hcl/AzooKeyKanaKanjiConverter", .upToNextMinor(from: "0.8.0"))
   ],
   ```
   また、ターゲットの`dependencies`にも同様に追加してください。
@@ -30,7 +32,7 @@ AzooKeyKanaKanjiConverterの開発については[開発ガイド](Docs/developm
   ```
 
 > [!IMPORTANT]  
-> AzooKeyKanaKanjiConverterはバージョン1.0のリリースまで開発版として運用するため、マイナーバージョンの変更で破壊的変更を実施する可能性があります。バージョンを指定する際にはマイナーバージョンが上がらないよう、`.upToNextMinor(from: "0.6.0")`のように指定することを推奨します。
+> AzooKeyKanaKanjiConverterはバージョン1.0のリリースまで開発版として運用するため、マイナーバージョンの変更で破壊的変更を実施する可能性があります。バージョンを指定する際にはマイナーバージョンが上がらないよう、`.upToNextMinor(from: "0.8.0")`のように指定することを推奨します。
 
 
 ### 使い方
@@ -70,12 +72,22 @@ let options = ConvertRequestOptions.withDefaultDictionary(
     // ユーザ辞書データのあるディレクトリのURL（書類フォルダを指定）
     sharedContainerURL: .documentsDirectory, 
     // メタデータ
-    metadata: .init(appVersionString: "Version X")
+    metadata: .init(versionString: "You App Version X")
 )
 ```
 
 ### `ComposingText`
 `ComposingText`は入力管理を行いつつ変換をリクエストするためのAPIです。ローマ字入力などを適切にハンドルするために利用できます。詳しくは[ドキュメント](./Docs/composing_text.md)を参照してください。
+
+### Zenzaiを使う
+ニューラルかな漢字変換システム「Zenzai」を利用するには、`ConvertRequestOptions`の`zenzaiMode`を指定します。詳しくは[ドキュメント](./Docs/zenzai.md)を参照してください。
+```swift
+let options = ConvertRequestOptions.withDefaultDictionary(
+    // ...
+    zenzaiMode: .on(weight: url, inferenceLimit: 10)
+    // ...
+)
+```
 
 ### 辞書データ
 AzooKeyKanaKanjiConverterのデフォルト辞書として[azooKey_dictionary_storage](https://github.com/ensan-hcl/azooKey_dictionary_storage)がサブモジュールとして指定されています。過去のバージョンの辞書データは[Google Drive](https://drive.google.com/drive/folders/1Kh7fgMFIzkpg7YwP3GhWTxFkXI-yzT9E?usp=sharing)からもダウンロードすることができます。
@@ -131,7 +143,7 @@ let options = ConvertRequestOptions(
     // ユーザ辞書データのあるディレクトリのURL（書類フォルダを指定）
     sharedContainerURL: .documentsDirectory, 
     // メタデータ
-    metadata: .init(appVersionString: "Version X")
+    metadata: .init(versionString: "You App Version X")
 )
 ```
 

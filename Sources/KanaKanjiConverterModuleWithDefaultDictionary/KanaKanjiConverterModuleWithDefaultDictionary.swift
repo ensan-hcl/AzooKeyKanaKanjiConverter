@@ -17,8 +17,9 @@ public extension ConvertRequestOptions {
         shouldResetMemory: Bool = false,
         memoryDirectoryURL: URL,
         sharedContainerURL: URL,
+        zenzaiMode: ZenzaiMode = .off,
         textReplacer: TextReplacer = TextReplacer(),
-        metadata: ConvertRequestOptions.Metadata
+        metadata: ConvertRequestOptions.Metadata?
     ) -> Self {
         #if os(iOS) || os(watchOS) || os(tvOS) || os(visionOS)
         let dictionaryDirectory = Bundle.module.bundleURL.appendingPathComponent("Dictionary", isDirectory: true)
@@ -46,6 +47,7 @@ public extension ConvertRequestOptions {
             memoryDirectoryURL: memoryDirectoryURL,
             sharedContainerURL: sharedContainerURL,
             textReplacer: textReplacer,
+            zenzaiMode: zenzaiMode,
             metadata: metadata
         )
     }

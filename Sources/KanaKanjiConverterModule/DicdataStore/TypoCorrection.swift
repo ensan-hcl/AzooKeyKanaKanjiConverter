@@ -97,6 +97,70 @@ extension ComposingText {
         return Dictionary(stringToInfo, uniquingKeysWith: {$0.penalty < $1.penalty ? $1 : $0})
     }
 
+    /// closedRangeでもらう
+    /// 例えば`left=4, rightIndexRange=6..<10`の場合、`4...6, 4...7, 4...8, 4...9`の範囲で計算する
+    /// `left <= rightIndexRange.startIndex`が常に成り立つ
+    func getRanges(_ left: Int, rightIndexRange: Range<Int>) -> [[Character]: Int] {
+        let count = rightIndexRange.endIndex - left
+        debug("getRangesWithTypos", left, rightIndexRange, count)
+        let nodes = (0..<count).map {(i: Int) in
+            Self.lengths.flatMap {(k: Int) -> [TypoCandidate] in
+                let j = i + k
+                if count <= j {
+                    return []
+                }
+                return Self.getTypo(self.input[left + i ... left + j], frozen: true)
+            }
+        }
+
+        // Performance Tuning Note：直接Dictionaryを作るのではなく、一度Arrayを作ってから最後にDictionaryに変換する方が、高速である
+        var stringToInfo: [([Character], Int)] = []
+
+        // 深さ優先で列挙する
+        var stack: [(convertTargetElements: [ConvertTargetElement], lastElement: InputElement, count: Int)] = nodes[0].compactMap { typoCandidate in
+            guard let firstElement = typoCandidate.inputElements.first else {
+                return nil
+            }
+            if Self.isLeftSideValid(first: firstElement, of: self.input, from: left) {
+                var convertTargetElements = [ConvertTargetElement]()
+                for element in typoCandidate.inputElements {
+                    ComposingText.updateConvertTargetElements(currentElements: &convertTargetElements, newElement: element)
+                }
+                return (convertTargetElements, typoCandidate.inputElements.last!, typoCandidate.inputElements.count)
+            }
+            return nil
+        }
+        while var (convertTargetElements, lastElement, count) = stack.popLast() {
+            if rightIndexRange.contains(count + left - 1) {
+                if let convertTarget = ComposingText.getConvertTargetIfRightSideIsValid(lastElement: lastElement, of: self.input, to: count + left, convertTargetElements: convertTargetElements)?.map({$0.toKatakana()}) {
+                    stringToInfo.append((convertTarget, (count + left - 1)))
+                }
+            }
+            // エスケープ
+            if nodes.endIndex <= count {
+                continue
+            }
+            stack.append(contentsOf: nodes[count].compactMap {
+                if count + $0.inputElements.count > nodes.endIndex {
+                    return nil
+                }
+                for element in $0.inputElements {
+                    ComposingText.updateConvertTargetElements(currentElements: &convertTargetElements, newElement: element)
+                }
+                if shouldBeRemovedForDicdataStore(components: convertTargetElements) {
+                    return nil
+                }
+                return (
+                    convertTargetElements: convertTargetElements,
+                    lastElement: $0.inputElements.last!,
+                    count: count + $0.inputElements.count
+                )
+            })
+        }
+        return Dictionary(stringToInfo, uniquingKeysWith: {$0 < $1 ? $1 : $0})
+    }
+
+
     func getRangeWithTypos(_ left: Int, _ right: Int) -> [[Character]: PValue] {
         // 各iから始まる候補を列挙する
         // 例えばinput = [d(あ), r(s), r(i), r(t), r(s), d(は), d(は), d(れ)]の場合
@@ -178,19 +242,20 @@ extension ComposingText {
         return Dictionary(stringToPenalty, uniquingKeysWith: max)
     }
 
-    private static func getTypo(_ elements: some Collection<InputElement>) -> [TypoCandidate] {
+    private static func getTypo(_ elements: some Collection<InputElement>, frozen: Bool = false) -> [TypoCandidate] {
         let key = elements.reduce(into: "") {$0.append($1.character)}.toKatakana()
 
         if (elements.allSatisfy {$0.inputStyle == .direct}) {
+            let dictionary: [String: [TypoUnit]] = frozen ? [:] : Self.directPossibleTypo
             if key.count > 1 {
-                return Self.directPossibleTypo[key, default: []].map {
+                return dictionary[key, default: []].map {
                     TypoCandidate(
                         inputElements: $0.value.map {InputElement(character: $0, inputStyle: .direct)},
                         weight: $0.weight
                     )
                 }
             } else if key.count == 1 {
-                var result = Self.directPossibleTypo[key, default: []].map {
+                var result = dictionary[key, default: []].map {
                     TypoCandidate(
                         inputElements: $0.value.map {InputElement(character: $0, inputStyle: .direct)},
                         weight: $0.weight
@@ -202,15 +267,16 @@ extension ComposingText {
             }
         }
         if (elements.allSatisfy {$0.inputStyle == .roman2kana}) {
+            let dictionary: [String: [String]] = frozen ? [:] : Self.roman2KanaPossibleTypo
             if key.count > 1 {
-                return Self.roman2KanaPossibleTypo[key, default: []].map {
+                return dictionary[key, default: []].map {
                     TypoCandidate(
                         inputElements: $0.map {InputElement(character: $0, inputStyle: .roman2kana)},
                         weight: 3.5
                     )
                 }
             } else if key.count == 1 {
-                var result = Self.roman2KanaPossibleTypo[key, default: []].map {
+                var result = dictionary[key, default: []].map {
                     TypoCandidate(
                         inputElements: $0.map {InputElement(character: $0, inputStyle: .roman2kana)},
                         weight: 3.5

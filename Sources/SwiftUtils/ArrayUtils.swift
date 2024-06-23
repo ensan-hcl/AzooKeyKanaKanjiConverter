@@ -8,13 +8,6 @@
 import Algorithms
 import Foundation
 
-@resultBuilder
-public struct ArrayBuilder {
-    public static func buildBlock<T>(_ values: T...) -> [T] {
-        values
-    }
-}
-
 public extension Sequence {
     /// Returns a sequence that contains the elements of this sequence followed by the elements of the given sequence.
     /// - Parameters:
@@ -93,6 +86,20 @@ public extension Collection {
 }
 
 public extension Collection where Self.Element: Equatable {
+    /// Returns a Bool value indicating whether the collection has the given prefix.
+    /// - Parameters:
+    ///   - prefix: A collection to search for at the start of this collection.
+    /// - Returns: A Bool value indicating whether the collection has the given prefix.
+    @inlinable func hasPrefix(_ prefix: some Collection<Element>) -> Bool {
+        if self.count < prefix.count {
+            return false
+        }
+        for (u, v) in zip(self, prefix) where u != v {
+            return false
+        }
+        return true
+    }
+
     /// Returns a Bool value indicating whether the collection has the given suffix.
     /// - Parameters:
     ///   - suffix: A collection to search for at the end of this collection.

@@ -22,13 +22,4 @@ final class StringExtensionTests: XCTestCase {
         XCTAssertEqual("".toHiragana(), "")
         XCTAssertEqual("これはろん".toHiragana(), "これはろん")
     }
-
-    func testIndexFromStart() throws {
-        do {
-            let string = "ア❤️‍🔥ウ😇オ"
-            XCTAssertEqual(string[string.indexFromStart(3)], "😇")
-            XCTAssertEqual(string[string.indexFromStart(4)], "オ")
-        }
-    }
-
 }
