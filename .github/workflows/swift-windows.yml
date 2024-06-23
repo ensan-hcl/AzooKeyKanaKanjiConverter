@@ -14,9 +14,9 @@ jobs:
     steps:
       - uses: compnerd/gha-setup-swift@main
         with:
-          branch: swift-5.9-release
-          tag: 5.9-RELEASE
+          branch: swift-5.10-release
+          tag: 5.10-RELEASE
 
       - uses: actions/checkout@v3
-      - run: swift build -Xswiftc -strict-concurrency=complete -v
-      - run: swift test -c release -Xswiftc -strict-concurrency=complete -v
+      - run: swift build -Xswiftc -strict-concurrency=complete -Xcxx -xobjective-c++ -v
+      - run: swift test -c release -Xswiftc -strict-concurrency=complete -Xcxx -xobjective-c++ -v
