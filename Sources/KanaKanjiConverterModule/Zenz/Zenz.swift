@@ -35,7 +35,7 @@ import SwiftUtils
             return .error
         }
         for candidate in candidates {
-            let result = zenzContext.evaluate_candidate(input: convertTarget.toKatakana(), candidate: candidate.text)
+            let result = zenzContext.evaluate_candidate(input: convertTarget.toKatakana(), candidate: candidate)
             return result
         }
         return .error
