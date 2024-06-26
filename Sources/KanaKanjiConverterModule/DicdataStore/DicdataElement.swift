@@ -64,7 +64,7 @@ public struct DicdataElement: Equatable, Hashable, Sendable {
     }
 
     public static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.word == rhs.word && lhs.ruby == rhs.ruby && lhs.lcid == rhs.lcid && lhs.mid == rhs.mid && lhs.rcid == rhs.rcid
+        lhs.word == rhs.word && lhs.ruby == rhs.ruby && lhs.lcid == rhs.lcid && lhs.mid == rhs.mid && lhs.rcid == rhs.rcid && lhs.metadata == rhs.metadata
     }
 
     public func hash(into hasher: inout Hasher) {
@@ -72,6 +72,7 @@ public struct DicdataElement: Equatable, Hashable, Sendable {
         hasher.combine(ruby)
         hasher.combine(lcid)
         hasher.combine(rcid)
+        hasher.combine(metadata)
     }
 }
 
