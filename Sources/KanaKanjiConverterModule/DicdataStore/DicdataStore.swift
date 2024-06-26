@@ -213,6 +213,11 @@ public final class DicdataStore {
         for (key, value) in dict {
             data.append(contentsOf: LOUDS.getDataForLoudstxt3(identifier + "\(key)", indices: value.map {$0 & 2047}, option: self.requestOptions))
         }
+        if identifier == "memory" {
+            data.mutatingForeach {
+                $0.metadata = .isLearned
+            }
+        }
         return data
     }
 
