@@ -52,12 +52,12 @@ jobs:
       strategy:
         matrix:
           os: [windows-latest]
-          swift-version: ["5.9", "5.10"]
       steps:
       - uses: compnerd/gha-setup-swift@main
         with:
-          branch: swift-5.9-release
-          tag: 5.9-RELEASE
+          release-tag-name: "20240626.0"
+          github-repo: thebrowsercompany/swift-build
+          release-asset-name: installer-amd64.exe
       - uses: actions/checkout@v4
         with:
           submodules: true
