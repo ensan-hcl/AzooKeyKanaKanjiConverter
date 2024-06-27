@@ -49,11 +49,15 @@ extension Kana2Kanji {
                 if nextIndex == count {
                     for index in node.prevs.indices {
                         let newnode: RegisteredNode = node.getRegisteredNode(index, value: node.values[index])
-                        let text = newnode.getCandidateData().data.reduce(into: "") { $0.append(contentsOf: $1.word)} + node.data.word
-                        let condition = (!constraint.hasEOS && text.utf16.hasPrefix(utf16Constraint)) || (constraint.hasEOS && text == constraint.constraint)
-                        if condition {
-                            result.prevs.append(newnode)
+                        if !node.data.metadata.contains(.isLearned) {
+                            let text = newnode.getCandidateData().data.reduce(into: "") { $0.append(contentsOf: $1.word)} + node.data.word
+                            // 最終チェック
+                            let condition = (!constraint.hasEOS && text.utf16.hasPrefix(utf16Constraint)) || (constraint.hasEOS && text == constraint.constraint)
+                            guard condition else {
+                                continue
+                            }
                         }
+                        result.prevs.append(newnode)
                     }
                 } else {
                     let candidates: [[String.UTF16View.Element]] = node.getCandidateData().map {
@@ -74,10 +78,13 @@ extension Kana2Kanji {
                             // 制約 AB 単語 ABC (OK)
                             // 制約 AB 単語 A   (OK)
                             // 制約 AB 単語 AC  (NG)
-                            let text = candidates[index] + nextnode.data.word.utf16
-                            let condition = (!constraint.hasEOS && (text.hasPrefix(utf16Constraint) || utf16Constraint.hasPrefix(text))) || (constraint.hasEOS && text.count < utf16Constraint.count && utf16Constraint.hasPrefix(text))
-                            guard condition else {
-                                continue
+                            // ただし、学習データの場合は素通しする
+                            if !nextnode.data.metadata.contains(.isLearned) {
+                                let text = candidates[index] + nextnode.data.word.utf16
+                                let condition = (!constraint.hasEOS && (text.hasPrefix(utf16Constraint) || utf16Constraint.hasPrefix(text))) || (constraint.hasEOS && text.count < utf16Constraint.count && utf16Constraint.hasPrefix(text))
+                                guard condition else {
+                                    continue
+                                }
                             }
                             let newValue: PValue = ccValue + value
                             // 追加すべきindexを取得する
