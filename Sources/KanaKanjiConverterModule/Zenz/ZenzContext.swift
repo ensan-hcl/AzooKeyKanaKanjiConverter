@@ -195,14 +195,13 @@ class ZenzContext {
                         $0.append(contentsOf: token_to_piece(token: $1))
                     }
                     let acceptedPrefix = String(cString: cchars + [0]).dropFirst(prompt.count)
-                    // adding "\0"
-                    cchars += token_to_piece(token: max_token) + [0]
-                    let string = String(cString: cchars)
-                    
                     if let nextDicdataElement = getNextDicdataElement(for: String(acceptedPrefix), of: candidate), nextDicdataElement.metadata.contains(.isLearned) {
                         // 学習による候補なので素通しする
                         // pass
                     } else {
+                        // adding "\0"
+                        cchars += token_to_piece(token: max_token)
+                        let string = String(cString: cchars + [0])
                         // 要求するべき制約を記述する
                         let prefixConstraint = String(string.dropFirst(prompt.count))
                         return .fixRequired(prefixConstraint: prefixConstraint)

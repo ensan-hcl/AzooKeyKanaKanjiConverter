@@ -500,12 +500,14 @@ struct TemporalLearningMemoryTrie {
                 self.dicdata[dataIndex] = dicdataElement
                 // valueを更新する
                 self.dicdata[dataIndex].baseValue = LongTermLearningMemory.valueForData(metadata: self.metadata[dataIndex], dicdata: dicdataElement)
+                self.dicdata[dataIndex].metadata = .isLearned
             } else {
                 // まだnodes[index]に同じデータが存在していない場合、data末尾に新しい要素を追加してnodes[index]を更新する
                 let dataIndex = self.dicdata.endIndex
                 self.dicdata.append(dicdataElement)
                 self.metadata.append(metadataElement)
                 nodes[index].dataIndices.append(dataIndex)
+                self.dicdata[dataIndex].metadata = .isLearned
             }
         }
     }
@@ -536,12 +538,14 @@ struct TemporalLearningMemoryTrie {
             }
             // adjustを更新する
             self.dicdata[dataIndex].adjust = LongTermLearningMemory.valueForData(metadata: self.metadata[dataIndex], dicdata: dicdataElement) - dicdataElement.baseValue
+            self.dicdata[dataIndex].metadata = .isLearned
         } else {
             let dataIndex = self.dicdata.endIndex
             var dicdataElement = dicdataElement
             let metadataElement = MetadataElement(day: day, count: 1)
             // adjustを更新する
             dicdataElement.adjust = LongTermLearningMemory.valueForData(metadata: metadataElement, dicdata: dicdataElement) - dicdataElement.baseValue
+            dicdataElement.metadata = .isLearned
             self.dicdata.append(dicdataElement)
             self.metadata.append(metadataElement)
             nodes[index].dataIndices.append(dataIndex)
