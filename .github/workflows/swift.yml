@@ -52,14 +52,14 @@ jobs:
       strategy:
         matrix:
           os: [windows-latest]
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       steps:
       - uses: compnerd/gha-setup-swift@main
         with:
           release-tag-name: "20240626.0"
           github-repo: thebrowsercompany/swift-build
           release-asset-name: installer-amd64.exe
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/checkout@v4
         with:
           submodules: true
