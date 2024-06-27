@@ -87,6 +87,12 @@ extension Subcommands {
                         }
                     }
                     continue
+                case ":s":
+                    composingText.stopComposition()
+                    converter.stopComposition()
+                    converter.sendToDicdataStore(.closeKeyboard)
+                    print("saved")
+                    continue
                 case ":h":
                     // ヘルプ
                     print("""
@@ -95,6 +101,7 @@ extension Subcommands {
                     \(bold: ":c") - clear composition
                     \(bold: ":d") - delete one character
                     \(bold: ":n") - see more candidates
+                    \(bold: ":s") - save memory to temporary directory
                     \(bold: ":%d") - select candidate at that index (like :3 to select 3rd candidate)
                     """)
                 default:
