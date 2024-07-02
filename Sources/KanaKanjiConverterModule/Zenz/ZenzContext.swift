@@ -168,6 +168,8 @@ class ZenzContext {
             var exp_sum: Float = 0
             var max_token: llama_token = 0
             var max_exp: Float = .infinity * -1
+            var actual_token = token_id
+            var actual_exp: Float = .infinity * -1
             let startIndex = (i - 1 - startOffset) * Int(n_vocab)
             let endIndex = (i - startOffset) * Int(n_vocab)
             for index in startIndex ..< endIndex {
@@ -176,6 +178,9 @@ class ZenzContext {
                 if max_exp < v {
                     max_exp = v
                     max_token = llama_token(index - startIndex)
+                }
+                if index == actual_token {
+                    actual_exp = v
                 }
             }
             // ここで最も良い候補であったかをチェックする
@@ -195,8 +200,11 @@ class ZenzContext {
                         $0.append(contentsOf: token_to_piece(token: $1))
                     }
                     let acceptedPrefix = String(cString: cchars + [0]).dropFirst(prompt.count)
-                    if let nextDicdataElement = getNextDicdataElement(for: String(acceptedPrefix), of: candidate), nextDicdataElement.metadata.contains(.isLearned) {
-                        // 学習による候補なので素通しする
+                    if let nextDicdataElement = getNextDicdataElement(for: String(acceptedPrefix), of: candidate), 
+                        nextDicdataElement.metadata.contains(.isLearned),
+                        actual_exp * 10 > max_exp
+                    {
+                        // 学習による候補であり、zenzによる評価も許容範囲なので、素通しする
                         // pass
                     } else {
                         // adding "\0"
