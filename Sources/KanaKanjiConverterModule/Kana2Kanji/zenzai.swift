@@ -16,10 +16,10 @@ extension Kana2Kanji {
         func getNewConstraint(for newInputData: ComposingText) -> PrefixConstraint {
             if let satisfyingCandidate {
                 var current = newInputData.convertTarget.toKatakana()[...]
-                var constraint = ""
+                var constraint = [UInt8]()
                 for item in satisfyingCandidate.data {
                     if current.hasPrefix(item.ruby) {
-                        constraint += item.word
+                        constraint += item.word.utf8
                         current = current.dropFirst(item.ruby.count)
                     }
                 }
@@ -27,24 +27,28 @@ extension Kana2Kanji {
             } else if newInputData.convertTarget.hasPrefix(inputData.convertTarget) {
                 return self.prefixConstraint
             } else {
-                return PrefixConstraint("")
+                return PrefixConstraint([])
             }
         }
     }
 
-    struct PrefixConstraint: Equatable {
-        init(_ constraint: String, hasEOS: Bool = false) {
+    struct PrefixConstraint: Sendable, Equatable, Hashable, CustomStringConvertible {
+        init(_ constraint: [UInt8], hasEOS: Bool = false) {
             self.constraint = constraint
             self.hasEOS = hasEOS
         }
         
-        var constraint: String
+        var constraint: [UInt8]
         var hasEOS: Bool
+
+        var description: String {
+            "PrefixConstraint(constraint: \"\(String(cString: self.constraint + [0]))\", hasEOS: \(self.hasEOS))"
+        }
     }
 
     /// zenzaiシステムによる完全変換。
     @MainActor func all_zenzai(_ inputData: ComposingText, zenz: Zenz, zenzaiCache: ZenzaiCache?, inferenceLimit: Int) -> (result: LatticeNode, nodes: Nodes, cache: ZenzaiCache) {
-        var constraint = zenzaiCache?.getNewConstraint(for: inputData) ?? PrefixConstraint("")
+        var constraint = zenzaiCache?.getNewConstraint(for: inputData) ?? PrefixConstraint([])
         print("initial constraint", constraint)
         let eosNode = LatticeNode.EOSNode
         var nodes: Kana2Kanji.Nodes = []
@@ -70,7 +74,7 @@ extension Kana2Kanji {
                 print("best was not found!")
                 // Emptyの場合
                 // 制約が満たせない場合は無視する
-                return (eosNode, nodes, ZenzaiCache(inputData, constraint: PrefixConstraint(""), satisfyingCandidate: nil))
+                return (eosNode, nodes, ZenzaiCache(inputData, constraint: PrefixConstraint([]), satisfyingCandidate: nil))
             }
             print("Constrained draft modeling", -start.timeIntervalSinceNow)
             reviewLoop: while true {
@@ -131,29 +135,29 @@ extension Kana2Kanji {
             // 同じ制約が2回連続で出てきたら諦める
             if constraint.constraint == prefixConstraint {
                 print("same constraint:", prefixConstraint)
-                return .return(constraint: PrefixConstraint(""), satisfied: false)
+                return .return(constraint: PrefixConstraint([]), satisfied: false)
             }
             // 制約が得られたので、更新する
-            print("update constraint:", prefixConstraint)
             constraint = PrefixConstraint(prefixConstraint)
+            print("update constraint:", constraint)
             // もし制約を満たす候補があるならそれを使って再レビューチャレンジを戦うことで、推論を減らせる
             for i in candidates.indices where i != candidateIndex {
-                if candidates[i].text.hasPrefix(prefixConstraint) {
+                if candidates[i].text.utf8.hasPrefix(prefixConstraint) {
                     print("found \(candidates[i].text) as another retry")
                     return .retry(candidateIndex: i)
                 }
             }
             return .continue
         case .wholeResult(let wholeConstraint):
-            let newConstraint = PrefixConstraint(wholeConstraint, hasEOS: true)
+            let newConstraint = PrefixConstraint(Array(wholeConstraint.utf8), hasEOS: true)
             // 同じ制約が2回連続で出てきたら諦める
             if constraint == newConstraint {
                 print("same constraint:", constraint)
-                return .return(constraint: PrefixConstraint(""), satisfied: false)
+                return .return(constraint: PrefixConstraint([]), satisfied: false)
             }
             // 制約が得られたので、更新する
             print("update whole constraint:", wholeConstraint)
-            constraint = PrefixConstraint(wholeConstraint, hasEOS: true)
+            constraint = PrefixConstraint(Array(wholeConstraint.utf8), hasEOS: true)
             // もし制約を満たす候補があるならそれを使って再レビューチャレンジを戦うことで、推論を減らせる
             for i in candidates.indices where i != candidateIndex {
                 if candidates[i].text == wholeConstraint {

@@ -78,7 +78,7 @@ public struct DicdataElement: Equatable, Hashable, Sendable {
 
 extension DicdataElement: CustomDebugStringConvertible {
     public var debugDescription: String {
-        "(ruby: \(self.ruby), word: \(self.word), cid: (\(self.lcid), \(self.rcid)), mid: \(self.mid), value: \(self.baseValue)+\(self.adjust)=\(self.value()))"
+        "(ruby: \(self.ruby), word: \(self.word), cid: (\(self.lcid), \(self.rcid)), mid: \(self.mid), value: \(self.baseValue)+\(self.adjust)=\(self.value()), metadata: (isLearned: \(self.metadata.contains(.isLearned))))"
     }
 }
 
