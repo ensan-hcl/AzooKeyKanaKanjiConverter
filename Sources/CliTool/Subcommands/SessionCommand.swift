@@ -62,7 +62,7 @@ extension Subcommands {
             while true {
                 print()
                 print("\(bold: "== Type :q to end session, type :d to delete character, type :c to stop composition. For other commands, type :h ==")")
-                let input = readLine(strippingNewline: true) ?? ""
+                var input = readLine(strippingNewline: true) ?? ""
                 switch input {
                 case ":q":
                     // 終了
@@ -120,6 +120,13 @@ extension Subcommands {
                             converter.stopComposition()
                         }
                     } else {
+                        input = String(input.map { (c: Character) -> Character in
+                            [
+                                "-": "ー",
+                                ".": "。",
+                                ",": "、",
+                            ][c, default: c]
+                        })
                         composingText.insertAtCursorPosition(input, inputStyle: inputStyle)
                     }
                 }
