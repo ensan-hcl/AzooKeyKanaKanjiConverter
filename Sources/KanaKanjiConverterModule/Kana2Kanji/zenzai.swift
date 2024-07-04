@@ -138,8 +138,8 @@ extension Kana2Kanji {
                 return .return(constraint: PrefixConstraint([]), satisfied: false)
             }
             // 制約が得られたので、更新する
-            print("update constraint:", prefixConstraint)
             constraint = PrefixConstraint(prefixConstraint)
+            print("update constraint:", constraint)
             // もし制約を満たす候補があるならそれを使って再レビューチャレンジを戦うことで、推論を減らせる
             for i in candidates.indices where i != candidateIndex {
                 if candidates[i].text.utf8.hasPrefix(prefixConstraint) {
