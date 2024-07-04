@@ -123,7 +123,7 @@ class ZenzContext {
     enum CandidateEvaluationResult: Sendable, Equatable, Hashable {
         case error
         case pass(score: Float)
-        case fixRequired(prefixConstraint: String)
+        case fixRequired(prefixConstraint: [UInt8])
         case wholeResult(String)
     }
 
@@ -209,10 +209,7 @@ class ZenzContext {
                     } else {
                         // adding "\0"
                         cchars += token_to_piece(token: max_token)
-                        let string = String(cString: cchars + [0])
-                        // 要求するべき制約を記述する
-                        let prefixConstraint = String(string.dropFirst(prompt.count))
-                        return .fixRequired(prefixConstraint: prefixConstraint)
+                        return .fixRequired(prefixConstraint: cchars.dropFirst(prompt.utf8.count).map(UInt8.init))
                     }
                 }
             }
