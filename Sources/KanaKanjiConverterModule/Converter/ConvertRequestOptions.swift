@@ -142,18 +142,50 @@ public struct ConvertRequestOptions: Sendable {
         case 完全一致
     }
 
+    public struct ZenzaiV2DependentMode: Sendable, Equatable, Hashable {
+        public init(profile: String? = nil, leftSideContext: String? = nil) {
+            self.profile = profile
+            self.leftSideContext = leftSideContext
+        }
+
+        /// プロフィールコンテクストを設定した場合、プロフィールを反映したプロンプトが自動的に付与されます。プロフィールは10〜20文字程度の長さにとどめることを推奨します。
+        public var profile: String?
+        /// 左側の文字列を文脈として与えます。
+        public var leftSideContext: String?
+    }
+
+    public enum ZenzVersion: Sendable, Equatable, Hashable {
+        case v1
+        case v2
+    }
+
+    public enum ZenzaiVersionDependentMode: Sendable, Equatable, Hashable {
+        case v1
+        case v2(ZenzaiV2DependentMode)
+
+        public var version: ZenzVersion {
+            switch self {
+            case .v1:
+                return .v1
+            case .v2(_):
+                return .v2
+            }
+        }
+    }
+
     public struct ZenzaiMode: Sendable, Equatable {
-        public static let off = ZenzaiMode(enabled: false, weightURL: URL(fileURLWithPath: ""), inferenceLimit: 10)
+        public static let off = ZenzaiMode(enabled: false, weightURL: URL(fileURLWithPath: ""), inferenceLimit: 10, versionDependentMode: .v2(.init()))
 
         /// activate *Zenzai* - Neural Kana-Kanji Conversiion Engine
         /// - Parameters:
         ///    - weight: path for model weight (gguf)
         ///    - inferenceLimit: applying inference count limitation. Smaller limit makes conversion faster but quality will be worse. (Default: 10)
-        public static func on(weight: URL, inferenceLimit: Int = 10) -> Self {
-            ZenzaiMode(enabled: true, weightURL: weight, inferenceLimit: inferenceLimit)
+        public static func on(weight: URL, inferenceLimit: Int = 10, versionDependentMode: ZenzaiVersionDependentMode = .v2(.init())) -> Self {
+            ZenzaiMode(enabled: true, weightURL: weight, inferenceLimit: inferenceLimit, versionDependentMode: versionDependentMode)
         }
         var enabled: Bool
         var weightURL: URL
         var inferenceLimit: Int
+        var versionDependentMode: ZenzaiVersionDependentMode
     }
 }

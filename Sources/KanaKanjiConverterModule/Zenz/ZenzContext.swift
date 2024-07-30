@@ -139,11 +139,29 @@ class ZenzContext {
         }
     }
 
-    func evaluate_candidate(input: String, candidate: Candidate) -> CandidateEvaluationResult {
+    func evaluate_candidate(input: String, candidate: Candidate, versionDependentConfig: ConvertRequestOptions.ZenzaiVersionDependentMode) -> CandidateEvaluationResult {
         print("Evaluate", candidate)
         // For zenz-v1 model, \u{EE00} is a token used for 'start query', and \u{EE01} is a token used for 'start answer'
         // We assume \u{EE01}\(candidate) is always splitted into \u{EE01}_\(candidate) by zenz-v1 tokenizer
-        let prompt = "\u{EE00}\(input)\u{EE01}"
+        let prompt: String
+        if case .v2(let mode) = versionDependentConfig {
+            if let leftSideContext = mode.leftSideContext, !leftSideContext.isEmpty {
+                let lsContext = leftSideContext.suffix(40)
+                if let profile = mode.profile, !profile.isEmpty {
+                    let pf = profile.suffix(25)
+                    prompt = "\u{EE00}\(input)\u{EE02}プロフィール：\(pf)・発言：\(lsContext)\u{EE01}"
+                } else {
+                    prompt = "\u{EE00}\(input)\u{EE02}\(lsContext)\u{EE01}"
+                }
+            } else if let profile = mode.profile, !profile.isEmpty {
+                let pf = profile.suffix(25)
+                prompt = "\u{EE00}\(input)\u{EE02}プロフィール：\(pf)・発言：\u{EE01}"
+            } else {
+                prompt = "\u{EE00}\(input)\u{EE01}"
+            }
+        } else {
+            prompt = "\u{EE00}\(input)\u{EE01}"
+        }
         // Therefore, tokens = prompt_tokens + candidate_tokens is an appropriate operation.
         let prompt_tokens = self.tokenize(text: prompt, add_bos: true, add_eos: false)
         let candidate_tokens = self.tokenize(text: candidate.text, add_bos: false, add_eos: false)
