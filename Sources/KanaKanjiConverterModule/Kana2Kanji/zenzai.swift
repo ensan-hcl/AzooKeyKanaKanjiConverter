@@ -47,7 +47,13 @@ extension Kana2Kanji {
     }
 
     /// zenzaiシステムによる完全変換。
-    @MainActor func all_zenzai(_ inputData: ComposingText, zenz: Zenz, zenzaiCache: ZenzaiCache?, inferenceLimit: Int) -> (result: LatticeNode, nodes: Nodes, cache: ZenzaiCache) {
+    @MainActor func all_zenzai(
+        _ inputData: ComposingText,
+        zenz: Zenz,
+        zenzaiCache: ZenzaiCache?,
+        inferenceLimit: Int,
+        versionDependentConfig: ConvertRequestOptions.ZenzaiVersionDependentMode
+    ) -> (result: LatticeNode, nodes: Nodes, cache: ZenzaiCache) {
         var constraint = zenzaiCache?.getNewConstraint(for: inputData) ?? PrefixConstraint([])
         print("initial constraint", constraint)
         let eosNode = LatticeNode.EOSNode
@@ -85,7 +91,7 @@ extension Kana2Kanji {
                     // When inference occurs more than maximum times, then just return result at this point
                     return (eosNode, nodes, ZenzaiCache(inputData, constraint: constraint, satisfyingCandidate: candidate))
                 }
-                let reviewResult = zenz.candidateEvaluate(convertTarget: inputData.convertTarget, candidates: [candidate])
+                let reviewResult = zenz.candidateEvaluate(convertTarget: inputData.convertTarget, candidates: [candidate], versionDependentConfig: versionDependentConfig)
                 inferenceLimit -= 1
                 let nextAction = self.review(
                     candidateIndex: index,

@@ -25,7 +25,10 @@ extension Subcommands {
         var roman2kana = false
         @Option(name: [.customLong("config_zenzai_inference_limit")], help: "inference limit for zenzai.")
         var configZenzaiInferenceLimit: Int = .max
-
+        @Option(name: [.customLong("config_profile")], help: "enable profile prompting for zenz-v2.")
+        var configZenzV2Profile: String? = nil
+        @Flag(name: [.customLong("zenz_v1")], help: "Use zenz_v1 model.")
+        var zenzV1 = false
 
         static var configuration = CommandConfiguration(commandName: "session", abstract: "Start session for incremental input.")
 
@@ -44,6 +47,9 @@ extension Subcommands {
         }
 
         @MainActor mutating func run() async {
+            if self.zenzV1 {
+                print("\(bold: "We strongly recommend to use zenz-v2 models")")
+            }
             let memoryDirector = if self.enableLearning {
                 if let dir = self.getTemporaryDirectory() {
                     dir
@@ -58,10 +64,14 @@ extension Subcommands {
             var composingText = ComposingText()
             let inputStyle: InputStyle = self.roman2kana ? .roman2kana : .direct
             var lastCandidates: [Candidate] = []
+            var leftSideContext: String = ""
             var page = 0
             while true {
                 print()
                 print("\(bold: "== Type :q to end session, type :d to delete character, type :c to stop composition. For other commands, type :h ==")")
+                if !leftSideContext.isEmpty {
+                    print("\(bold: "Current Left-Side Context"): \(leftSideContext)")
+                }
                 var input = readLine(strippingNewline: true) ?? ""
                 switch input {
                 case ":q":
@@ -74,6 +84,7 @@ extension Subcommands {
                     // クリア
                     composingText.stopComposition()
                     converter.stopComposition()
+                    leftSideContext = ""
                     print("composition is stopped")
                     continue
                 case ":n":
@@ -119,6 +130,7 @@ extension Subcommands {
                             composingText.stopComposition()
                             converter.stopComposition()
                         }
+                        leftSideContext += candidate.text
                     } else {
                         input = String(input.map { (c: Character) -> Character in
                             [
@@ -132,7 +144,7 @@ extension Subcommands {
                 }
                 print(composingText.convertTarget)
                 let start = Date()
-                let result = converter.requestCandidates(composingText, options: requestOptions(memoryDirector: memoryDirector))
+                let result = converter.requestCandidates(composingText, options: requestOptions(memoryDirector: memoryDirector, leftSideContext: leftSideContext))
                 let mainResults = result.mainResults.filter {
                     !self.onlyWholeConversion || $0.data.reduce(into: "", {$0.append(contentsOf: $1.ruby)}) == input.toKatakana()
                 }
@@ -159,7 +171,12 @@ extension Subcommands {
             }
         }
 
-        func requestOptions(memoryDirector: URL) -> ConvertRequestOptions {
+        func requestOptions(memoryDirector: URL, leftSideContext: String) -> ConvertRequestOptions {
+            let zenzaiVersionDependentMode: ConvertRequestOptions.ZenzaiVersionDependentMode = if self.zenzV1 {
+                .v1
+            } else {
+                .v2(.init(profile: self.configZenzV2Profile, leftSideContext: leftSideContext))
+            }
             var option: ConvertRequestOptions = .withDefaultDictionary(
                 N_best: self.onlyWholeConversion ? max(self.configNBest, self.displayTopN) : self.configNBest,
                 requireJapanesePrediction: !self.onlyWholeConversion && !self.disablePrediction,
@@ -175,7 +192,11 @@ extension Subcommands {
                 shouldResetMemory: false,
                 memoryDirectoryURL: memoryDirector,
                 sharedContainerURL: URL(fileURLWithPath: ""),
-                zenzaiMode: self.zenzWeightPath.isEmpty ? .off : .on(weight: URL(string: self.zenzWeightPath)!, inferenceLimit: self.configZenzaiInferenceLimit),
+                zenzaiMode: self.zenzWeightPath.isEmpty ? .off : .on(
+                    weight: URL(string: self.zenzWeightPath)!,
+                    inferenceLimit: self.configZenzaiInferenceLimit,
+                    versionDependentMode: zenzaiVersionDependentMode
+                ),
                 metadata: .init(versionString: "anco for debugging")
             )
             if self.onlyWholeConversion {
