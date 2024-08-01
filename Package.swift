@@ -58,7 +58,8 @@ let package = Package(
             name: "KanaKanjiConverterModule",
             dependencies: [
                 "SwiftUtils",
-                .product(name: "llama", package: "llama.cpp")
+                .product(name: "llama", package: "llama.cpp"),
+                .product(name: "Collections", package: "swift-collections")
             ],
             swiftSettings: swiftSettings
         ),
