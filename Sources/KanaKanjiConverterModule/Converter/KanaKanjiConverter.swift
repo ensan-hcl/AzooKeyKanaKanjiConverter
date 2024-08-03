@@ -55,6 +55,20 @@ import SwiftUtils
             }
         }
     }
+    
+    public func predictNextCharacter(leftSideContext: String, count: Int, options: ConvertRequestOptions) -> [(character: Character, value: Float)] {
+        guard let zenz = self.getModel(modelURL: options.zenzaiMode.weightURL) else {
+            print("zenz-v2 model unavailable")
+            return []
+        }
+        guard options.zenzaiMode.versionDependentMode.version == .v2 else {
+            print("next character prediction requires zenz-v2 models, not zenz-v1")
+            return []
+        }
+        let results = zenz.predictNextCharacter(leftSideContext: leftSideContext, count: count)
+        
+        return results
+    }
 
     /// 入力する言語が分かったらこの関数をなるべく早い段階で呼ぶことで、SpellCheckerの初期化が行われ、変換がスムーズになる
     public func setKeyboardLanguage(_ language: KeyboardLanguage) {
@@ -568,7 +582,7 @@ import SwiftUtils
 
         // FIXME: enable cache based zenzai
         if zenzaiMode.enabled, let model = self.getModel(modelURL: zenzaiMode.weightURL) {
-            let (result, nodes, cache) = self.converter.all_zenzai(inputData, zenz: model, zenzaiCache: self.zenzaiCache, inferenceLimit: zenzaiMode.inferenceLimit)
+            let (result, nodes, cache) = self.converter.all_zenzai(inputData, zenz: model, zenzaiCache: self.zenzaiCache, inferenceLimit: zenzaiMode.inferenceLimit, versionDependentConfig: zenzaiMode.versionDependentMode)
             self.zenzaiCache = cache
             self.previousInputData = inputData
             return (result, nodes)

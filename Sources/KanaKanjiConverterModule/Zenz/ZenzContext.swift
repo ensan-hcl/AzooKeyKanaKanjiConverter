@@ -1,5 +1,7 @@
 import llama
 import SwiftUtils
+import HeapModule
+import Algorithms
 import Foundation
 
 enum ZenzError: LocalizedError {
@@ -123,30 +125,101 @@ class ZenzContext {
     enum CandidateEvaluationResult: Sendable, Equatable, Hashable {
         case error
         case pass(score: Float)
-        case fixRequired(prefixConstraint: String)
+        case fixRequired(prefixConstraint: [UInt8])
         case wholeResult(String)
     }
 
-    func getNextDicdataElement(for prefix: String, of candidate: Candidate) -> DicdataElement? {
-        var curPrefix = ""
-        for datum in candidate.data {
-            if curPrefix == prefix {
-                // prefixの直後の単語を返したい
-                return datum
-            } else if curPrefix.hasPrefix(prefix) {
-                // FIXME: 積極的な一語化の方針と相性が良くないはず
-                return nil
-            }
-            curPrefix.append(datum.word)
+    func getLearningPriority(data: DicdataElement) -> Float {
+        // 文字数の長い候補ほど優先的に適用されるようにする
+        // 積極的な複合語化の効果を期待
+        return if 1 <= data.ruby.count && data.ruby.count <= 4 {
+            Float(data.ruby.count + 2)
+        } else if 5 <= data.ruby.count && data.ruby.count <= 15 {
+            Float(data.ruby.count * 2)
+        } else {
+            30
         }
-        return nil
     }
 
-    func evaluate_candidate(input: String, candidate: Candidate) -> CandidateEvaluationResult {
+    func predict_next_character(leftSideContext: String, count: Int) -> [(character: Character, value: Float)] {
+        struct NextCharacterCandidate: Comparable {
+            static func < (lhs: NextCharacterCandidate, rhs: NextCharacterCandidate) -> Bool {
+                lhs.value < rhs.value
+            }
+            var character: Character
+            var value: Float
+        }
+
+        // 文末を目指して生成するためのプロンプト
+        // \u{EE01}を停止トークンとみなせる
+        let prompt_tokens = self.tokenize(text: "\u{EE00}。\u{EE02}\(leftSideContext)", add_bos: false)
+        let startOffset = prompt_tokens.count - 1
+
+        guard let logits = self.get_logits(tokens: prompt_tokens, logits_start_index: startOffset) else {
+            print("logits unavailable")
+            return []
+        }
+
+        let n_vocab = llama_n_vocab(model)
+        var exp_sum: Float = 0
+        let startIndex = (prompt_tokens.count - 1 - startOffset) * Int(n_vocab)
+        let endIndex = (prompt_tokens.count - startOffset) * Int(n_vocab)
+
+        // Min-Heapを使用してn-bestを計算
+        var minHeap: Heap<NextCharacterCandidate> = .init()
+        let token_to_penalty_weight: [llama_token: Float] = prompt_tokens.indexed().reduce(into: [:]) { dict, item in
+            let (index, token) = item
+            // 現在位置から遠いほど減衰させる
+            dict[token, default: 0] += 2 / Float(prompt_tokens.count - index)
+        }
+
+        for index in startIndex..<endIndex {
+            let token = llama_token(index - startIndex)
+            let repeat_penalty = Float(1.0 + token_to_penalty_weight[token, default: 0])
+            let v = exp(logits[index] / repeat_penalty)
+            exp_sum += v
+
+            let tokenPieceData = Data((token_to_piece(token: token)).map(UInt8.init))
+            let character: Character
+            if let validCharacter = String(data: tokenPieceData, encoding: .utf8), let c = validCharacter.first {
+                character = c
+            } else {
+                continue
+            }
+            if minHeap.count < count {
+                minHeap.insert(NextCharacterCandidate(character: character, value: v))
+            } else if let min = minHeap.min, v > min.value {
+                minHeap.replaceMin(with: NextCharacterCandidate(character: character, value: v))
+            }
+        }
+
+        // Heapからソートして結果を取り出す
+        return minHeap.unordered.sorted { $0.value > $1.value }.map { ($0.character, $0.value / exp_sum) }
+    }
+    
+    func evaluate_candidate(input: String, candidate: Candidate, versionDependentConfig: ConvertRequestOptions.ZenzaiVersionDependentMode) -> CandidateEvaluationResult {
         print("Evaluate", candidate)
         // For zenz-v1 model, \u{EE00} is a token used for 'start query', and \u{EE01} is a token used for 'start answer'
         // We assume \u{EE01}\(candidate) is always splitted into \u{EE01}_\(candidate) by zenz-v1 tokenizer
-        let prompt = "\u{EE00}\(input)\u{EE01}"
+        let prompt: String
+        if case .v2(let mode) = versionDependentConfig {
+            if let leftSideContext = mode.leftSideContext, !leftSideContext.isEmpty {
+                let lsContext = leftSideContext.suffix(40)
+                if let profile = mode.profile, !profile.isEmpty {
+                    let pf = profile.suffix(25)
+                    prompt = "\u{EE00}\(input)\u{EE02}プロフィール：\(pf)・発言：\(lsContext)\u{EE01}"
+                } else {
+                    prompt = "\u{EE00}\(input)\u{EE02}\(lsContext)\u{EE01}"
+                }
+            } else if let profile = mode.profile, !profile.isEmpty {
+                let pf = profile.suffix(25)
+                prompt = "\u{EE00}\(input)\u{EE02}プロフィール：\(pf)・発言：\u{EE01}"
+            } else {
+                prompt = "\u{EE00}\(input)\u{EE01}"
+            }
+        } else {
+            prompt = "\u{EE00}\(input)\u{EE01}"
+        }
         // Therefore, tokens = prompt_tokens + candidate_tokens is an appropriate operation.
         let prompt_tokens = self.tokenize(text: prompt, add_bos: true, add_eos: false)
         let candidate_tokens = self.tokenize(text: candidate.text, add_bos: false, add_eos: false)
@@ -159,6 +232,10 @@ class ZenzContext {
             return .error
         }
         let n_vocab = llama_n_vocab(model)
+        let is_learned_token: [(isLearned: Bool, priority: Float)] = Array(repeating: (false, 0), count: prompt_tokens.count) + candidate.data.flatMap {
+            // priorityは文字数にする→文字数が長いほど優先される
+            Array(repeating: ($0.metadata.contains(.isLearned), getLearningPriority(data: $0)), count: self.tokenize(text: $0.word, add_bos: false).count)
+        }
 
         var score: Float = 0
         for (i, token_id) in tokens.indexed().dropFirst(prompt_tokens.count) {
@@ -191,21 +268,15 @@ class ZenzContext {
                     let wholeResult = String(string.dropFirst(prompt.count))
                     return .wholeResult(wholeResult)
                 } else {
-                    var cchars = tokens[..<i].reduce(into: []) {
-                        $0.append(contentsOf: token_to_piece(token: $1))
-                    }
-                    let acceptedPrefix = String(cString: cchars + [0]).dropFirst(prompt.count)
-                    // adding "\0"
-                    cchars += token_to_piece(token: max_token) + [0]
-                    let string = String(cString: cchars)
-                    
-                    if let nextDicdataElement = getNextDicdataElement(for: String(acceptedPrefix), of: candidate), nextDicdataElement.metadata.contains(.isLearned) {
-                        // 学習による候補なので素通しする
-                        // pass
-                    } else {
-                        // 要求するべき制約を記述する
-                        let prefixConstraint = String(string.dropFirst(prompt.count))
-                        return .fixRequired(prefixConstraint: prefixConstraint)
+                    let actual_exp: Float = exp(logits[startIndex + Int(token_id)])
+                    // 学習されたトークンであり、なおかつactual_expのある程度大きければ、学習されたトークンを優先する
+                    let preferLearnedToken = is_learned_token[i].isLearned && actual_exp * is_learned_token[i].priority > max_exp
+                    if !preferLearnedToken {
+                        // adding "\0"
+                        let cchars = tokens[..<i].reduce(into: []) {
+                            $0.append(contentsOf: token_to_piece(token: $1))
+                        } + token_to_piece(token: max_token)
+                        return .fixRequired(prefixConstraint: cchars.dropFirst(prompt.utf8.count).map(UInt8.init))
                     }
                 }
             }

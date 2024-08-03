@@ -22,7 +22,6 @@ extension Kana2Kanji {
         debug("新規に計算を行います。inputされた文字列は\(inputData.input.count)文字分の\(inputData.convertTarget)。制約は\(constraint)")
         let count: Int = inputData.input.count
         let result: LatticeNode = LatticeNode.EOSNode
-        let utf16Constraint = Array(constraint.constraint.utf16)
         let nodes: [[LatticeNode]] = (.zero ..< count).map {dicdataStore.getFrozenLOUDSDataInRange(inputData: inputData, from: $0)}
         // 「i文字目から始まるnodes」に対して
         for (i, nodeArray) in nodes.enumerated() {
@@ -49,15 +48,19 @@ extension Kana2Kanji {
                 if nextIndex == count {
                     for index in node.prevs.indices {
                         let newnode: RegisteredNode = node.getRegisteredNode(index, value: node.values[index])
-                        let text = newnode.getCandidateData().data.reduce(into: "") { $0.append(contentsOf: $1.word)} + node.data.word
-                        let condition = (!constraint.hasEOS && text.utf16.hasPrefix(utf16Constraint)) || (constraint.hasEOS && text == constraint.constraint)
-                        if condition {
-                            result.prevs.append(newnode)
+                        if !node.data.metadata.contains(.isLearned) {
+                            let utf8Text = newnode.getCandidateData().data.reduce(into: []) { $0.append(contentsOf: $1.word.utf8)} + node.data.word.utf8
+                            // 最終チェック
+                            let condition = (!constraint.hasEOS && utf8Text.hasPrefix(constraint.constraint)) || (constraint.hasEOS && utf8Text == constraint.constraint)
+                            guard condition else {
+                                continue
+                            }
                         }
+                        result.prevs.append(newnode)
                     }
                 } else {
-                    let candidates: [[String.UTF16View.Element]] = node.getCandidateData().map {
-                        Array(($0.data.reduce(into: "") { $0.append(contentsOf: $1.word)} + node.data.word).utf16)
+                    let candidates: [[String.UTF8View.Element]] = node.getCandidateData().map {
+                        Array(($0.data.reduce(into: "") { $0.append(contentsOf: $1.word)} + node.data.word).utf8)
                     }
                     // nodeの繋がる次にあり得る全てのnextnodeに対して
                     for nextnode in nodes[nextIndex] {
@@ -74,10 +77,13 @@ extension Kana2Kanji {
                             // 制約 AB 単語 ABC (OK)
                             // 制約 AB 単語 A   (OK)
                             // 制約 AB 単語 AC  (NG)
-                            let text = candidates[index] + nextnode.data.word.utf16
-                            let condition = (!constraint.hasEOS && (text.hasPrefix(utf16Constraint) || utf16Constraint.hasPrefix(text))) || (constraint.hasEOS && text.count < utf16Constraint.count && utf16Constraint.hasPrefix(text))
-                            guard condition else {
-                                continue
+                            // ただし、学習データの場合は素通しする
+                            if !nextnode.data.metadata.contains(.isLearned) {
+                                let utf8Text = candidates[index] + nextnode.data.word.utf8
+                                let condition = (!constraint.hasEOS && (utf8Text.hasPrefix(constraint.constraint) || constraint.constraint.hasPrefix(utf8Text))) || (constraint.hasEOS && utf8Text.count < constraint.constraint.count && constraint.constraint.hasPrefix(utf8Text))
+                                guard condition else {
+                                    continue
+                                }
                             }
                             let newValue: PValue = ccValue + value
                             // 追加すべきindexを取得する
