@@ -41,7 +41,7 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-collections", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-argument-parser", .upToNextMajor(from: "1.0.0")),
         // local package
-        .package(url: "https://github.com/fkunn1326/llama.cpp", branch: "b07d7f8"),
+        .package(url: "https://github.com/fkunn1326/llama.cpp", branch: "d43abbf"),
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
