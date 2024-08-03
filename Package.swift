@@ -14,6 +14,25 @@ let swiftSettings: [SwiftSetting] = [
     .enableUpcomingFeature("ImportObjcForwardDeclarations")
 ]
 
+var dependencies: [Package.Dependency] = [
+    // Dependencies declare other packages that this package depends on.
+    // .package(url: /* package url */, from: "1.0.0"),
+    .package(url: "https://github.com/apple/swift-algorithms", from: "1.0.0"),
+    .package(url: "https://github.com/apple/swift-collections", from: "1.0.0"),
+    .package(url: "https://github.com/apple/swift-argument-parser", .upToNextMajor(from: "1.0.0")),
+]
+
+#if os(Windows)
+dependencies.append(
+    .package(url: "https://github.com/fkunn1326/llama.cpp", branch: "d66c275")
+)
+#else
+dependencies.append(
+    .package(url: "https://github.com/ensan-hcl/llama.cpp", branch: "9f41923")
+)
+#endif
+
+
 let package = Package(
     name: "AzooKeyKanakanjiConverter",
     platforms: [.iOS(.v14), .macOS(.v12)],
@@ -42,6 +61,7 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-argument-parser", .upToNextMajor(from: "1.0.0")),
         // local package
         .package(url: "https://github.com/fkunn1326/llama.cpp", branch: "d66c275")
+
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
