@@ -44,6 +44,10 @@ extension Kana2Kanji {
         var description: String {
             "PrefixConstraint(constraint: \"\(String(cString: self.constraint + [0]))\", hasEOS: \(self.hasEOS))"
         }
+
+        var isEmpty: Bool {
+            self.constraint.isEmpty && !self.hasEOS
+        }
     }
 
     /// zenzaiシステムによる完全変換。
@@ -60,9 +64,15 @@ extension Kana2Kanji {
         var nodes: Kana2Kanji.Nodes = []
         var inferenceLimit = inferenceLimit
         while true {
-            // 実験の結果、ここは2-bestを取ると平均的な速度が最良になることがわかったので、そうしている。
             let start = Date()
-            let draftResult = self.kana2lattice_all_with_prefix_constraint(inputData, N_best: 2, constraint: constraint)
+            let draftResult = if constraint.isEmpty {
+                // 全部を変換する場合はN=2の変換を行う
+                // 実験の結果、ここは2-bestを取ると平均的な速度が最良になることがわかったので、そうしている。
+                self.kana2lattice_all(inputData, N_best: 2)
+            } else {
+                // 制約がついている場合は高速になるので、N=3としている
+                self.kana2lattice_all_with_prefix_constraint(inputData, N_best: 3, constraint: constraint)
+            }
             if nodes.isEmpty {
                 // 初回のみ
                 nodes = draftResult.nodes
