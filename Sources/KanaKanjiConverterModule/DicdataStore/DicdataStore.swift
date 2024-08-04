@@ -524,12 +524,11 @@ public final class DicdataStore {
             Int.max
         }
         let prefixIndices = self.prefixMatchLOUDS(query: first, charIDs: charIDs, depth: depth).prefix(700)
-        for index in prefixIndices {
-            let dicdata = self.getDicdataFromLoudstxt3(identifier: first, indices: Set([index]))
-            for data in dicdata where Self.predictionUsable[data.rcid] {
-                result.append(data)
-            }
-        }
+
+        result.append(
+            contentsOf: self.getDicdataFromLoudstxt3(identifier: first, indices: Set(prefixIndices))
+                .filter { Self.predictionUsable[$0.rcid] }
+        )
         let userDictIndices = self.prefixMatchLOUDS(query: "user", charIDs: charIDs, depth: depth).prefix(700)
         result.append(contentsOf: self.getDicdataFromLoudstxt3(identifier: "user", indices: Set(consume userDictIndices)))
         if learningManager.enabled {
