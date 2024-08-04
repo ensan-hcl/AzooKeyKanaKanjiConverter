@@ -30,9 +30,6 @@ extension Kana2Kanji {
                 if node.prevs.isEmpty {
                     continue
                 }
-                if self.dicdataStore.shouldBeRemoved(data: node.data) {
-                    continue
-                }
                 // 生起確率を取得する。
                 let wValue: PValue = node.data.value()
                 if i == 0 {
@@ -64,10 +61,6 @@ extension Kana2Kanji {
                     }
                     // nodeの繋がる次にあり得る全てのnextnodeに対して
                     for nextnode in nodes[nextIndex] {
-                        // この関数はこの時点で呼び出して、後のnode.registered.isEmptyで最終的に弾くのが良い。
-                        if self.dicdataStore.shouldBeRemoved(data: nextnode.data) {
-                            continue
-                        }
                         // クラスの連続確率を計算する。
                         let ccValue: PValue = self.dicdataStore.getCCValue(node.data.rcid, nextnode.data.lcid)
                         // nodeの持っている全てのprevnodeに対して
