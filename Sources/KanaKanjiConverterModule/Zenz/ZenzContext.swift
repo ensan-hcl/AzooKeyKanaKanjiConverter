@@ -47,7 +47,6 @@ struct FixedSizeHeap<Element: Comparable> {
     }
 }
 
-
 enum ZenzError: LocalizedError {
     case couldNotLoadModel(path: String)
     case couldNotLoadContext
@@ -241,7 +240,7 @@ class ZenzContext {
         // Heapからソートして結果を取り出す
         return minHeap.unordered.sorted { $0.value > $1.value }.map { ($0.character, $0.value / exp_sum) }
     }
-    
+
     func evaluate_candidate(input: String, candidate: Candidate, versionDependentConfig: ConvertRequestOptions.ZenzaiVersionDependentMode) -> CandidateEvaluationResult {
         print("Evaluate", candidate)
         // For zenz-v1 model, \u{EE00} is a token used for 'start query', and \u{EE01} is a token used for 'start answer'
@@ -288,7 +287,7 @@ class ZenzContext {
             static func < (lhs: AlternativeHighProbToken, rhs: AlternativeHighProbToken) -> Bool {
                 lhs.probabilityRatioToMaxProb < rhs.probabilityRatioToMaxProb
             }
-            
+
             var token: llama_token
             var constraint: [UInt8]
             // 最大probabilityに対しての割合
@@ -304,7 +303,7 @@ class ZenzContext {
                 static func < (lhs: TokenAndExpLogit, rhs: TokenAndExpLogit) -> Bool {
                     lhs.expLogit < rhs.expLogit
                 }
-                
+
                 var token: llama_token
                 var expLogit: Float
             }
@@ -390,7 +389,7 @@ class ZenzContext {
         var swiftTokens: [llama_token] = if tokenCount < 0 {
             [llama_token_bos(model)]
         } else {
-            (0..<tokenCount).map{tokens[Int($0)]}
+            (0..<tokenCount).map {tokens[Int($0)]}
         }
         tokens.deallocate()
         if add_eos {

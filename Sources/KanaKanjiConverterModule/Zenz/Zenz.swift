@@ -40,7 +40,7 @@ import SwiftUtils
         }
         return .error
     }
-    
+
     func predictNextCharacter(leftSideContext: String, count: Int) -> [(character: Character, value: Float)] {
         guard let zenzContext else {
             return []

@@ -28,7 +28,7 @@ extension Subcommands {
         @Flag(name: [.customLong("config_zenzai_rich_n_best")], help: "enable profile prompting for zenz-v2.")
         var configRequestRichCandidates = false
         @Option(name: [.customLong("config_profile")], help: "enable rich n_best generation for zenzai.")
-        var configZenzV2Profile: String? = nil
+        var configZenzV2Profile: String?
         @Flag(name: [.customLong("zenz_v1")], help: "Use zenz_v1 model.")
         var zenzV1 = false
 
@@ -154,7 +154,7 @@ extension Subcommands {
                             [
                                 "-": "ー",
                                 ".": "。",
-                                ",": "、",
+                                ",": "、"
                             ][c, default: c]
                         })
                         composingText.insertAtCursorPosition(input, inputStyle: inputStyle)

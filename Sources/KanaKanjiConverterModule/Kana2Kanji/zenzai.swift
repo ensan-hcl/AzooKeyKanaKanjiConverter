@@ -8,7 +8,7 @@ extension Kana2Kanji {
             self.prefixConstraint = constraint
             self.satisfyingCandidate = satisfyingCandidate
         }
-        
+
         private var prefixConstraint: PrefixConstraint
         private var satisfyingCandidate: Candidate?
         private var inputData: ComposingText
@@ -37,7 +37,7 @@ extension Kana2Kanji {
             self.constraint = constraint
             self.hasEOS = hasEOS
         }
-        
+
         var constraint: [UInt8]
         var hasEOS: Bool
 
@@ -85,7 +85,7 @@ extension Kana2Kanji {
             }
             let candidates = draftResult.result.getCandidateData().map(self.processClauseCandidate)
             constructedCandidates.append(contentsOf: zip(draftResult.result.prevs, candidates))
-            var best: (Int, Candidate)? = nil
+            var best: (Int, Candidate)?
             for (i, cand) in candidates.enumerated() {
                 if let (_, c) = best, cand.value > c.value {
                     best = (i, cand)

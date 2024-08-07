@@ -167,7 +167,7 @@ public struct ConvertRequestOptions: Sendable {
             switch self {
             case .v1:
                 return .v1
-            case .v2(_):
+            case .v2:
                 return .v2
             }
         }
