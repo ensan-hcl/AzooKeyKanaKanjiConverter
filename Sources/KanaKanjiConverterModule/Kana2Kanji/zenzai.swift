@@ -56,6 +56,7 @@ extension Kana2Kanji {
         zenz: Zenz,
         zenzaiCache: ZenzaiCache?,
         inferenceLimit: Int,
+        requestRichCandidates: Bool,
         versionDependentConfig: ConvertRequestOptions.ZenzaiVersionDependentMode
     ) -> (result: LatticeNode, nodes: Nodes, cache: ZenzaiCache) {
         var constraint = zenzaiCache?.getNewConstraint(for: inputData) ?? PrefixConstraint([])
@@ -130,7 +131,7 @@ extension Kana2Kanji {
                         if let mostLiklyCandidate {
                             // 0番目は最良候補
                             insertedCandidates.insert(mostLiklyCandidate, at: 1)
-                        } else if alternativeConstraint.probabilityRatio > 0.5 {
+                        } else if requestRichCandidates && alternativeConstraint.probabilityRatio > 0.5 {
                             // 十分に高い確率の場合、変換器を実際に呼び出して候補を作ってもらう
                             let draftResult = self.kana2lattice_all_with_prefix_constraint(inputData, N_best: 3, constraint: PrefixConstraint(alternativeConstraint.prefixConstraint))
                             let candidates = draftResult.result.getCandidateData().map(self.processClauseCandidate)

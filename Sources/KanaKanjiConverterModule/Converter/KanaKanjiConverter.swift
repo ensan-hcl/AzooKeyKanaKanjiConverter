@@ -478,7 +478,7 @@ import SwiftUtils
             // candidateのvalueをZenzaiの出力順に書き換えることで、このあとのrerank処理で騙されてくれるようになっている
             // より根本的には、`Candidate`にAI評価値をもたせるなどの方法が必要そう
             var first5 = Array(whole_sentence_unique_candidates.prefix(5))
-            var values = first5.map(\.value).sorted(by: >)
+            let values = first5.map(\.value).sorted(by: >)
             for (i, v) in zip(first5.indices, values) {
                 first5[i].value = v
             }
@@ -582,7 +582,14 @@ import SwiftUtils
 
         // FIXME: enable cache based zenzai
         if zenzaiMode.enabled, let model = self.getModel(modelURL: zenzaiMode.weightURL) {
-            let (result, nodes, cache) = self.converter.all_zenzai(inputData, zenz: model, zenzaiCache: self.zenzaiCache, inferenceLimit: zenzaiMode.inferenceLimit, versionDependentConfig: zenzaiMode.versionDependentMode)
+            let (result, nodes, cache) = self.converter.all_zenzai(
+                inputData,
+                zenz: model,
+                zenzaiCache: self.zenzaiCache,
+                inferenceLimit: zenzaiMode.inferenceLimit,
+                requestRichCandidates: zenzaiMode.requestRichCandidates,
+                versionDependentConfig: zenzaiMode.versionDependentMode
+            )
             self.zenzaiCache = cache
             self.previousInputData = inputData
             return (result, nodes)
