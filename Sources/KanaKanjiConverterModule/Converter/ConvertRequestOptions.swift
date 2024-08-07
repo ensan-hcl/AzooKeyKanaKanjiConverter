@@ -167,25 +167,40 @@ public struct ConvertRequestOptions: Sendable {
             switch self {
             case .v1:
                 return .v1
-            case .v2(_):
+            case .v2:
                 return .v2
             }
         }
     }
 
     public struct ZenzaiMode: Sendable, Equatable {
-        public static let off = ZenzaiMode(enabled: false, weightURL: URL(fileURLWithPath: ""), inferenceLimit: 10, versionDependentMode: .v2(.init()))
+        public static let off = ZenzaiMode(
+            enabled: false,
+            weightURL: URL(fileURLWithPath: ""),
+            inferenceLimit: 10,
+            requestRichCandidates: false,
+            versionDependentMode: .v2(.init())
+        )
 
         /// activate *Zenzai* - Neural Kana-Kanji Conversiion Engine
         /// - Parameters:
         ///    - weight: path for model weight (gguf)
         ///    - inferenceLimit: applying inference count limitation. Smaller limit makes conversion faster but quality will be worse. (Default: 10)
-        public static func on(weight: URL, inferenceLimit: Int = 10, versionDependentMode: ZenzaiVersionDependentMode = .v2(.init())) -> Self {
-            ZenzaiMode(enabled: true, weightURL: weight, inferenceLimit: inferenceLimit, versionDependentMode: versionDependentMode)
+        ///    - requestRichCandidates: when this flag is true, the converter spends more time but generate richer N-Best candidates for candidate list view. Usually this option is not recommended for live conversion.
+        ///    - versionDependentMode: specify zenz model version and its configuration.
+        public static func on(weight: URL, inferenceLimit: Int = 10, requestRichCandidates: Bool = false, versionDependentMode: ZenzaiVersionDependentMode = .v2(.init())) -> Self {
+            ZenzaiMode(
+                enabled: true,
+                weightURL: weight,
+                inferenceLimit: inferenceLimit,
+                requestRichCandidates: requestRichCandidates,
+                versionDependentMode: versionDependentMode
+            )
         }
         var enabled: Bool
         var weightURL: URL
         var inferenceLimit: Int
+        var requestRichCandidates: Bool
         var versionDependentMode: ZenzaiVersionDependentMode
     }
 }

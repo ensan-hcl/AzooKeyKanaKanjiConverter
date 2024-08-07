@@ -25,8 +25,10 @@ extension Subcommands {
         var roman2kana = false
         @Option(name: [.customLong("config_zenzai_inference_limit")], help: "inference limit for zenzai.")
         var configZenzaiInferenceLimit: Int = .max
-        @Option(name: [.customLong("config_profile")], help: "enable profile prompting for zenz-v2.")
-        var configZenzV2Profile: String? = nil
+        @Flag(name: [.customLong("config_zenzai_rich_n_best")], help: "enable profile prompting for zenz-v2.")
+        var configRequestRichCandidates = false
+        @Option(name: [.customLong("config_profile")], help: "enable rich n_best generation for zenzai.")
+        var configZenzV2Profile: String?
         @Flag(name: [.customLong("zenz_v1")], help: "Use zenz_v1 model.")
         var zenzV1 = false
 
@@ -152,7 +154,7 @@ extension Subcommands {
                             [
                                 "-": "ー",
                                 ".": "。",
-                                ",": "、",
+                                ",": "、"
                             ][c, default: c]
                         })
                         composingText.insertAtCursorPosition(input, inputStyle: inputStyle)
@@ -211,6 +213,7 @@ extension Subcommands {
                 zenzaiMode: self.zenzWeightPath.isEmpty ? .off : .on(
                     weight: URL(string: self.zenzWeightPath)!,
                     inferenceLimit: self.configZenzaiInferenceLimit,
+                    requestRichCandidates: self.configRequestRichCandidates,
                     versionDependentMode: zenzaiVersionDependentMode
                 ),
                 metadata: .init(versionString: "anco for debugging")
