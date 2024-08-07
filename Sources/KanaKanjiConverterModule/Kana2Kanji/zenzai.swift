@@ -110,7 +110,7 @@ extension Kana2Kanji {
                     // When inference occurs more than maximum times, then just return result at this point
                     return (eosNode, nodes, ZenzaiCache(inputData, constraint: constraint, satisfyingCandidate: candidate))
                 }
-                let reviewResult = zenz.candidateEvaluate(convertTarget: inputData.convertTarget, candidates: [candidate], versionDependentConfig: versionDependentConfig)
+                let reviewResult = zenz.candidateEvaluate(convertTarget: inputData.convertTarget, candidates: [candidate], requestRichCandidates: requestRichCandidates, versionDependentConfig: versionDependentConfig)
                 inferenceLimit -= 1
                 let nextAction = self.review(
                     candidateIndex: index,
@@ -120,30 +120,32 @@ extension Kana2Kanji {
                 )
                 switch nextAction {
                 case .return(let constraint, let alternativeConstraints, let satisfied):
-                    // alternativeConstraintsに従い、insertedCandidatesにデータを追加する
-                    for alternativeConstraint in alternativeConstraints.reversed() where alternativeConstraint.probabilityRatio > 0.25 {
-                        // constructed candidatesのうちalternativeConstraint.prefixConstraintを満たすものを列挙する
-                        let mostLiklyCandidate = constructedCandidates.filter {
-                            $0.1.text.utf8.hasPrefix(alternativeConstraint.prefixConstraint)
-                        }.max {
-                            $0.1.value < $1.1.value
-                        }
-                        if let mostLiklyCandidate {
-                            // 0番目は最良候補
-                            insertedCandidates.insert(mostLiklyCandidate, at: 1)
-                        } else if requestRichCandidates && alternativeConstraint.probabilityRatio > 0.5 {
-                            // 十分に高い確率の場合、変換器を実際に呼び出して候補を作ってもらう
-                            let draftResult = self.kana2lattice_all_with_prefix_constraint(inputData, N_best: 3, constraint: PrefixConstraint(alternativeConstraint.prefixConstraint))
-                            let candidates = draftResult.result.getCandidateData().map(self.processClauseCandidate)
-                            let best: (Int, Candidate)? = candidates.enumerated().reduce(into: nil) { best, pair in
-                                if let (_, c) = best, pair.1.value > c.value {
-                                    best = pair
-                                } else if best == nil {
-                                    best = pair
-                                }
+                    if requestRichCandidates {
+                        // alternativeConstraintsに従い、insertedCandidatesにデータを追加する
+                        for alternativeConstraint in alternativeConstraints.reversed() where alternativeConstraint.probabilityRatio > 0.25 {
+                            // constructed candidatesのうちalternativeConstraint.prefixConstraintを満たすものを列挙する
+                            let mostLiklyCandidate = constructedCandidates.filter {
+                                $0.1.text.utf8.hasPrefix(alternativeConstraint.prefixConstraint)
+                            }.max {
+                                $0.1.value < $1.1.value
                             }
-                            if let (index, candidate) = best {
-                                insertedCandidates.insert((draftResult.result.prevs[index], candidate), at: 1)
+                            if let mostLiklyCandidate {
+                                // 0番目は最良候補
+                                insertedCandidates.insert(mostLiklyCandidate, at: 1)
+                            } else if alternativeConstraint.probabilityRatio > 0.5 {
+                                // 十分に高い確率の場合、変換器を実際に呼び出して候補を作ってもらう
+                                let draftResult = self.kana2lattice_all_with_prefix_constraint(inputData, N_best: 3, constraint: PrefixConstraint(alternativeConstraint.prefixConstraint))
+                                let candidates = draftResult.result.getCandidateData().map(self.processClauseCandidate)
+                                let best: (Int, Candidate)? = candidates.enumerated().reduce(into: nil) { best, pair in
+                                    if let (_, c) = best, pair.1.value > c.value {
+                                        best = pair
+                                    } else if best == nil {
+                                        best = pair
+                                    }
+                                }
+                                if let (index, candidate) = best {
+                                    insertedCandidates.insert((draftResult.result.prevs[index], candidate), at: 1)
+                                }
                             }
                         }
                     }

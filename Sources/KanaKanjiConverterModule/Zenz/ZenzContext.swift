@@ -45,6 +45,10 @@ struct FixedSizeHeap<Element: Comparable> {
     var min: Element? {
         self.heap.min
     }
+
+    var isEmpty: Bool {
+        self.heap.isEmpty
+    }
 }
 
 enum ZenzError: LocalizedError {
@@ -241,7 +245,7 @@ class ZenzContext {
         return minHeap.unordered.sorted { $0.value > $1.value }.map { ($0.character, $0.value / exp_sum) }
     }
 
-    func evaluate_candidate(input: String, candidate: Candidate, versionDependentConfig: ConvertRequestOptions.ZenzaiVersionDependentMode) -> CandidateEvaluationResult {
+    func evaluate_candidate(input: String, candidate: Candidate, requestRichCandidates: Bool, versionDependentConfig: ConvertRequestOptions.ZenzaiVersionDependentMode) -> CandidateEvaluationResult {
         print("Evaluate", candidate)
         // For zenz-v1 model, \u{EE00} is a token used for 'start query', and \u{EE01} is a token used for 'start answer'
         // We assume \u{EE01}\(candidate) is always splitted into \u{EE01}_\(candidate) by zenz-v1 tokenizer
@@ -294,7 +298,7 @@ class ZenzContext {
             var probabilityRatioToMaxProb: Float
         }
 
-        var altTokens = FixedSizeHeap<AlternativeHighProbToken>(size: 5)
+        var altTokens = FixedSizeHeap<AlternativeHighProbToken>(size: requestRichCandidates ? 5 : 0)
         for (i, token_id) in tokens.indexed().dropFirst(prompt_tokens.count) {
             // それぞれのトークンが、一つ前の予測において最も確率の高いトークンであるかをチェックする
             // softmaxはmaxなので、単にlogitsの中で最も大きいものを選べば良い
@@ -310,7 +314,7 @@ class ZenzContext {
             var exp_sum: Float = 0
             let startIndex = (i - 1 - startOffset) * Int(n_vocab)
             let endIndex = (i - startOffset) * Int(n_vocab)
-            var tokenHeap = FixedSizeHeap<TokenAndExpLogit>(size: 3)
+            var tokenHeap = FixedSizeHeap<TokenAndExpLogit>(size: requestRichCandidates ? 3 : 0)
             for index in startIndex ..< endIndex {
                 let v = exp(logits[index])
                 exp_sum += v
@@ -344,7 +348,7 @@ class ZenzContext {
                         return .fixRequired(prefixConstraint: cchars.dropFirst(prompt.utf8.count).map(UInt8.init))
                     }
                 }
-            } else {
+            } else if !tokenHeap.isEmpty {
                 tokenHeap.removeMax()
                 let prefix = tokens[..<i].reduce(into: []) {
                     $0.append(contentsOf: token_to_piece(token: $1))
@@ -361,11 +365,6 @@ class ZenzContext {
                 }
             }
             score += log(maxItem.expLogit) - log(exp_sum)
-        }
-        for item in altTokens.unordered.sorted(by: >) {
-            print("Item")
-            print("  Constraint", String(cString: item.constraint + [0]))
-            print("  Probability Gain", item.probabilityRatioToMaxProb)
         }
         return .pass(score: score, alternativeConstraints: altTokens.unordered.sorted(by: >).map {.init(probabilityRatio: $0.probabilityRatioToMaxProb, prefixConstraint: $0.constraint)})
     }
