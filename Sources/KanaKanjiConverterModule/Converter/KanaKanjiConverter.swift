@@ -512,7 +512,13 @@ import SwiftUtils
         // 重複のない変換候補を作成するための集合
         var seenCandidate: Set<String> = full_candidate.mapSet {$0.text}
         // 文節のみ変換するパターン（上位5件）
-        let clause_candidates = self.getUniqueCandidate(clauseCandidates, seenCandidates: seenCandidate).min(count: 5, sortedBy: {$0.value > $1.value})
+        let clause_candidates = self.getUniqueCandidate(clauseCandidates, seenCandidates: seenCandidate).min(count: 5) {
+            if $0.correspondingCount == $1.correspondingCount {
+                $0.value > $1.value
+            } else {
+                $0.correspondingCount > $1.correspondingCount
+            }
+        }
         seenCandidate.formUnion(clause_candidates.map {$0.text})
 
         // 最初の辞書データ
