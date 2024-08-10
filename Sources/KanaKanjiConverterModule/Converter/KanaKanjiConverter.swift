@@ -572,7 +572,15 @@ import SwiftUtils
             item.withActions(self.getAppropriateActions(item))
             item.parseTemplate()
         }
-        return ConversionResult(mainResults: result, firstClauseResults: Array(clause_candidates))
+        // 文節のみ変換するパターン（上位5件）
+        let firstClauseResults = self.getUniqueCandidate(clauseCandidates).min(count: 5) {
+            if $0.correspondingCount == $1.correspondingCount {
+                $0.value > $1.value
+            } else {
+                $0.correspondingCount > $1.correspondingCount
+            }
+        }
+        return ConversionResult(mainResults: result, firstClauseResults: firstClauseResults)
     }
 
     /// 入力からラティスを構築する関数。状況に応じて呼ぶ関数を分ける。
