@@ -314,7 +314,7 @@ class ZenzContext {
             var exp_sum: Float = 0
             let startIndex = (i - 1 - startOffset) * Int(n_vocab)
             let endIndex = (i - startOffset) * Int(n_vocab)
-            var tokenHeap = FixedSizeHeap<TokenAndExpLogit>(size: requestRichCandidates ? 3 : 0)
+            var tokenHeap = FixedSizeHeap<TokenAndExpLogit>(size: requestRichCandidates ? 3 : 1)
             for index in startIndex ..< endIndex {
                 let v = exp(logits[index])
                 exp_sum += v
