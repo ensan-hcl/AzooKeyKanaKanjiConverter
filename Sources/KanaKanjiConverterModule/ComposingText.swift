@@ -394,7 +394,6 @@ extension ComposingText {
         return false
     }
 
-    // MARK: 利用されていないAPI
     static func isLeftSideValid(first firstElement: InputElement, of originalElements: [InputElement], from leftIndex: Int) -> Bool {
         // leftIndexの位置にある`el`のチェック
         // 許されるパターンは以下の通り
@@ -425,7 +424,7 @@ extension ComposingText {
             return true
         }
         let last_2 = originalElements[0 ..< leftIndex].suffix(2)
-        if ["zl", "zk", "zj", "zh"].contains(last_2.reduce(into: "") {$0.append($1.character)}) {
+        if ["zl", "zk", "zj", "zh", "xn"].contains(last_2.reduce(into: "") {$0.append($1.character)}) {
             return true
         }
         let n_suffix = originalElements[0 ..< leftIndex].suffix(while: {$0.inputStyle == .roman2kana && $0.character == "n"})
@@ -510,7 +509,7 @@ extension ComposingText {
         if let lastElement = convertTargetElements.last, lastElement.inputStyle == .roman2kana, rightIndex < originalElements.endIndex {
             let nextFirstElement = originalElements[rightIndex]
 
-            if !lastElement.string.hasSuffix("n") && lastElement.string.last == nextFirstElement.character {
+            if !lastElement.string.hasSuffix("n") && lastElement.string.last == nextFirstElement.character && CharacterUtils.isRomanLetter(nextFirstElement.character) {
                 // 書き換える
                 convertTargetElements[convertTargetElements.endIndex - 1].string.removeLast()
                 convertTargetElements.append(ConvertTargetElement(string: ["っ"], inputStyle: .direct))
