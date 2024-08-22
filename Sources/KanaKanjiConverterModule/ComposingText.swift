@@ -510,7 +510,7 @@ extension ComposingText {
         if let lastElement = convertTargetElements.last, lastElement.inputStyle == .roman2kana, rightIndex < originalElements.endIndex {
             let nextFirstElement = originalElements[rightIndex]
 
-            if !lastElement.string.hasSuffix("n") && lastElement.string.last == nextFirstElement.character {
+            if !lastElement.string.hasSuffix("n") && lastElement.string.last == nextFirstElement.character && CharacterUtils.isRomanLetter(nextFirstElement.character) {
                 // 書き換える
                 convertTargetElements[convertTargetElements.endIndex - 1].string.removeLast()
                 convertTargetElements.append(ConvertTargetElement(string: ["っ"], inputStyle: .direct))
