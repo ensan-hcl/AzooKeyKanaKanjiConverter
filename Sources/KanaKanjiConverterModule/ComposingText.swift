@@ -394,7 +394,6 @@ extension ComposingText {
         return false
     }
 
-    // MARK: 利用されていないAPI
     static func isLeftSideValid(first firstElement: InputElement, of originalElements: [InputElement], from leftIndex: Int) -> Bool {
         // leftIndexの位置にある`el`のチェック
         // 許されるパターンは以下の通り
