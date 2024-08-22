@@ -424,7 +424,7 @@ extension ComposingText {
             return true
         }
         let last_2 = originalElements[0 ..< leftIndex].suffix(2)
-        if ["zl", "zk", "zj", "zh"].contains(last_2.reduce(into: "") {$0.append($1.character)}) {
+        if ["zl", "zk", "zj", "zh", "xn"].contains(last_2.reduce(into: "") {$0.append($1.character)}) {
             return true
         }
         let n_suffix = originalElements[0 ..< leftIndex].suffix(while: {$0.inputStyle == .roman2kana && $0.character == "n"})
