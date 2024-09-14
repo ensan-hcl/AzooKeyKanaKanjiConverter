@@ -81,7 +81,7 @@ var targets: [Target] = [
 
 #if !(os(Windows))
 dependencies.append(
-    .package(url: "https://github.com/ensan-hcl/llama.cpp", branch: "b5cc30f"),
+    .package(url: "https://github.com/ensan-hcl/llama.cpp", branch: "b5cc30f")
 )
 #endif
 
