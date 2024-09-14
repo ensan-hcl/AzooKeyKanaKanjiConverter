@@ -227,7 +227,7 @@ public final class DicdataStore {
     ///   - from: 起点
     ///   - toIndexRange: `from ..< (toIndexRange)`の範囲で辞書ルックアップを行う。
     public func getLOUDSDataInRange(inputData: ComposingText, from fromIndex: Int, toIndexRange: Range<Int>? = nil, needTypoCorrection: Bool = true) -> [LatticeNode] {
-        if needTypoCorrection {
+        if !needTypoCorrection {
             return self.getFrozenLOUDSDataInRange(inputData: inputData, from: fromIndex, toIndexRange: toIndexRange)
         }
         let toIndexLeft = toIndexRange?.startIndex ?? fromIndex
