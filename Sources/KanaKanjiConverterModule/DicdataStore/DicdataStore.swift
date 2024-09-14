@@ -226,7 +226,10 @@ public final class DicdataStore {
     ///   - inputData: 入力データ
     ///   - from: 起点
     ///   - toIndexRange: `from ..< (toIndexRange)`の範囲で辞書ルックアップを行う。
-    public func getLOUDSDataInRange(inputData: ComposingText, from fromIndex: Int, toIndexRange: Range<Int>? = nil) -> [LatticeNode] {
+    public func getLOUDSDataInRange(inputData: ComposingText, from fromIndex: Int, toIndexRange: Range<Int>? = nil, needTypoCorrection: Bool = true) -> [LatticeNode] {
+        if needTypoCorrection {
+            return self.getFrozenLOUDSDataInRange(inputData: inputData, from: fromIndex, toIndexRange: toIndexRange)
+        }
         let toIndexLeft = toIndexRange?.startIndex ?? fromIndex
         let toIndexRight = min(toIndexRange?.endIndex ?? inputData.input.count, fromIndex + self.maxlength)
         debug("getLOUDSDataInRange", fromIndex, toIndexRange?.description ?? "nil", toIndexLeft, toIndexRight)
@@ -335,7 +338,7 @@ public final class DicdataStore {
     ///   - inputData: 入力データ
     ///   - from: 起点
     ///   - toIndexRange: `from ..< (toIndexRange)`の範囲で辞書ルックアップを行う。
-    public func getFrozenLOUDSDataInRange(inputData: ComposingText, from fromIndex: Int, toIndexRange: Range<Int>? = nil) -> [LatticeNode] {
+    private func getFrozenLOUDSDataInRange(inputData: ComposingText, from fromIndex: Int, toIndexRange: Range<Int>? = nil) -> [LatticeNode] {
         let toIndexLeft = toIndexRange?.startIndex ?? fromIndex
         let toIndexRight = min(toIndexRange?.endIndex ?? inputData.input.count, fromIndex + self.maxlength)
         debug("getLOUDSDataInRange", fromIndex, toIndexRange?.description ?? "nil", toIndexLeft, toIndexRight)
