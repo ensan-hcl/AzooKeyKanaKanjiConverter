@@ -255,13 +255,13 @@ class ZenzContext {
                 let lsContext = leftSideContext.suffix(40)
                 if let profile = mode.profile, !profile.isEmpty {
                     let pf = profile.suffix(25)
-                    prompt = "\u{EE00}\(input)\u{EE02}プロフィール：\(pf)・発言：\(lsContext)\u{EE01}"
+                    prompt = "\u{EE00}\(input)\u{EE02}プロフィール:\(pf)・発言:\(lsContext)\u{EE01}"
                 } else {
                     prompt = "\u{EE00}\(input)\u{EE02}\(lsContext)\u{EE01}"
                 }
             } else if let profile = mode.profile, !profile.isEmpty {
                 let pf = profile.suffix(25)
-                prompt = "\u{EE00}\(input)\u{EE02}プロフィール：\(pf)・発言：\u{EE01}"
+                prompt = "\u{EE00}\(input)\u{EE02}プロフィール:\(pf)・発言:\u{EE01}"
             } else {
                 prompt = "\u{EE00}\(input)\u{EE01}"
             }
@@ -381,6 +381,9 @@ class ZenzContext {
     }
 
     private func tokenize(text: String, add_bos: Bool, add_eos: Bool = false) -> [llama_token] {
+        // replace space into ideographic space (\u3000) for zenz tokenizer
+        // replace newline into null for zenz tokenizer
+        let text = text.replacingOccurrences(of: " ", with: "\u{3000}").replacingOccurrences(of: "\n", with: "")
         let utf8Count = text.utf8.count
         let n_tokens = utf8Count + (add_bos ? 1 : 0)
         let tokens = UnsafeMutablePointer<llama_token>.allocate(capacity: n_tokens)
