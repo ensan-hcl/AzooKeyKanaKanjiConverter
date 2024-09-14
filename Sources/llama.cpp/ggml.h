@@ -1,3 +1,4 @@
+// header file from https://github.com/ensan-hcl/llama.cpp/tree/ku-nlp/gpt2-japanese-char
 #pragma once
 
 //

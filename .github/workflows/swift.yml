@@ -4,7 +4,9 @@
 name: Swift Build and Test
 on:
   push:
+    branches: [ "main", "develop" ]
   pull_request:
+    branches: [ "main", "develop" ]
 
 jobs:
   macos-build:
@@ -61,7 +63,7 @@ jobs:
         with:
           submodules: true
       - name: Clone llama.cpp
-        run: git clone -b ku-nlp/gpt2-japanese-char https://github.com/fkunn1326/llama.cpp.git
+        run: git clone -b ku-nlp/gpt2-japanese-char https://github.com/ensan-hcl/llama.cpp.git
       - name: Build llama.cpp
         run: |
           cmake -B build -DBUILD_SHARED_LIBS=ON
