@@ -213,9 +213,9 @@ extension Kana2Kanji {
             print("update whole constraint:", wholeConstraint)
             constraint = PrefixConstraint(Array(wholeConstraint.utf8), hasEOS: true)
             // もし制約を満たす候補があるならそれを使って再レビューチャレンジを戦うことで、推論を減らせる
-            for i in candidates.indices where i != candidateIndex {
-                if candidates[i].text == wholeConstraint {
-                    print("found \(candidates[i].text) as another retry")
+            for (i, candidate) in candidates.indexed() where i != candidateIndex {
+                if candidate.text == wholeConstraint && self.heuristicRetryValidation(candidate.text) {
+                    print("found \(candidate.text) as another retry")
                     return .retry(candidateIndex: i)
                 }
             }
@@ -225,7 +225,8 @@ extension Kana2Kanji {
 
     /// リトライの候補に対して恣意的なバリデーションを実施する
     private func heuristicRetryValidation(_ text: String) -> Bool {
-        if text.contains("\u{3099}") || text.contains("\u{309A}") {
+        // 合成濁点・半濁点
+        if text.unicodeScalars.contains("\u{3099}") || text.unicodeScalars.contains("\u{309A}") {
             return false
         }
         return true
