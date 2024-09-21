@@ -256,7 +256,7 @@ class ZenzContext {
         var conditions: [String] = []
         // ユーザ辞書の内容がある場合はこれを条件に追加
         if !userDictionaryPrompt.isEmpty {
-            conditions.append("ユーザ辞書:\(userDictionaryPrompt)")
+            conditions.append("辞書:\(userDictionaryPrompt)")
         }
         // プロフィールがある場合はこれを条件に追加
         if case .v2(let mode) = versionDependentConfig, let profile = mode.profile, !profile.isEmpty {
