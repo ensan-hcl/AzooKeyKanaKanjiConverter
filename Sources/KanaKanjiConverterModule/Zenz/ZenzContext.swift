@@ -249,24 +249,40 @@ class ZenzContext {
         print("Evaluate", candidate)
         // For zenz-v1 model, \u{EE00} is a token used for 'start query', and \u{EE01} is a token used for 'start answer'
         // We assume \u{EE01}\(candidate) is always splitted into \u{EE01}_\(candidate) by zenz-v1 tokenizer
-        let prompt: String
-        if case .v2(let mode) = versionDependentConfig {
-            if let leftSideContext = mode.leftSideContext, !leftSideContext.isEmpty {
-                let lsContext = leftSideContext.suffix(40)
-                if let profile = mode.profile, !profile.isEmpty {
-                    let pf = profile.suffix(25)
-                    prompt = "\u{EE00}\(input)\u{EE02}プロフィール:\(pf)・発言:\(lsContext)\u{EE01}"
-                } else {
-                    prompt = "\u{EE00}\(input)\u{EE02}\(lsContext)\u{EE01}"
-                }
-            } else if let profile = mode.profile, !profile.isEmpty {
-                let pf = profile.suffix(25)
-                prompt = "\u{EE00}\(input)\u{EE02}プロフィール:\(pf)・発言:\u{EE01}"
-            } else {
-                prompt = "\u{EE00}\(input)\u{EE01}"
-            }
+        var userDictionaryPrompt: String = ""
+        for item in candidate.data where item.metadata.contains(.isFromUserDictionary) {
+            userDictionaryPrompt += "\(item.word)(\(item.ruby.toHiragana()))"
+        }
+        var conditions: [String] = []
+        // ユーザ辞書の内容がある場合はこれを条件に追加
+        if !userDictionaryPrompt.isEmpty {
+            conditions.append("ユーザ辞書:\(consume userDictionaryPrompt)")
+        }
+        // プロフィールがある場合はこれを条件に追加
+        if case .v2(let mode) = versionDependentConfig, let profile = mode.profile, !profile.isEmpty {
+            let pf = profile.suffix(25)
+            conditions.append("プロフィール:\(profile)")
+        }
+        // 左文脈を取得
+        // プロフィールがある場合はこれを条件に追加
+        let leftSideContext = if case .v2(let mode) = versionDependentConfig, let leftSideContext = mode.leftSideContext {
+            String(leftSideContext.suffix(40))
         } else {
-            prompt = "\u{EE00}\(input)\u{EE01}"
+            ""
+        }
+        let inputTag = "\u{EE00}"
+        let outputTag = "\u{EE01}"
+        let contextTag = "\u{EE02}"
+        // プロンプトを作成
+        let prompt: String = if !conditions.isEmpty {
+            // 条件がemptyでない場合は「・」でつなぎ、「発言:」を末尾に追加
+            inputTag + input + contextTag + conditions.joined(separator: "・") + "・発言:\(leftSideContext)" + outputTag
+        } else if !leftSideContext.isEmpty {
+            // 条件がemptyの場合、単にleftSideContextを追加
+            inputTag + input + contextTag + leftSideContext + outputTag
+        } else {
+            // そのまま
+            inputTag + input + outputTag
         }
         // Therefore, tokens = prompt_tokens + candidate_tokens is an appropriate operation.
         let prompt_tokens = self.tokenize(text: prompt, add_bos: true, add_eos: false)
