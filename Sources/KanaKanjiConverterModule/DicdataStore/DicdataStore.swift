@@ -87,6 +87,9 @@ public final class DicdataStore {
             self.closeKeyboard()
         case .importOSUserDict(let dicdata), .importDynamicUserDict(let dicdata):
             self.dynamicUserDict = dicdata
+            self.dynamicUserDict.mutatingForeach {
+                $0.metadata = .isFromUserDictionary
+            }
         case let .forgetMemory(candidate):
             self.learningManager.forgetMemory(data: candidate.data)
             // loudsの処理があるので、リセットを実施する
