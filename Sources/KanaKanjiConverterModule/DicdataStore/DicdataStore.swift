@@ -218,6 +218,11 @@ public final class DicdataStore {
                 $0.metadata = .isLearned
             }
         }
+        if identifier == "user" {
+            data.mutatingForeach {
+                $0.metadata = .isFromUserDictionary
+            }
+        }
         return data
     }
 

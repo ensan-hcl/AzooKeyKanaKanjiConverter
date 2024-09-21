@@ -45,7 +45,8 @@ extension Kana2Kanji {
                 if nextIndex == count {
                     for index in node.prevs.indices {
                         let newnode: RegisteredNode = node.getRegisteredNode(index, value: node.values[index])
-                        if !node.data.metadata.contains(.isLearned) {
+                        // 学習データやユーザ辞書由来の場合は素通しする
+                        if !node.data.metadata.isDisjoint(with: [.isLearned, .isFromUserDictionary]) {
                             let utf8Text = newnode.getCandidateData().data.reduce(into: []) { $0.append(contentsOf: $1.word.utf8)} + node.data.word.utf8
                             // 最終チェック
                             let condition = (!constraint.hasEOS && utf8Text.hasPrefix(constraint.constraint)) || (constraint.hasEOS && utf8Text == constraint.constraint)
@@ -70,8 +71,8 @@ extension Kana2Kanji {
                             // 制約 AB 単語 ABC (OK)
                             // 制約 AB 単語 A   (OK)
                             // 制約 AB 単語 AC  (NG)
-                            // ただし、学習データの場合は素通しする
-                            if !nextnode.data.metadata.contains(.isLearned) {
+                            // ただし、学習データやユーザ辞書由来の場合は素通しする
+                            if !nextnode.data.metadata.isDisjoint(with: [.isLearned, .isFromUserDictionary]) {
                                 let utf8Text = candidates[index] + nextnode.data.word.utf8
                                 let condition = (!constraint.hasEOS && (utf8Text.hasPrefix(constraint.constraint) || constraint.constraint.hasPrefix(utf8Text))) || (constraint.hasEOS && utf8Text.count < constraint.constraint.count && constraint.constraint.hasPrefix(utf8Text))
                                 guard condition else {
