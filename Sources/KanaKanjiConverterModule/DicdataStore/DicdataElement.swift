@@ -78,7 +78,17 @@ public struct DicdataElement: Equatable, Hashable, Sendable {
 
 extension DicdataElement: CustomDebugStringConvertible {
     public var debugDescription: String {
-        "(ruby: \(self.ruby), word: \(self.word), cid: (\(self.lcid), \(self.rcid)), mid: \(self.mid), value: \(self.baseValue)+\(self.adjust)=\(self.value()), metadata: (isLearned: \(self.metadata.contains(.isLearned))))"
+        "("
+        + "ruby: \(self.ruby), "
+        + "word: \(self.word), "
+        + "cid: (\(self.lcid), \(self.rcid)), "
+        + "mid: \(self.mid), "
+        + "value: \(self.baseValue)+\(self.adjust)=\(self.value()), "
+        + "metadata: ("
+        + "isLearned: \(self.metadata.contains(.isLearned)), "
+        + "isFromUserDictionary: \(self.metadata.contains(.isFromUserDictionary))"
+        + ")"
+        + ")"
     }
 }
 
@@ -91,4 +101,6 @@ public struct DicdataElementMetadata: OptionSet, Sendable, Hashable, Equatable {
     public static let empty: Self = []
     /// 学習データから得られた候補にはこのフラグを立てる
     public static let isLearned = DicdataElementMetadata(rawValue: 1 << 0) // 1
+    /// ユーザ辞書から得られた候補にはこのフラグを立てる
+    public static let isFromUserDictionary = DicdataElementMetadata(rawValue: 1 << 1) // 2
 }

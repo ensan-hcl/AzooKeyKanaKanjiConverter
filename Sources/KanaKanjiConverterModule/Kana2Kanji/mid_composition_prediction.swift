@@ -40,7 +40,7 @@ extension Kana2Kanji {
             datas = Array(prepart.data.prefix(count))
         }
 
-        let osuserdict: [DicdataElement] = dicdataStore.getPrefixMatchOSUserDict(lastRuby)
+        let osuserdict: [DicdataElement] = dicdataStore.getPrefixMatchDynamicUserDict(lastRuby)
 
         let lastCandidate: Candidate = prepart.isEmpty ? Candidate(text: "", value: .zero, correspondingCount: 0, lastMid: MIDData.EOS.mid, data: []) : self.processClauseCandidate(prepart)
         let lastRcid: Int = lastCandidate.data.last?.rcid ?? CIDData.EOS.cid

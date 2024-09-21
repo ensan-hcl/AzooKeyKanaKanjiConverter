@@ -4,7 +4,7 @@ import Foundation
 
 extension Subcommands {
     struct Evaluate: ParsableCommand {
-        @Argument(help: "ひらがな\\t正解1\\t正解2\\t...形式のTSVファイルへのパス")
+        @Argument(help: "query, answer, tagを備えたjsonファイルへのパス")
         var inputFile: String = ""
 
         @Option(name: [.customLong("output")], help: "Output file path.")
@@ -22,17 +22,8 @@ extension Subcommands {
 
         private func parseInputFile() throws -> [InputItem] {
             let url = URL(fileURLWithPath: self.inputFile)
-            let lines = (try String(contentsOf: url)).split(separator: "\n", omittingEmptySubsequences: false)
-            return lines.enumerated().compactMap { (index, line) -> InputItem? in
-                if line.isEmpty || line.hasPrefix("#") {
-                    return nil
-                }
-                let items = line.split(separator: "\t").map(String.init)
-                if items.count < 2 {
-                    fatalError("Failed to parse input file of line #\(index) in \(url.absoluteString)")
-                }
-                return .init(query: items[0], answers: Array(items[1...]))
-            }
+            let data = try Data(contentsOf: url)
+            return try JSONDecoder().decode([InputItem].self, from: data)
         }
 
         @MainActor mutating func run() throws {
@@ -42,6 +33,13 @@ extension Subcommands {
             let start = Date()
             var resultItems: [EvaluateItem] = []
             for item in inputItems {
+                // セットアップ
+                converter.sendToDicdataStore(.importDynamicUserDict(
+                    (item.user_dictionary ?? []).map {
+                        DicdataElement(word: $0.word, ruby: $0.reading.toKatakana(), cid: CIDData.固有名詞.cid, mid: MIDData.一般.mid, value: -10)
+                    }
+                ))
+                // 変換
                 var composingText = ComposingText()
                 composingText.insertAtCursorPosition(item.query, inputStyle: .direct)
 
@@ -52,7 +50,7 @@ extension Subcommands {
                 resultItems.append(
                     EvaluateItem(
                         query: item.query,
-                        answers: item.answers,
+                        answers: item.answer,
                         outputs: mainResults.prefix(self.configNBest).map {
                             EvaluateItemOutput(text: $0.text, score: Double($0.value))
                         }
@@ -109,12 +107,27 @@ extension Subcommands {
         }
     }
 
-    private struct InputItem {
+    private struct InputItem: Codable {
         /// 入力クエリ
         var query: String
 
         /// 正解データ（優先度順）
-        var answers: [String]
+        var answer: [String]
+
+        /// タグ
+        var tag: [String] = []
+
+        /// ユーザ辞書
+        var user_dictionary: [InputUserDictionaryItem]? = nil
+    }
+
+    private struct InputUserDictionaryItem: Codable {
+        /// 漢字
+        var word: String
+        /// 読み
+        var reading: String
+        /// ヒント
+        var hint: String? = nil
     }
 
     struct EvaluateResult: Codable {
