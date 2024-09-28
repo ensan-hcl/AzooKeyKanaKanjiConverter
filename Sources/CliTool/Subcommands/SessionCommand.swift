@@ -32,7 +32,7 @@ extension Subcommands {
         @Flag(name: [.customLong("zenz_v1")], help: "Use zenz_v1 model.")
         var zenzV1 = false
 
-        static var configuration = CommandConfiguration(commandName: "session", abstract: "Start session for incremental input.")
+        static let configuration = CommandConfiguration(commandName: "session", abstract: "Start session for incremental input.")
 
         private func getTemporaryDirectory() -> URL? {
             let fileManager = FileManager.default

@@ -29,12 +29,12 @@ extension Subcommands.Dict {
         @Option(name: [.customLong("sort")], help: "Sort order")
         var sortOrder: SortOrder = .ruby
 
-        static var configuration = CommandConfiguration(
+        static let configuration = CommandConfiguration(
             commandName: "read",
             abstract: "Read dictionary data and extract informations"
         )
 
-        @MainActor mutating func run() throws {
+        mutating func run() throws {
             guard #available(macOS 13, *) else {
                 return
             }

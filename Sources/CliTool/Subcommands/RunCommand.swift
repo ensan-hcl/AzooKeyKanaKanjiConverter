@@ -25,7 +25,7 @@ extension Subcommands {
         @Flag(name: [.customLong("report_score")], help: "Show internal score for the candidate.")
         var reportScore = false
 
-        static var configuration = CommandConfiguration(commandName: "run", abstract: "Show help for this utility.")
+        static let configuration = CommandConfiguration(commandName: "run", abstract: "Show help for this utility.")
 
         @MainActor mutating func run() async {
             let converter = KanaKanjiConverter()

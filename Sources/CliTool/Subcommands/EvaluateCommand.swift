@@ -3,7 +3,7 @@ import ArgumentParser
 import Foundation
 
 extension Subcommands {
-    struct Evaluate: ParsableCommand {
+    struct Evaluate: AsyncParsableCommand {
         @Argument(help: "query, answer, tagを備えたjsonファイルへのパス")
         var inputFile: String = ""
 
@@ -18,7 +18,7 @@ extension Subcommands {
         @Option(name: [.customLong("config_zenzai_inference_limit")], help: "inference limit for zenzai.")
         var configZenzaiInferenceLimit: Int = .max
 
-        static var configuration = CommandConfiguration(commandName: "evaluate", abstract: "Evaluate quality of Conversion for input data.")
+        static let configuration = CommandConfiguration(commandName: "evaluate", abstract: "Evaluate quality of Conversion for input data.")
 
         private func parseInputFile() throws -> [InputItem] {
             let url = URL(fileURLWithPath: self.inputFile)
@@ -26,15 +26,15 @@ extension Subcommands {
             return try JSONDecoder().decode([InputItem].self, from: data)
         }
 
-        @MainActor mutating func run() throws {
+        mutating func run() async throws {
             let inputItems = try parseInputFile()
             let requestOptions = requestOptions()
-            let converter = KanaKanjiConverter()
+            let converter = await KanaKanjiConverter()
             let start = Date()
             var resultItems: [EvaluateItem] = []
             for item in inputItems {
                 // セットアップ
-                converter.sendToDicdataStore(.importDynamicUserDict(
+                await converter.sendToDicdataStore(.importDynamicUserDict(
                     (item.user_dictionary ?? []).map {
                         DicdataElement(word: $0.word, ruby: $0.reading.toKatakana(), cid: CIDData.固有名詞.cid, mid: MIDData.一般.mid, value: -10)
                     }
@@ -43,7 +43,7 @@ extension Subcommands {
                 var composingText = ComposingText()
                 composingText.insertAtCursorPosition(item.query, inputStyle: .direct)
 
-                let result = converter.requestCandidates(composingText, options: requestOptions)
+                let result = await converter.requestCandidates(composingText, options: requestOptions)
                 let mainResults = result.mainResults.filter {
                     $0.data.reduce(into: "", {$0.append(contentsOf: $1.ruby)}) == item.query.toKatakana()
                 }
@@ -57,7 +57,7 @@ extension Subcommands {
                     )
                 )
                 // Explictly reset state
-                converter.stopComposition()
+                await converter.stopComposition()
             }
             let end = Date()
             var result = EvaluateResult(n_best: self.configNBest, execution_time: end.timeIntervalSince(start), items: resultItems)
