@@ -46,19 +46,20 @@ jobs:
       - name: Run tests
         run: swift test -c release -Xswiftc -strict-concurrency=complete -v
   windows-build:
-      name: Swift ${{ matrix.swift-version }} on ${{ matrix.os }}
+      name: Swift ${{ matrix.swift-version.tag }} on ${{ matrix.os }}
       runs-on: ${{ matrix.os }}
       strategy:
         matrix:
           os: [windows-latest]
-          swift-version: ["20240802.2"]
+          swift-version: [{
+            branch: "swift-6.0.1-release",
+            tag: "6.0.1-RELEASE"
+          }]
       steps:
       - uses: compnerd/gha-setup-swift@main
         with:
-          release-tag-name: ${{ matrix.swift-version }}
-          github-repo: thebrowsercompany/swift-build
-          release-asset-name: installer-amd64.exe
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ matrix.swift-version.branch }}
+          tag: ${{ matrix.swift-version.tag }}
       - uses: actions/checkout@v4
         with:
           submodules: true
