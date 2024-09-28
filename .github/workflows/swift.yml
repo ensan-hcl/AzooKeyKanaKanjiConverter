@@ -46,7 +46,7 @@ jobs:
       - name: Run tests
         run: swift test -c release -Xswiftc -strict-concurrency=complete -v
   windows-build:
-      name: Swift ${{ matrix.swift-version.branch }} on ${{ matrix.os }}
+      name: Swift ${{ matrix.swift-version.tag }} on ${{ matrix.os }}
       runs-on: ${{ matrix.os }}
       strategy:
         matrix:
