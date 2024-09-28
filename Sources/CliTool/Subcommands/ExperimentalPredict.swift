@@ -12,7 +12,7 @@ extension Subcommands {
         @Option(name: [.customLong("zenz")], help: "gguf format model weight for zenz.")
         var zenzWeightPath: String = ""
 
-        static var configuration = CommandConfiguration(commandName: "experimental_predict", abstract: "Show help for this utility.")
+        static let configuration = CommandConfiguration(commandName: "experimental_predict", abstract: "Show help for this utility.")
 
         @MainActor mutating func run() async {
             let converter = KanaKanjiConverter()
