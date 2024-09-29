@@ -200,6 +200,11 @@ jobs:
           cat ${ARCH_JSON}
           NDK_PREBUILT=${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64
 
+          jq '
+            .["extra-cc-flags"] += ["-I${NDK_PREBUILT}/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/18/include"] |
+            .["extra-swiftc-flags"] += ["-Xcc", "-I${NDK_PREBUILT}/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/18/include"]
+          ' ${ARCH_JSON} > temp.json && mv temp.json ${ARCH_JSON}
+
           echo "SDK_PATH=${SDK_PATH}" >> $GITHUB_ENV
           echo "ARCH_JSON=${ARCH_JSON}" >> $GITHUB_ENV
       - uses: actions/checkout@v4
