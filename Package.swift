@@ -96,7 +96,7 @@ targets.append(contentsOf: [
     )
 ])
 #else
-if let envValue = ProcessInfo.processInfo.environment["MY_ENV_VAR"], envValue == "1" {
+if let envValue = ProcessInfo.processInfo.environment["LLAMA_MOCK"], envValue == "1" {
     targets.append(contentsOf: [
         .target(name: "llama-mock"),
         .target(
