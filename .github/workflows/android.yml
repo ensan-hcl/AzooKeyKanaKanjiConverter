@@ -258,11 +258,11 @@ jobs:
       - name: Get AzooKeyKanaKanjiConverter
         uses: actions/checkout@v4
         with:
-          path: AzookeyKanaKanjiConverter
+          path: AzooKeyKanaKanjiConverter
           submodules: true
       - name: Build AzooKeyKanaKanjiConverter
         run: |
-          cd AzookeyKanaKanjiConverter
+          cd AzooKeyKanaKanjiConverter
           ${TOOLCHAIN}/bin/swift build --build-tests --destination ${ARCH_JSON} -Xlinker -rpath -Xlinker \$ORIGIN/lib/swift/android
       - name: Get cached Termux debug app for NIO tests
         if: ${{ matrix.arch == 'x86_64' }}
@@ -295,14 +295,9 @@ jobs:
           mkdir -p pack/lib/swift/android
           TARGET="x86_64-unknown-linux-android$ANDROID_API_LEVEL"
 
-          cp AzookeyKanaKanjiConverter/.build/$TARGET/debug/AzooKeyKanakanjiConverterPackageTests.xctest pack
-          echo 'adb shell /data/local/tmp/pack/AzooKeyKanakanjiConverterPackageTests.xctest' >> ~/test-toolchain.sh
+          cp AzooKeyKanaKanjiConverter/.build/$TARGET/debug/AzooKeyKanaKanjiConverterPackageTests.xctest pack
+          echo 'adb shell /data/local/tmp/pack/AzooKeyKanaKanjiConverterPackageTests.xctest' >> ~/test-toolchain.sh
 
-          ls
-          ls AzooKeyKanaKanjiConverter
-          ls AzooKeyKanaKanjiConverter/Tests
-          ls AzooKeyKanaKanjiConverter/Tests/KanaKanjiConverterModuleTests
-          ls AzooKeyKanaKanjiConverter/Tests/KanaKanjiConverterModuleTests/DictionaryMock
           cp -r AzooKeyKanaKanjiConverter/Tests/KanaKanjiConverterModuleTests/DictionaryMock pack
 
           cp sdk-config/swift-*-android-x86_64-*${ANDROID_API_LEVEL}-sdk/usr/lib/lib*so pack/lib
