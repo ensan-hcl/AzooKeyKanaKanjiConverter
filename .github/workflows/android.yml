@@ -34,8 +34,8 @@ jobs:
         id: download
         if: ${{ steps.cache-toolchain-ubuntu.outputs.cache-hit != 'true' }}
         run: |
-          SWIFT_TAG="${{ steps.check.outputs.release-tag }}"
-          SWIFT_BRANCH="swift-$(echo $SWIFT_TAG | cut -d- -f2)-release"
+          SWIFT_TAG="${{ steps.check.outputs.latest-tag }}"
+          SWIFT_BRANCH="swift-$(echo ${{ steps.check.outputs.release-tag }} | cut -d- -f2)-release"
           cd
           wget -q https://download.swift.org/$SWIFT_BRANCH/ubuntu2204/$SWIFT_TAG/$SWIFT_TAG-ubuntu22.04.tar.gz
           echo "downloaded latest Ubuntu toolchain: ${SWIFT_TAG}"
@@ -56,8 +56,8 @@ jobs:
         id: cache-toolchain
         uses: actions/cache/restore@v4
         with:
-          path: ~/${{ steps.version.outputs.tag }}-ubuntu22.04.tar.gz
-          key: swift-ubuntu-22.04-${{ steps.version.outputs.tag }}-toolchain
+          path: ~${{ steps.check.outputs.release-tag }}-ubuntu22.04.tar.gz
+          key: swift-ubuntu-22.04-${{ steps.check.outputs.release-tag }}-toolchain
           fail-on-cache-miss: true
       - name: Setup Swift Toolchain
         run: |
