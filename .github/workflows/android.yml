@@ -105,6 +105,7 @@ jobs:
       - name: Clone
         uses: actions/checkout@v4
         with:
+          repository: finagolfin/swift-android-sdk
           path: sdk-config
       - name: Get cached ${{ matrix.os }} ${{ steps.version.outputs.tag }} toolchain
         id: cache-toolchain
