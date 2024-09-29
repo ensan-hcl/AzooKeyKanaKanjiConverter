@@ -295,15 +295,6 @@ jobs:
           mkdir -p pack/lib/swift/android
           TARGET="x86_64-unknown-linux-android$ANDROID_API_LEVEL"
 
-          wget -q https://raw.githubusercontent.com/termux/termux-elf-cleaner/v2.1.1/elf-cleaner.cpp
-          wget -q https://raw.githubusercontent.com/termux/termux-elf-cleaner/v2.1.1/elf.h
-          wget -q https://raw.githubusercontent.com/termux/termux-elf-cleaner/v2.1.1/arghandling.h
-          wget -q https://raw.githubusercontent.com/termux/termux-elf-cleaner/v2.1.1/arghandling.c
-          clang -c arghandling.c
-          clang -o elf-cleaner arghandling.o elf-cleaner.cpp -DCOPYRIGHT=\"foo\" -DPACKAGE_NAME=\"termux-elf-cleaner\" -DPACKAGE_VERSION=\"2.2.1\"
-          ./elf-cleaner --api-level $ANDROID_API_LEVEL pack/{generate-manual,math,repeat,roll} || true
-          fi
-
           cp AzookeyKanaKanjiConverter/.build/$TARGET/debug/AzooKeyKanakanjiConverterPackageTests.xctest pack
           echo 'adb shell /data/local/tmp/pack/AzooKeyKanakanjiConverterPackageTests.xctest' >> ~/test-toolchain.sh
 
