@@ -1,4 +1,8 @@
+#if canImport(llama)
 import llama
+#else
+import llama_mock
+#endif
 import SwiftUtils
 import HeapModule
 import Algorithms
