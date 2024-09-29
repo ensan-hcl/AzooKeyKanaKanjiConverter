@@ -264,7 +264,7 @@ jobs:
         run: |
           cd AzooKeyKanaKanjiConverter
           ${TOOLCHAIN}/bin/swift build --build-tests --destination ${ARCH_JSON} -Xlinker -rpath -Xlinker \$ORIGIN/lib/swift/android
-      - name: Get cached Termux debug app for NIO tests
+      - name: Get cached Termux debug app
         if: ${{ matrix.arch == 'x86_64' }}
         id: cache-termux
         uses: actions/cache@v4
@@ -291,7 +291,6 @@ jobs:
           echo 'adb shell /data/local/tmp/pack/AzooKeyKanakanjiConverterPackageTests.xctest' >> ~/test-toolchain.sh
 
           cp -r AzooKeyKanaKanjiConverter/.build/$TARGET/debug/AzooKeyKanakanjiConverter_KanaKanjiConverterModuleTests.resources pack
-          cp -r AzooKeyKanaKanjiConverter/.build/$TARGET/debug/AzooKeyKanakanjiConverter_KanaKanjiConverterModuleTests.resources/DictionaryMock pack
           cp -r AzooKeyKanaKanjiConverter/.build/$TARGET/debug/AzooKeyKanakanjiConverter_KanaKanjiConverterModuleWithDefaultDictionary.resources pack
 
           cp sdk-config/swift-*-android-x86_64-*${ANDROID_API_LEVEL}-sdk/usr/lib/lib*so pack/lib
