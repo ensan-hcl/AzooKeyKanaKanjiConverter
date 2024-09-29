@@ -2,6 +2,7 @@
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
+import Foundation
 
 let swiftSettings: [SwiftSetting] = [
     .enableUpcomingFeature("BareSlashRegexLiterals"),
@@ -94,35 +95,37 @@ targets.append(contentsOf: [
         swiftSettings: swiftSettings
     )
 ])
-#elseif (os(macOS) || os(iOS) || os(tvOS) || os(watchOS))
-dependencies.append(
-    .package(url: "https://github.com/ensan-hcl/llama.cpp", branch: "6b862f4")
-)
-
-targets.append(contentsOf: [
-    .target(
-        name: "KanaKanjiConverterModule",
-        dependencies: [
-            "SwiftUtils",
-            .product(name: "llama", package: "llama.cpp"),
-            .product(name: "Collections", package: "swift-collections")
-        ],
-        swiftSettings: swiftSettings
-    )
-])
 #else
-targets.append(contentsOf: [
-    .target(name: "llama-mock"),
-    .target(
-        name: "KanaKanjiConverterModule",
-        dependencies: [
-            "SwiftUtils",
-            "llama-mock",
-            .product(name: "Collections", package: "swift-collections")
-        ],
-        swiftSettings: swiftSettings
+if let envValue = ProcessInfo.processInfo.environment["MY_ENV_VAR"], envValue == "1" {
+    targets.append(contentsOf: [
+        .target(name: "llama-mock"),
+        .target(
+            name: "KanaKanjiConverterModule",
+            dependencies: [
+                "SwiftUtils",
+                "llama-mock",
+                .product(name: "Collections", package: "swift-collections")
+            ],
+            swiftSettings: swiftSettings
+        )
+    ])
+} else {
+    dependencies.append(
+        .package(url: "https://github.com/ensan-hcl/llama.cpp", branch: "6b862f4")
     )
-])
+
+    targets.append(contentsOf: [
+        .target(
+            name: "KanaKanjiConverterModule",
+            dependencies: [
+                "SwiftUtils",
+                .product(name: "llama", package: "llama.cpp"),
+                .product(name: "Collections", package: "swift-collections")
+            ],
+            swiftSettings: swiftSettings
+        )
+    ])
+}
 #endif
 
 let package = Package(
