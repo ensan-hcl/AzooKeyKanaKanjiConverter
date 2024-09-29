@@ -79,13 +79,6 @@ var targets: [Target] = [
 ]
 
 
-#if !(os(Windows) || canImport(Android))
-dependencies.append(
-    .package(url: "https://github.com/ensan-hcl/llama.cpp", branch: "6b862f4")
-)
-#endif
-
-
 #if os(Windows)
 targets.append(contentsOf: [
     .systemLibrary(
@@ -101,14 +94,17 @@ targets.append(contentsOf: [
         swiftSettings: swiftSettings
     )
 ])
-#elseif canImport(Android)
+#elseif (os(macOS) || os(iOS) || os(tvOS) || os(watchOS) || os(Linux))
+dependencies.append(
+    .package(url: "https://github.com/ensan-hcl/llama.cpp", branch: "6b862f4")
+)
+
 targets.append(contentsOf: [
-    .target(name: "llama-mock")
     .target(
         name: "KanaKanjiConverterModule",
         dependencies: [
             "SwiftUtils",
-            "llama-mock",
+            .product(name: "llama", package: "llama.cpp"),
             .product(name: "Collections", package: "swift-collections")
         ],
         swiftSettings: swiftSettings
@@ -116,11 +112,12 @@ targets.append(contentsOf: [
 ])
 #else
 targets.append(contentsOf: [
+    .target(name: "llama-mock")
     .target(
         name: "KanaKanjiConverterModule",
         dependencies: [
             "SwiftUtils",
-            .product(name: "llama", package: "llama.cpp"),
+            "llama-mock",
             .product(name: "Collections", package: "swift-collections")
         ],
         swiftSettings: swiftSettings
