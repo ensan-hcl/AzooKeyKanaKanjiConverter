@@ -4,9 +4,9 @@
 name: Swift Build and Test
 on:
   push:
-    branches: [ "main", "develop" ]
+    branches: ["main", "develop"]
   pull_request:
-    branches: [ "main", "develop" ]
+    branches: ["main", "develop"]
 
 jobs:
   macos-build:
@@ -17,24 +17,24 @@ jobs:
         os: [macos-latest]
         swift-version: ["5.9", "5.10"]
     steps:
-    - uses: swift-actions/setup-swift@v2
-      with:
-        swift-version: ${{ matrix.swift-version }}
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-    - name: Build
-      run: swift build -Xswiftc -strict-concurrency=complete -Xcxx -xobjective-c++ -v
-    - name: Run tests
-      run: swift test -c release -Xswiftc -strict-concurrency=complete -Xcxx -xobjective-c++ -v
+      - uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: ${{ matrix.swift-version }}
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Build
+        run: swift build -Xswiftc -strict-concurrency=complete -Xcxx -xobjective-c++ -v
+      - name: Run tests
+        run: swift test -c release -Xswiftc -strict-concurrency=complete -Xcxx -xobjective-c++ -v
   ubuntu-build:
-      name: Swift ${{ matrix.swift-version }} on ${{ matrix.os }}
-      runs-on: ${{ matrix.os }}
-      strategy:
-        matrix:
-          os: [ubuntu-latest]
-          swift-version: ["5.9", "5.10"]
-      steps:
+    name: Swift ${{ matrix.swift-version }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        swift-version: ["5.9", "5.10"]
+    steps:
       - uses: swift-actions/setup-swift@v2
         with:
           swift-version: ${{ matrix.swift-version }}
@@ -51,10 +51,11 @@ jobs:
     strategy:
       matrix:
         os: [windows-latest]
-        swift-version: [{
-          branch: "swift-6.0.1-release",
-          tag: "6.0.1-RELEASE"
-        }]
+        swift-version:
+          [{
+            branch: "swift-6.0.1-release",
+            tag: "6.0.1-RELEASE"
+          }]
     steps:
       - uses: compnerd/gha-setup-swift@main
         with:
@@ -81,7 +82,7 @@ jobs:
         run: swift test -c release -Xswiftc -strict-concurrency=complete -v
   android-build:
     name: Swift on Android
-    runs-on: {{ matrix.os }}
+    runs-on: { { matrix.os } }
     strategy:
       fail-fast: false
       matrix:
