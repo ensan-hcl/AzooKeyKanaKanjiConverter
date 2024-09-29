@@ -81,6 +81,7 @@ jobs:
       - name: Run tests
         run: swift test -c release -Xswiftc -strict-concurrency=complete -v
   android-build:
+    # from: finagolfin/swift-android-sdk
     name: Swift on android
     runs-on: ${{ matrix.os }}
     strategy:
