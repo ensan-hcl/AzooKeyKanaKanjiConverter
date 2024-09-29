@@ -79,7 +79,7 @@ var targets: [Target] = [
 ]
 
 
-#if !(os(Windows) || os(Android))
+#if !(os(Windows) || canImport(Android))
 dependencies.append(
     .package(url: "https://github.com/ensan-hcl/llama.cpp", branch: "6b862f4")
 )
@@ -101,7 +101,7 @@ targets.append(contentsOf: [
         swiftSettings: swiftSettings
     )
 ])
-#elseif os(Android)
+#elseif canImport(Android)
 targets.append(contentsOf: [
     .target(name: "llama-mock")
     .target(
