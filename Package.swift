@@ -94,7 +94,7 @@ targets.append(contentsOf: [
         swiftSettings: swiftSettings
     )
 ])
-#elseif (os(macOS) || os(iOS) || os(tvOS) || os(watchOS) || os(Linux))
+#elseif (os(macOS) || os(iOS) || os(tvOS) || os(watchOS))
 dependencies.append(
     .package(url: "https://github.com/ensan-hcl/llama.cpp", branch: "6b862f4")
 )
