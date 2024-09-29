@@ -112,7 +112,7 @@ targets.append(contentsOf: [
 ])
 #else
 targets.append(contentsOf: [
-    .target(name: "llama-mock")
+    .target(name: "llama-mock"),
     .target(
         name: "KanaKanjiConverterModule",
         dependencies: [
