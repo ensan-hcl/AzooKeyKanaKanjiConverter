@@ -34,7 +34,7 @@ extension Subcommands.Dict {
             abstract: "Read dictionary data and extract informations"
         )
 
-        @MainActor mutating func run() throws {
+        mutating func run() throws {
             guard #available(macOS 13, *) else {
                 return
             }
