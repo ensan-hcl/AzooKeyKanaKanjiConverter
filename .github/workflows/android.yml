@@ -6,8 +6,6 @@ on:
 jobs:
   get-latest-toolchain:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
     outputs:
       release-version: ${{ steps.check.outputs.release-tag }}
     steps:
