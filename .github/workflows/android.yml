@@ -295,7 +295,7 @@ jobs:
           mkdir -p pack/lib/swift/android
           TARGET="x86_64-unknown-linux-android$ANDROID_API_LEVEL"
 
-          ls AzooKeyKanaKanjiConverter/Tests/KanaKanjiConverterModuleTests
+          ls AzooKeyKanaKanjiConverter
 
           cp AzooKeyKanaKanjiConverter/Tests/KanaKanjiConverterModuleTests/DictionaryMock pack
 
