@@ -298,6 +298,11 @@ jobs:
           cp AzookeyKanaKanjiConverter/.build/$TARGET/debug/AzooKeyKanakanjiConverterPackageTests.xctest pack
           echo 'adb shell /data/local/tmp/pack/AzooKeyKanakanjiConverterPackageTests.xctest' >> ~/test-toolchain.sh
 
+          ls
+          ls AzooKeyKanaKanjiConverter
+          ls AzooKeyKanaKanjiConverter/Tests
+          ls AzooKeyKanaKanjiConverter/Tests/KanaKanjiConverterModuleTests
+          ls AzooKeyKanaKanjiConverter/Tests/KanaKanjiConverterModuleTests/DictionaryMock
           cp -r AzooKeyKanaKanjiConverter/Tests/KanaKanjiConverterModuleTests/DictionaryMock pack
 
           cp sdk-config/swift-*-android-x86_64-*${ANDROID_API_LEVEL}-sdk/usr/lib/lib*so pack/lib
