@@ -56,7 +56,7 @@ jobs:
         id: cache-toolchain
         uses: actions/cache/restore@v4
         with:
-          path: ~${{ steps.check.outputs.release-tag }}-ubuntu22.04.tar.gz
+          path: ~/${{ steps.check.outputs.release-tag }}-ubuntu22.04.tar.gz
           key: swift-ubuntu-22.04-${{ steps.check.outputs.release-tag }}-toolchain
           fail-on-cache-miss: true
       - name: Setup Swift Toolchain
