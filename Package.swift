@@ -101,6 +101,19 @@ targets.append(contentsOf: [
         swiftSettings: swiftSettings
     )
 ])
+#elseif os(Android)
+targets.append(contentsOf: [
+    .target(name: "llama-mock")
+    .target(
+        name: "KanaKanjiConverterModule",
+        dependencies: [
+            "SwiftUtils",
+            "llama-mock",
+            .product(name: "Collections", package: "swift-collections")
+        ],
+        swiftSettings: swiftSettings
+    )
+])
 #else
 targets.append(contentsOf: [
     .target(

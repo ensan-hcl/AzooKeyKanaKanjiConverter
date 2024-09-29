@@ -199,13 +199,6 @@ jobs:
           ARCH_JSON=${SDK_PATH}/usr/swiftpm-android-${{ matrix.arch }}.json
           NDK_PREBUILT=${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64
 
-          jq \
-            --arg ndk_prebuilt "$NDK_PREBUILT" \
-            '.["extra-cc-flags"] += ["-I\($ndk_prebuilt)/lib/clang/18/include"] |
-            .["extra-swiftc-flags"] += ["-Xcc", "-I\($ndk_prebuilt)/lib/clang/18/include"]' \
-            ${ARCH_JSON} > temp.json && mv temp.json ${ARCH_JSON}
-
-          ls ${NDK_PREBUILT}/lib/clang/
           cat ${ARCH_JSON}
 
           echo "SDK_PATH=${SDK_PATH}" >> $GITHUB_ENV
