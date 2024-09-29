@@ -51,9 +51,10 @@ jobs:
     strategy:
       matrix:
         os: [windows-latest]
-        swift-version: 
-          - branch: "swift-6.0.1-release"
-            tag: "6.0.1-RELEASE"
+        swift-version: [{
+          branch: "swift-6.0.1-release",
+          tag: "6.0.1-RELEASE"
+        }]
     steps:
       - uses: compnerd/gha-setup-swift@main
         with:
