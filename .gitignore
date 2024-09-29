@@ -20,3 +20,5 @@ Package.resolved
 *.gguf
 *.dll
 *.lib
+swift-*
+android-*

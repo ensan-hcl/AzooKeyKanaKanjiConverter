@@ -79,11 +79,11 @@ var targets: [Target] = [
 ]
 
 
-#if !(os(Windows))
-dependencies.append(
-    .package(url: "https://github.com/ensan-hcl/llama.cpp", branch: "6b862f4")
-)
-#endif
+// #if !(os(Windows))
+// dependencies.append(
+//     .package(url: "https://github.com/ensan-hcl/llama.cpp", branch: "6b862f4")
+// )
+// #endif
 
 
 #if os(Windows)
@@ -107,7 +107,7 @@ targets.append(contentsOf: [
         name: "KanaKanjiConverterModule",
         dependencies: [
             "SwiftUtils",
-            .product(name: "llama", package: "llama.cpp"),
+            // .product(name: "llama", package: "llama.cpp"),
             .product(name: "Collections", package: "swift-collections")
         ],
         swiftSettings: swiftSettings
@@ -117,7 +117,7 @@ targets.append(contentsOf: [
 
 let package = Package(
     name: "AzooKeyKanakanjiConverter",
-    platforms: [.iOS(.v14), .macOS(.v12)],
+    // platforms: [.iOS(.v14), .macOS(.v12)],
     products: [
         // Products define the executables and libraries a package produces, and make them visible to other packages.
         .library(
