@@ -295,8 +295,8 @@ jobs:
           mkdir -p pack/lib/swift/android
           TARGET="x86_64-unknown-linux-android$ANDROID_API_LEVEL"
 
-          cp AzooKeyKanaKanjiConverter/.build/$TARGET/debug/AzooKeyKanaKanjiConverterPackageTests.xctest pack
-          echo 'adb shell /data/local/tmp/pack/AzooKeyKanaKanjiConverterPackageTests.xctest' >> ~/test-toolchain.sh
+          cp AzooKeyKanaKanjiConverter/.build/$TARGET/debug/AzooKeyKanakanjiConverterPackageTests.xctest pack
+          echo 'adb shell /data/local/tmp/pack/AzooKeyKanakanjiConverterPackageTests.xctest' >> ~/test-toolchain.sh
 
           cp -r AzooKeyKanaKanjiConverter/Tests/KanaKanjiConverterModuleTests/DictionaryMock pack
 
