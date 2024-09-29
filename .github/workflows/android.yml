@@ -290,8 +290,8 @@ jobs:
           cp AzooKeyKanaKanjiConverter/.build/$TARGET/debug/AzooKeyKanakanjiConverterPackageTests.xctest pack
           echo 'adb shell /data/local/tmp/pack/AzooKeyKanakanjiConverterPackageTests.xctest' >> ~/test-toolchain.sh
 
-          cp -r AzooKeyKanaKanjiConverter/.build/$TARGET/debug/AzooKeyKanakanjiConverter_KanaKanjiConverterModuleTests.resources pack
-          cp -r AzooKeyKanaKanjiConverter/.build/$TARGET/debug/AzooKeyKanakanjiConverter_KanaKanjiConverterModuleWithDefaultDictionary.resources pack
+          cp -r AzooKeyKanaKanjiConverter/.build/$TARGET/debug/AzooKeyKanakanjiConverter_KanaKanjiConverterModuleTests.resources/DictionaryMock pack
+          cp -r AzooKeyKanaKanjiConverter/.build/$TARGET/debug/AzooKeyKanakanjiConverter_KanaKanjiConverterModuleWithDefaultDictionary.resources/Dictionary pack
 
           cp sdk-config/swift-*-android-x86_64-*${ANDROID_API_LEVEL}-sdk/usr/lib/lib*so pack/lib
           cp sdk-config/swift-*-android-x86_64-*${ANDROID_API_LEVEL}-sdk/usr/lib/swift/android/lib*so pack/lib/swift/android

@@ -32,7 +32,6 @@ final class ConverterTests: XCTestCase {
 
     // 変換されてはいけないケースを示す
     func testMustNotCases() async throws {
-        print(Bundle(for: type(of: self)).bundleURL.appendingPathComponent("DictionaryMock", isDirectory: true))
         do {
             // 改行文字に対して本当に改行が入ってしまうケース
             let converter = await KanaKanjiConverter()
