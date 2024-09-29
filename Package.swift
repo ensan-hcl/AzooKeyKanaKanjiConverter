@@ -79,7 +79,7 @@ var targets: [Target] = [
 ]
 
 
-#if !(os(Windows))
+#if !(os(Windows) || os(Android))
 dependencies.append(
     .package(url: "https://github.com/ensan-hcl/llama.cpp", branch: "6b862f4")
 )
