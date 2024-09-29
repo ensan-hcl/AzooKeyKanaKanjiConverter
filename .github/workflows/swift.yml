@@ -130,6 +130,7 @@ jobs:
           repository: finagolfin/swift-android-sdk
           path: sdk-config
       - name: Get cached ${{ steps.check.outputs.release-tag }} toolchain
+        if: ${{ steps.cache-toolchain-ubuntu.outputs.cache-hit == 'true' }}
         id: cache-toolchain
         uses: actions/cache/restore@v4
         with:
