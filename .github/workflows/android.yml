@@ -282,14 +282,6 @@ jobs:
           cat > ~/test-toolchain.sh << EOF
           adb install ~/termux-debug.apk
           adb push pack /data/local/tmp
-          adb shell "run-as com.termux mkdir /data/data/com.termux/pack"
-          adb shell "run-as com.termux cp /data/local/tmp/pack/{swift-nioPackageTests.xctest,FileHandleTests.swift} /data/data/com.termux/pack"
-          adb shell "run-as com.termux cp -r /data/local/tmp/pack/lib /data/data/com.termux/pack"
-          adb shell "run-as com.termux cp -r /data/local/tmp/pack/Test\ Data /data/data/com.termux/pack"
-          adb shell "run-as com.termux ln -s README.md /data/data/com.termux/pack/Test\ Data/README.md.symlink"
-          adb shell "run-as com.termux ln -s Foo /data/data/com.termux/pack/Test\ Data/Foo.symlink"
-          adb shell "run-as com.termux sh -c 'TMPDIR=/data/data/com.termux /data/data/com.termux/pack/swift-nioPackageTests.xctest'"
-          adb shell "TMPDIR=/data/local/tmp /data/local/tmp/pack/swift-systemPackageTests.xctest"
           EOF
 
           mkdir -p pack/lib/swift/android
@@ -298,7 +290,8 @@ jobs:
           cp AzooKeyKanaKanjiConverter/.build/$TARGET/debug/AzooKeyKanakanjiConverterPackageTests.xctest pack
           echo 'adb shell /data/local/tmp/pack/AzooKeyKanakanjiConverterPackageTests.xctest' >> ~/test-toolchain.sh
 
-          cp -r AzooKeyKanaKanjiConverter/Tests/KanaKanjiConverterModuleTests/DictionaryMock pack
+          cp -r AzooKeyKanaKanjiConverter/.build/$TARGET/debug/AzooKeyKanakanjiConverter_KanaKanjiConverterModuleTests.resources pack
+          cp -r AzooKeyKanaKanjiConverter/.build/$TARGET/debug/AzooKeyKanakanjiConverter_KanaKanjiConverterModuleWithDefaultDictionary.resources pack
 
           cp sdk-config/swift-*-android-x86_64-*${ANDROID_API_LEVEL}-sdk/usr/lib/lib*so pack/lib
           cp sdk-config/swift-*-android-x86_64-*${ANDROID_API_LEVEL}-sdk/usr/lib/swift/android/lib*so pack/lib/swift/android
