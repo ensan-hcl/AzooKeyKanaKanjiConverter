@@ -1,13 +1,20 @@
 name: SDKs
+
 on:
   push:
   workflow_dispatch:
 
 jobs:
-  get-latest-toolchain:
-    runs-on: ubuntu-latest
-    outputs:
-      release-version: ${{ steps.check.outputs.release-tag }}
+  build-sdk-and-tests:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64, aarch64, armv7]
+
+    env:
+      ANDROID_API_LEVEL: 24
+
     steps:
       - name: Check for latest Swift toolchain
         id: check
@@ -27,40 +34,25 @@ jobs:
         id: download
         if: ${{ steps.cache-toolchain-ubuntu.outputs.cache-hit != 'true' }}
         run: |
-          SWIFT_TAG="${{ steps.check.outputs.latest-tag }}"
-          SWIFT_BRANCH="swift-$(echo ${{ steps.check.outputs.release-tag }} | cut -d- -f2)-release"
+          SWIFT_TAG="${{ steps.check.outputs.release-tag }}"
+          SWIFT_BRANCH="swift-$(echo $SWIFT_TAG | cut -d- -f2)-release"
           cd
           wget -q https://download.swift.org/$SWIFT_BRANCH/ubuntu2204/$SWIFT_TAG/$SWIFT_TAG-ubuntu22.04.tar.gz
           echo "downloaded latest Ubuntu toolchain: ${SWIFT_TAG}"
-  build-sdk-and-tests:
-    runs-on: ubuntu-22.04
-    needs: get-latest-toolchain
-    strategy:
-      fail-fast: false
-      matrix:
-        version: [release]
-        arch: [x86_64, aarch64, armv7]
 
-    env:
-      ANDROID_API_LEVEL: 24
-    steps:
-      - name: Extract the latest version string
-        id: version
-        run: |
-          TAG="${{ needs.get-latest-toolchain.outputs.release-version }}"
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
       - name: Get cached SDK
         id: cache-sdk
         uses: actions/cache/restore@v4
         with:
-          path: ~/swift-${{ matrix.version }}-android-${{ matrix.arch }}-*-sdk.tar.xz
-          key: ${{ steps.version.outputs.tag }}-${{ matrix.arch }}-ndk-27b-sdk
-      - name: Clone
+          path: ~/swift-release-android-${{ matrix.arch }}-*-sdk.tar.xz
+          key: ${{ steps.check.outputs.release-tag }}-${{ matrix.arch }}-ndk-27b-sdk
+
+      - name: Clone SDK config
         uses: actions/checkout@v4
         with:
           repository: finagolfin/swift-android-sdk
           path: sdk-config
-      - name: Get cached ${{ steps.version.outputs.tag }} toolchain
+      - name: Get cached ${{ steps.check.outputs.release-tag }} toolchain
         id: cache-toolchain
         uses: actions/cache/restore@v4
         with:
@@ -68,24 +60,22 @@ jobs:
           key: swift-ubuntu-22.04-${{ steps.version.outputs.tag }}-toolchain
           fail-on-cache-miss: true
       - name: Setup Swift Toolchain
-        env:
-          SWIFT_TAG: ${{ steps.version.outputs.tag }}
         run: |
           set -x
           cd sdk-config
-          tar xf ~/$SWIFT_TAG-ubuntu22.04.tar.gz
-          TOOLCHAIN=${PWD}/$SWIFT_TAG-ubuntu22.04/usr
+          tar xf ~/${{ steps.check.outputs.release-tag }}-ubuntu22.04.tar.gz
+          TOOLCHAIN=${PWD}/${{ steps.check.outputs.release-tag }}-ubuntu22.04/usr
           perl -pi -e 's%canImport\(Bionic%canImport\(Android%' $TOOLCHAIN/bin/swift-package
           perl -pi -e 's%import Bionic%import Android%' $TOOLCHAIN/bin/swift-package
           perl -pi -e 's%TSCBasic, would be%TSCBasic, would %' $TOOLCHAIN/bin/swift-package
           echo "TOOLCHAIN=${TOOLCHAIN}" >> $GITHUB_ENV
           ${TOOLCHAIN}/bin/swift --version
 
-      - name: Build Swift ${{ matrix.version }} Android SDK if not the latest
+      - name: Build Swift release Android SDK if not cached
         # build-script currently only works on ubuntu
         if: ${{ (steps.cache-sdk.outputs.cache-hit != 'true') }}
         env:
-          SWIFT_TAG: ${{ steps.version.outputs.tag }}
+          SWIFT_TAG: ${{ steps.check.outputs.release-tag }}
           ANDROID_ARCH: ${{ matrix.arch }}
         run: |
           set -x
@@ -111,18 +101,18 @@ jobs:
           tar cJf ~/$SDK_NAME.tar.xz $SDK_NAME
           rm -rf build/ $SDK_NAME llvm-project/
 
-      - name: Cache new SDK on linux
+      - name: Cache new SDK
         if: ${{ (steps.cache-sdk.outputs.cache-hit != 'true') }}
         uses: actions/cache/save@v4
         with:
-          path: ~/swift-${{ matrix.version }}-android-${{ matrix.arch }}-*-sdk.tar.xz
-          key: ${{ steps.version.outputs.tag }}-${{ matrix.arch }}-ndk-27b-sdk
-      - name: Setup Swift ${{ matrix.version }} Android SDK
+          path: ~/swift-release-android-${{ matrix.arch }}-*-sdk.tar.xz
+          key: ${{ steps.check.outputs.release-tag }}-${{ matrix.arch }}-ndk-27b-sdk
+      - name: Setup Swift release Android SDK
         id: sdk-setup
         run: |
           set -x
           cd sdk-config
-          tar xf ~/swift-${{ matrix.version }}-android-${{ matrix.arch }}*-sdk.tar.xz
+          tar xf ~/swift-release-android-${{ matrix.arch }}*-sdk.tar.xz
           pushd swift-*-sdk
           SDK_PATH=${PWD}
           popd
@@ -176,7 +166,7 @@ jobs:
           mv pack/lib/libc++_shared.so pack/lib/swift/android
           # need to free up some space or else the emulator fails to launch:
           # ERROR   | Not enough space to create userdata partition. Available: 6086.191406 MB at /home/runner/.android/avd/../avd/test.avd, need 7372.800000 MB.
-          rm -rf sdk-config/${{ steps.version.outputs.tag }}-ubuntu22.04 */.build
+          rm -rf sdk-config/${{ steps.check.outputs.release-tag }}-ubuntu22.04 */.build
 
           chmod +x ~/test-toolchain.sh
 
