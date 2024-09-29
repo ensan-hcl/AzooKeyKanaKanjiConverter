@@ -81,7 +81,7 @@ jobs:
       - name: Run tests
         run: swift test -c release -Xswiftc -strict-concurrency=complete -v
   android-build:
-    name: Swift on Android
+    name: Swift on android
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -111,7 +111,7 @@ jobs:
         id: download
         if: ${{ steps.cache-toolchain-ubuntu.outputs.cache-hit != 'true' }}
         run: |
-          SWIFT_TAG="${{ steps.check.outputs.latest-tag }}"
+          SWIFT_TAG="${{ steps.check.outputs.release-tag }}"
           SWIFT_BRANCH="swift-$(echo ${{ steps.check.outputs.release-tag }} | cut -d- -f2)-release"
           cd
           wget -q https://download.swift.org/$SWIFT_BRANCH/ubuntu2204/$SWIFT_TAG/$SWIFT_TAG-ubuntu22.04.tar.gz
