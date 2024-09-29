@@ -46,16 +46,15 @@ jobs:
       - name: Run tests
         run: swift test -c release -Xswiftc -strict-concurrency=complete -v
   windows-build:
-      name: Swift ${{ matrix.swift-version.tag }} on ${{ matrix.os }}
-      runs-on: ${{ matrix.os }}
-      strategy:
-        matrix:
-          os: [windows-latest]
-          swift-version: [{
-            branch: "swift-6.0.1-release",
+    name: Swift ${{ matrix.swift-version.tag }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest]
+        swift-version: 
+          - branch: "swift-6.0.1-release"
             tag: "6.0.1-RELEASE"
-          }]
-      steps:
+    steps:
       - uses: compnerd/gha-setup-swift@main
         with:
           branch: ${{ matrix.swift-version.branch }}
@@ -199,7 +198,7 @@ jobs:
 
           echo "SDK_PATH=${SDK_PATH}" >> $GITHUB_ENV
           echo "ARCH_JSON=${ARCH_JSON}" >> $GITHUB_ENV
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           path: AzooKeyKanaKanjiConverter
           submodules: true
