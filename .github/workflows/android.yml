@@ -1,6 +1,7 @@
 name: SDKs
 on:
-  p
+  push:
+  workflow_dispatch:
 
 jobs:
   get-latest-toolchain:
