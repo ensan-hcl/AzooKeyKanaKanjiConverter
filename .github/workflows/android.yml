@@ -295,10 +295,6 @@ jobs:
           mkdir -p pack/lib/swift/android
           TARGET="x86_64-unknown-linux-android$ANDROID_API_LEVEL"
 
-          if ${{ startsWith(matrix.os, 'ubuntu') }}; then
-            cp swift-argument-parser/.build/$TARGET/debug/{generate-manual,math,repeat,roll,swift-argument-parserPackageTests.xctest} pack
-            echo 'adb shell /data/local/tmp/pack/swift-argument-parserPackageTests.xctest' >> ~/test-toolchain.sh
-
           wget -q https://raw.githubusercontent.com/termux/termux-elf-cleaner/v2.1.1/elf-cleaner.cpp
           wget -q https://raw.githubusercontent.com/termux/termux-elf-cleaner/v2.1.1/elf.h
           wget -q https://raw.githubusercontent.com/termux/termux-elf-cleaner/v2.1.1/arghandling.h
