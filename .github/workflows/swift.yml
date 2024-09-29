@@ -80,6 +80,7 @@ jobs:
       - name: Run tests
         run: swift test -c release -Xswiftc -strict-concurrency=complete -v
   android-build:
+    name: Swift on Android
     runs-on: {{ matrix.os }}
     strategy:
       fail-fast: false
