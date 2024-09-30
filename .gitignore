@@ -18,3 +18,5 @@ Package.resolved
 .docc-build
 .vscode
 *.gguf
+*.dll
+*.lib
