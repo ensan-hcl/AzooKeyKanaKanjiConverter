@@ -13,7 +13,8 @@ extension LOUDS {
     // MARK: - Unaligned-safe little-endian readers
     @inline(__always)
     private static func byte(_ data: borrowing Data, _ offset: Int) -> UInt8 {
-        data[data.index(data.startIndex, offsetBy: offset)]
+        guard offset >= 0, offset < data.count else { return 0 }
+        return data[data.index(data.startIndex, offsetBy: offset)]
     }
 
     @inline(__always)
