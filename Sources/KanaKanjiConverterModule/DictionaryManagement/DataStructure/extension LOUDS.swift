@@ -132,6 +132,13 @@ extension LOUDS {
                     let isFirstField = (rangeStart == strStart)
                     let isEmptyField = (length == 0)
 
+                    // Corrupted files may contain more tab-separated fields than
+                    // declared entries. Writing to dicdata[i] out of bounds traps
+                    // (SIGILL); stop parsing instead.
+                    guard i < dicdata.count else {
+                        return
+                    }
+
                     if isFirstField {
                         let rb = UnsafeBufferPointer(start: ptr + startInt, count: length)
                         ruby = String(decoding: rb, as: UTF8.self)
