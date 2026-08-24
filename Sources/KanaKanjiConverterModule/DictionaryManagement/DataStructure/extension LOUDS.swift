@@ -218,12 +218,18 @@ extension LOUDS {
         var out: [DicdataElement] = []
         out.reserveCapacity(indices.count * 2) // rough guess
         for idx in indices {
+            // Guard against corrupted / out-of-range entries:
+            // An out-of-bounds subscript on Data traps (SIGILL via ud2) and kills
+            // the whole process (e.g. hazkey-server), so skip invalid indices and
+            // inverted ranges instead of trapping.
+            guard idx >= 0, idx < lc else { continue }
             let start = Int(readUInt32LE(binary, 2 + idx * 4))
             let end: Int = if idx == (lc - 1) {
                 binary.endIndex
             } else {
                 Int(readUInt32LE(binary, 2 + (idx + 1) * 4))
             }
+            guard start < end, end <= binary.count, start >= 2 + lc * 4 else { continue }
             out.append(contentsOf: parseBinary(binary: binary[start ..< end]))
         }
         return out
